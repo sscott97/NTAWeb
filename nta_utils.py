@@ -22,7 +22,7 @@ def load_template_path():
             config = json.load(f)
             rel_path = config.get("template_path")
             if rel_path:
-                abs_path = os.path.join(BASE_DIR, rel_path)
+                abs_path = os.path.abspath(rel_path)
                 if os.path.exists(abs_path):
                     return abs_path
     raise FileNotFoundError("No valid template path found in config.json.")
