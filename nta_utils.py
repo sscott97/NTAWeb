@@ -20,12 +20,13 @@ def load_template_path():
     if os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE, "r") as f:
             config = json.load(f)
-            rel_path = config.get("Templates/NTA_Template.xlsx")
+            rel_path = config.get("template_path")
             if rel_path:
                 abs_path = os.path.join(BASE_DIR, rel_path)
                 if os.path.exists(abs_path):
                     return abs_path
     return ""
+
 
 # ------------------- SETTINGS -------------------
 def load_settings():
