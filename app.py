@@ -15,6 +15,8 @@ from nta_utils import (
 UPLOAD_FOLDER = os.path.join("static", "uploads")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+
+
 app = Flask(__name__)
 app.secret_key = "your-secret-key"
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER

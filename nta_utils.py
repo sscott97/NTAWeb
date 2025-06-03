@@ -12,7 +12,7 @@ SETTINGS_FILE = os.path.join(BASE_DIR, "settings.json")
 # ------------------- TEMPLATE PATH -------------------
 def save_template_path(path):
     rel_path = os.path.relpath(path, BASE_DIR)
-    config = {"Templates/NTA_Template.xlsx": rel_path}
+    config = {"template_path": rel_path}
     with open(CONFIG_FILE, "w") as f:
         json.dump(config, f)
 
@@ -20,12 +20,13 @@ def load_template_path():
     if os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE, "r") as f:
             config = json.load(f)
-            rel_path = config.get("template_path")
-            if rel_path:
+            # Match the key you used in save_template_path
+            for rel_path in config.values():
                 abs_path = os.path.join(BASE_DIR, rel_path)
                 if os.path.exists(abs_path):
                     return abs_path
-    return ""
+    raise FileNotFoundError("No valid template path found in config.json.")
+
 
 
 # ------------------- SETTINGS -------------------
