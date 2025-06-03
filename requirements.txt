@@ -1,0 +1,5 @@
+flask
+uuid
+pandas
+xlwings
+openpyxl
