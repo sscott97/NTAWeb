@@ -137,8 +137,9 @@ def process_8x12_blocks_with_template(csv_path, template_path, output_path, num_
 
 # ------------------- FINAL TITRES -------------------
 def extract_final_titres_xlwings(output_path):
-    app = xw.App(visible=False)
+    app = None
     try:
+        app = xw.App(visible=False)
         wb = app.books.open(output_path)
         if "Summary" not in [s.name for s in wb.sheets]:
             summary = wb.sheets.add("Summary")
