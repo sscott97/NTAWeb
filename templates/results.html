@@ -1,0 +1,42 @@
+{% extends 'layout.html' %}
+{% block title %}Results - NTA{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <h3 class="text-center text-success mb-4">Processing Complete</h3>
+
+  <div class="mb-3">
+    <a href="{{ url_for('download', filename=excel_file) }}" class="btn btn-outline-primary w-100">📥 Download Processed Excel</a>
+  </div>
+
+  {% if plot_file %}
+    <div class="mb-3">
+      <a href="{{ url_for('download', filename=plot_file) }}" class="btn btn-outline-success w-100">🖼️ Download Generated Graph</a>
+      <div class="text-center mt-3">
+        <img src="{{ url_for('static', filename='uploads/' + plot_file) }}" class="img-fluid" style="max-height: 500px;">
+      </div>
+    </div>
+  {% else %}
+    <form action="{{ url_for('generate_graphs') }}" method="post">
+      <input type="hidden" name="excel_file" value="{{ excel_file }}">
+
+      <div class="form-check form-switch mb-3">
+        <input class="form-check-input" type="checkbox" id="include_timestamp" name="include_timestamp" checked>
+        <label class="form-check-label" for="include_timestamp">Include timestamp in plot title</label>
+      </div>
+
+      <div class="row mb-3">
+        {% for q in ['Q1', 'Q2', 'Q3', 'Q4'] %}
+        <div class="col-md-3">
+          <label for="{{ q }}_color" class="form-label">{{ q }} Color</label>
+          <input type="color" class="form-control form-control-color" name="{{ q }}_color" id="{{ q }}_color"
+                 value="{{ settings[q + '_color'] }}">
+        </div>
+        {% endfor %}
+      </div>
+
+      <button type="submit" class="btn btn-success w-100">📊 Generate Graph</button>
+    </form>
+  {% endif %}
+</div>
+{% endblock %}

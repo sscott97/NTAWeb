@@ -1,0 +1,60 @@
+{% extends 'layout.html' %}
+{% block title %}Neutralising Titre Automator{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2 class="text-center text-success mb-4">Neutralising Titre Automator</h2>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <form action="{{ url_for('process') }}" method="post" enctype="multipart/form-data">
+    <div class="mb-3">
+      <label for="csv_file" class="form-label">Upload CSV File</label>
+      <input type="file" name="csv_file" id="csv_file" class="form-control" accept=".csv" required>
+    </div>
+
+    <div class="mb-3">
+      <label for="assay_title" class="form-label">Assay Title</label>
+      <input type="text" name="assay_title" id="assay_title" class="form-control">
+    </div>
+
+    <div class="mb-3">
+      <label for="num_pseudotypes" class="form-label">Pseudotypes per Plate</label>
+      <select name="num_pseudotypes" id="num_pseudotypes" class="form-select" required>
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+      </select>
+    </div>
+
+    <div class="mb-3">
+      <label for="pseudotype_text" class="form-label">Pseudotype(s)</label>
+      <input type="text" name="pseudotype_text" id="pseudotype_text" class="form-control" placeholder="e.g. Alpha, Beta">
+    </div>
+
+    <div class="mb-3">
+      <label for="sample_id_text" class="form-label">Sample ID(s)</label>
+      <input type="text" name="sample_id_text" id="sample_id_text" class="form-control" placeholder="e.g. Sample 1, Sample 2">
+    </div>
+
+    <button type="submit" class="btn btn-success w-100">🚀 Process File 🚀</button>
+  </form>
+
+  <hr class="my-4">
+
+  <div class="d-flex justify-content-between">
+    <a href="{{ url_for('help_page') }}" class="btn btn-outline-info">Help</a>
+    <a href="{{ url_for('settings') }}" class="btn btn-outline-secondary">Settings</a>
+  </div>
+</div>
+{% endblock %}
