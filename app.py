@@ -3,6 +3,7 @@ import os
 import uuid
 import subprocess
 
+
 from nta_utils import (
     process_8x12_blocks_with_template,
     extract_final_titres_xlwings,

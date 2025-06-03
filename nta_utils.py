@@ -15,13 +15,13 @@ def save_template_path(path):
     config = {"template_path": rel_path}
     with open(CONFIG_FILE, "w") as f:
         json.dump(config, f)
-
+        
 def load_template_path():
     if os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE, "r") as f:
             config = json.load(f)
-            # Match the key you used in save_template_path
-            for rel_path in config.values():
+            rel_path = config.get("template_path")
+            if rel_path:
                 abs_path = os.path.join(BASE_DIR, rel_path)
                 if os.path.exists(abs_path):
                     return abs_path
