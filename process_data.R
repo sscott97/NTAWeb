@@ -35,13 +35,13 @@ if (!file.exists(excel_file)) {
 
 # Get all sheet names
 sheets <- excel_sheets(excel_file)
-plate_sheets <- sheets[grepl("^Plate \\d+$", sheets)]  # Ensure it matches "Plate X" exactly
+plate_sheets <- sheets[grepl("^Plate\\d+$", sheets)]
 
 # Debugging print
 print(paste("Detected Plate Sheets:", paste(plate_sheets, collapse=", ")))
 
 # Extract numeric parts
-plate_numbers <- as.numeric(gsub("^Plate ", "", plate_sheets))  # Extract only numbers
+plate_numbers <- as.numeric(gsub("^Plate\\s*", "", plate_sheets))
 
 # Debugging print
 print(paste("Extracted Plate Numbers:", paste(plate_numbers, collapse=", ")))
@@ -65,6 +65,9 @@ if (length(plate_sheets) == 0) {
 process_plate <- function(sheet_name) {
     data <- read_excel(excel_file, sheet = sheet_name, range = "B5:M12", col_names = FALSE)
     
+    # Convert all data cells to numeric, coercing any text to NA
+    data[] <- lapply(data, function(x) as.numeric(x))
+    
     dilutions <- c(50, 150, 450, 1350, 4050, 12150, 36450, 0)
     
     Titration <- list(
@@ -87,6 +90,7 @@ process_plate <- function(sheet_name) {
     
     return(plot_data)
 }
+
 
 # Process all plates
 all_data <- bind_rows(lapply(plate_sheets, process_plate))

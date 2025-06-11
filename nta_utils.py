@@ -150,6 +150,10 @@ def extract_final_titres_openpyxl(output_path):
         "NT 50% Replicate 1", "NT 50% Replicate 2", "NT 50% Replicate 3", "NT 50%"
     ])
 
+    for col in range(1, 12):  # 11 headers, columns 1 to 11
+        cell = summary_ws.cell(row=1, column=col)
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+
     # Define cell addresses on the plate sheets
     nt90_cells = [
         ["B14", "C14", "D14"],
@@ -165,8 +169,8 @@ def extract_final_titres_openpyxl(output_path):
     ]
     pseudotype_cells = ["B3", "E3", "H3", "K3"]
     sample_id_cells = ["B4", "E4", "H4", "K4"]
-    nt90_avg_cells = ["D14", "G14", "J14", "M14"]
-    nt50_avg_cells = ["D16", "G16", "J16", "M16"]
+    nt90_avg_cells = ["C19", "F19", "I19", "L19"]
+    nt50_avg_cells = ["C21", "F21", "I21", "L21"]
 
     for sheet_name in wb.sheetnames:
         if not sheet_name.startswith("Plate"):
@@ -174,7 +178,8 @@ def extract_final_titres_openpyxl(output_path):
 
         for i in range(4):  # For up to 4 pseudotypes
             pt_formula = f"={sheet_name}!{pseudotype_cells[i]}"
-            sid_formula = f"={sheet_name}!{sample_id_cells[i]}"
+            sid_cell = sample_id_cells[i]
+            sid_formula = f'=IF(TRIM({sheet_name}!{sid_cell})="", "Unlabelled", {sheet_name}!{sid_cell})'
             nt90_formulas = [f"={sheet_name}!{cell}" for cell in nt90_cells[i]]
             nt90_avg = f"={sheet_name}!{nt90_avg_cells[i]}"
             nt50_formulas = [f"={sheet_name}!{cell}" for cell in nt50_cells[i]]
