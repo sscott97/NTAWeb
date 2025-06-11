@@ -1,211 +1,259 @@
 import os
 import json
-import pandas as pd
+import csv
+import openpyxl
+from openpyxl.styles import Alignment
+from openpyxl.utils import get_column_letter
 from openpyxl import load_workbook
-import xlwings as xw
-from uuid import uuid4
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
-SETTINGS_FILE = os.path.join(BASE_DIR, "settings.json")
 
-# ------------------- TEMPLATE PATH -------------------
-def save_template_path(path):
-    rel_path = os.path.relpath(path, BASE_DIR)
-    config = {"template_path": rel_path}
-    with open(CONFIG_FILE, "w") as f:
-        json.dump(config, f)
-        
-def load_template_path():
-    if os.path.exists(CONFIG_FILE):
-        with open(CONFIG_FILE, "r") as f:
-            config = json.load(f)
-            rel_path = config.get("template_path")
-            if rel_path:
-                abs_path = os.path.join(BASE_DIR, rel_path)
-                if os.path.exists(abs_path):
-                    return abs_path
-    return ""
+# Load config on module load
+CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
+SETTINGS_PATH = os.path.join(BASE_DIR, "settings.json")
+
+def load_config():
+    if os.path.exists(CONFIG_PATH):
+        with open(CONFIG_PATH, "r") as f:
+            return json.load(f)
+    return {}
+
+config = load_config()
+
+TEMPLATE_PATH = os.path.join(BASE_DIR, config.get("template_path", ""))
+
+def load_csv_blocks(csv_path):
+    blocks = []
+    current_block = []
+    with open(csv_path, newline='') as f:
+        reader = csv.reader(f)
+        for row in reader:
+            # Detect blank line = new block
+            if not any(cell.strip() for cell in row):
+                if current_block:
+                    blocks.append(current_block)
+                    current_block = []
+            else:
+                # Limit columns to first 12
+                current_block.append(row[:12])
+        if current_block:
+            blocks.append(current_block)
+    return blocks
+
+def process_csv_to_template(
+    csv_path,
+    template_path,
+    output_path,
+    num_pseudotypes,
+    pseudotype_texts,
+    assay_title_text,
+    sample_id_text
+):
+    blocks = load_csv_blocks(csv_path)
+    if not os.path.exists(template_path):
+        raise FileNotFoundError(f"Template not found at {template_path}")
+
+    wb = openpyxl.load_workbook(template_path)
+    template_sheet = wb.active
+
+    # Split pseudotypes and sample_ids properly by line or comma, strip spaces
+    pseudotype_list = [pt.strip() for line in pseudotype_texts.splitlines() for pt in line.split(",") if pt.strip()]
+    sample_id_list = [sid.strip() for line in sample_id_text.splitlines() for sid in line.split(",") if sid.strip()]
 
 
-# ------------------- SETTINGS -------------------
-def load_settings():
-    default_settings = {
-        "timestamp_in_title": True,
-        "Q1_color": "#ff0000",
-        "Q2_color": "#0000ff",
-        "Q3_color": "#00ff00",
-        "Q4_color": "#800080",
-        "presets": {}
-    }
-    if os.path.exists(SETTINGS_FILE):
-        with open(SETTINGS_FILE, "r") as f:
-            try:
-                settings = json.load(f)
-                return {**default_settings, **settings}
-            except json.JSONDecodeError:
-                return default_settings
-    return default_settings
+    sample_index = 0
 
-def save_settings(data):
-    with open(SETTINGS_FILE, "w") as f:
-        json.dump(data, f, indent=4)
+    for i, block in enumerate(blocks):
+        sheet_title = f"Plate{i+1}"
+        new_sheet = wb.copy_worksheet(template_sheet)
+        new_sheet.title = sheet_title
 
-# ------------------- DATA PROCESSING -------------------
-def process_8x12_blocks_with_template(csv_path, template_path, output_path, num_pseudotypes, pseudotype_texts, assay_title_text, sample_id_text):
-    from math import isnan
-    try:
-        data = pd.read_csv(csv_path, header=None, dtype=str).dropna(how="all").reset_index(drop=True)
-        blocks = [data.iloc[i:i+8, :12] for i in range(0, len(data), 8) if not data.iloc[i:i+8, :12].isnull().all().all()]
+        # Paste block data into rows 5–12, columns 2–13 (B5:M12)
+        for r in range(8):
+            for c in range(12):
+                cell = new_sheet.cell(row=5 + r, column=2 + c)
+                try:
+                    val = block[r][c]
+                    cell.value = float(val) if val.replace('.', '', 1).isdigit() else val
+                except IndexError:
+                    cell.value = ""
 
-        if len(blocks) == 0:
-            raise ValueError("No valid 8x12 blocks found.")
+        ws = new_sheet
 
-        workbook = load_workbook(template_path)
-        template_sheet = workbook.active
+        # Set assay title in B2
+        ws['B2'] = assay_title_text
 
-        sample_ids = [s.strip() for s in sample_id_text.split(",") if s.strip()]
-        sample_chunks = [sample_ids[i:i+4] for i in range(0, len(sample_ids), 4)]
-
-        col_positions = {
-            1: [2, 5, 8, 11],
-            2: [2, 5, 8, 11],
-            3: [2, 5, 8, None],
-            4: [2, 5, 8, 11],
-        }
-
-        for i, block in enumerate(blocks):
-            new_sheet = workbook.copy_worksheet(template_sheet)
-            new_sheet.title = f"Plate {i + 1}"
-
-            for r_idx, row in enumerate(block.values):
-                for c_idx, val in enumerate(row):
-                    try:
-                        new_sheet.cell(row=5 + r_idx, column=2 + c_idx, value=float(val))
-                    except:
-                        new_sheet.cell(row=5 + r_idx, column=2 + c_idx, value=val)
-
-            samples = []
-            if num_pseudotypes == 2:
-                if sample_chunks and sample_chunks[0]:
-                    samples.append(sample_chunks[0].pop(0))
-                if sample_chunks and sample_chunks[0]:
-                    samples.append(sample_chunks[0].pop(0))
-            elif num_pseudotypes == 1:
-                for _ in range(4):
-                    if sample_chunks and sample_chunks[0]:
-                        samples.append(sample_chunks[0].pop(0))
-            elif num_pseudotypes in (3, 4):
-                if sample_chunks and sample_chunks[0]:
-                    samples.append(sample_chunks[0].pop(0))
-
-            if sample_chunks and not sample_chunks[0]:
-                sample_chunks.pop(0)
-
-            for col in col_positions[num_pseudotypes]:
-                if col is None:
-                    continue
-                new_sheet.merge_cells(start_row=4, start_column=col, end_row=4, end_column=col + 2)
-                idx = col_positions[num_pseudotypes].index(col)
-                if idx < len(samples):
-                    new_sheet.cell(row=4, column=col, value=samples[idx])
-
-            pseudotype_positions = {
-                1: ["B3", "E3", "H3", "K3"],
-                2: ["B3", "E3", "H3", "K3"],
-                3: ["B3", "E3", "H3"],
-                4: ["B3", "E3", "H3", "K3"],
-            }
-            pseudotypes = [p.strip() for p in pseudotype_texts.split(",") if p.strip()] + ["Unlabelled"] * 4
-
-            for idx, cell in enumerate(pseudotype_positions[num_pseudotypes]):
-                if num_pseudotypes == 1:
-                    new_sheet[cell].value = pseudotypes[0]
-                elif num_pseudotypes == 2:
-                    new_sheet[cell].value = pseudotypes[idx // 2]
+        # Apply pseudotype and sample_id placement logic
+        if num_pseudotypes == 1:
+            val = pseudotype_list[0] if len(pseudotype_list) > 0 else ''
+            for cell in ['B3', 'E3', 'H3', 'K3']:
+                ws[cell] = val
+            sample_cells = ['B4', 'E4', 'H4', 'K4']
+            for cell in sample_cells:
+                if sample_index < len(sample_id_list):
+                    ws[cell] = sample_id_list[sample_index]
+                    sample_index += 1
                 else:
-                    new_sheet[cell].value = pseudotypes[idx]
+                    ws[cell] = ''
+        elif num_pseudotypes == 2:
+            ws['B3'] = pseudotype_list[0] if len(pseudotype_list) > 0 else ''
+            ws['E3'] = pseudotype_list[0] if len(pseudotype_list) > 0 else ''
+            ws['H3'] = pseudotype_list[1] if len(pseudotype_list) > 1 else ''
+            ws['K3'] = pseudotype_list[1] if len(pseudotype_list) > 1 else ''
+            val1 = sample_id_list[sample_index] if sample_index < len(sample_id_list) else ''
+            if sample_index < len(sample_id_list): sample_index += 1
+            val2 = sample_id_list[sample_index] if sample_index < len(sample_id_list) else ''
+            if sample_index < len(sample_id_list): sample_index += 1
 
-            if assay_title_text:
-                new_sheet["B2"].value = assay_title_text
+            ws['B4'] = val1
+            ws['H4'] = val1
+            ws['E4'] = val2
+            ws['K4'] = val2
 
-        del workbook[template_sheet.title]
-        workbook.save(output_path)
-
-    except Exception as e:
-        raise Exception(f"Data processing error: {e}")
-
-# ------------------- FINAL TITRES -------------------
-def extract_final_titres_xlwings(output_path):
-    app = None
-    try:
-        app = xw.App(visible=False)
-        wb = app.books.open(output_path)
-        if "Summary" not in [s.name for s in wb.sheets]:
-            summary = wb.sheets.add("Summary")
+        elif num_pseudotypes == 3:
+            ws['B3'] = pseudotype_list[0] if len(pseudotype_list) > 0 else ''
+            ws['E3'] = pseudotype_list[1] if len(pseudotype_list) > 1 else ''
+            ws['H3'] = pseudotype_list[2] if len(pseudotype_list) > 2 else ''
+            ws['K3'] = ''
+            val = sample_id_list[sample_index] if sample_index < len(sample_id_list) else ''
+            if sample_index < len(sample_id_list): sample_index += 1
+            ws['B4'] = val
+            ws['E4'] = val
+            ws['H4'] = val
+        elif num_pseudotypes == 4:
+            for idx, cell in enumerate(['B3', 'E3', 'H3', 'K3']):
+                ws[cell] = pseudotype_list[idx] if idx < len(pseudotype_list) else ''
+            val = sample_id_list[sample_index] if sample_index < len(sample_id_list) else ''
+            if sample_index < len(sample_id_list): sample_index += 1
+            for cell in ['B4', 'E4', 'H4', 'K4']:
+                ws[cell] = val
         else:
-            summary = wb.sheets["Summary"]
-            summary.clear()
+            for cell in ['B3', 'E3', 'H3', 'K3', 'B4', 'E4', 'H4', 'K4']:
+                ws[cell] = ''
 
-        summary.range("A1").value = ["Plate", "Pseudotype", "Sample ID", "NT 90% Rep 1", "NT 90% Rep 2", "NT 90% Rep 3", "NT 90%", "NT 50% Rep 1", "NT 50% Rep 2", "NT 50% Rep 3", "NT 50%"]
-        row_idx = 2
 
-        for sheet in wb.sheets:
-            if sheet.name.startswith("Plate"):
-                ranges = {
-                    "nt90": ["B14:D14", "E14:G14", "H14:J14", "K14:M14"],
-                    "nt50": ["B16:D16", "E16:G16", "H16:J16", "K16:M16"]
-                }
-                info = sheet.range("F26:I29").value or []
+    wb.remove(template_sheet)  # Remove original template sheet
+    wb.save(output_path)
 
-                if not isinstance(info, list):
-                    continue
 
-                for i in range(min(4, len(info))):
-                    row = info[i] if isinstance(info[i], list) else []
-                    while len(row) < 4:
-                        row.append("")
-                    nt90 = sheet.range(ranges["nt90"][i]).value or ["", "", ""]
-                    nt50 = sheet.range(ranges["nt50"][i]).value or ["", "", ""]
+def extract_final_titres_openpyxl(output_path):
+    wb = load_workbook(output_path)
 
-                    nt90 = [v if isinstance(v, (int, float)) else "" for v in nt90]
-                    nt50 = [v if isinstance(v, (int, float)) else "" for v in nt50]
+    if "Summary" in wb.sheetnames:
+        wb.remove(wb["Summary"])
 
-                    summary.range(f"A{row_idx}").value = [sheet.name, row[0], row[1], *nt90[:3], row[2], *nt50[:3], row[3]]
-                    row_idx += 1
+    summary_ws = wb.create_sheet("Summary", 0)
 
-        wb.save()
-        wb.close()
-        app.quit()
+    summary_ws.append([
+        "Plate", "Pseudotype", "Sample ID", 
+        "NT 90% Replicate 1", "NT 90% Replicate 2", "NT 90% Replicate 3", "NT 90%",
+        "NT 50% Replicate 1", "NT 50% Replicate 2", "NT 50% Replicate 3", "NT 50%"
+    ])
 
-        add_default_to_final_titres(output_path)
+    # Define cell addresses on the plate sheets
+    nt90_cells = [
+        ["B14", "C14", "D14"],
+        ["E14", "F14", "G14"],
+        ["H14", "I14", "J14"],
+        ["K14", "L14", "M14"],
+    ]
+    nt50_cells = [
+        ["B16", "C16", "D16"],
+        ["E16", "F16", "G16"],
+        ["H16", "I16", "J16"],
+        ["K16", "L16", "M16"],
+    ]
+    pseudotype_cells = ["B3", "E3", "H3", "K3"]
+    sample_id_cells = ["B4", "E4", "H4", "K4"]
+    nt90_avg_cells = ["D14", "G14", "J14", "M14"]
+    nt50_avg_cells = ["D16", "G16", "J16", "M16"]
 
-    except Exception as e:
-        app.quit()
-        raise Exception(f"Titre extraction error: {e}")
+    for sheet_name in wb.sheetnames:
+        if not sheet_name.startswith("Plate"):
+            continue
+
+        for i in range(4):  # For up to 4 pseudotypes
+            pt_formula = f"={sheet_name}!{pseudotype_cells[i]}"
+            sid_formula = f"={sheet_name}!{sample_id_cells[i]}"
+            nt90_formulas = [f"={sheet_name}!{cell}" for cell in nt90_cells[i]]
+            nt90_avg = f"={sheet_name}!{nt90_avg_cells[i]}"
+            nt50_formulas = [f"={sheet_name}!{cell}" for cell in nt50_cells[i]]
+            nt50_avg = f"={sheet_name}!{nt50_avg_cells[i]}"
+
+
+            summary_ws.append([
+                sheet_name,
+                pt_formula,
+                sid_formula,
+                *nt90_formulas,
+                nt90_avg,
+                *nt50_formulas,
+                nt50_avg
+            ])
+
+            last_row = summary_ws.max_row
+            for col in range(4, 12):  # Columns D to K
+                cell = summary_ws.cell(row=last_row, column=col)
+                cell.number_format = '0'
+
+    wb.save(output_path)
+
+
+    add_default_to_final_titres(output_path)
+
 
 def add_default_to_final_titres(output_path):
-    app = xw.App(visible=False)
+    wb = openpyxl.load_workbook(output_path)
+    summary = wb["Summary"]
+    plate1 = wb["Plate1"]
+    a5_val = plate1["A5"].value
+
     try:
-        wb = app.books.open(output_path)
-        summary = wb.sheets["Summary"]
-        a5_val = round(wb.sheets["Plate 1"].range("A5").value)
-        last_row = summary.range("A" + str(summary.cells.last_cell.row)).end("up").row
+        a5_val = round(float(a5_val))
+    except:
+        a5_val = ""
 
-        for col in range(4, 11):
-            for row in range(2, last_row + 1):
-                cell = summary.range((row, col))
-                if not cell.value:
-                    cell.value = f"<{a5_val}"
+    for row in summary.iter_rows(min_row=2, max_row=summary.max_row, min_col=4, max_col=10):
+        for cell in row:
+            if cell.value in (None, "") and a5_val:
+                cell.value = f"<{a5_val}"
 
-        summary.range(f"A2:K{last_row}").number_format = "0"
-        summary.range(f"A1:K{last_row}").api.HorizontalAlignment = -4108
-        summary.range(f"A1:K{last_row}").api.VerticalAlignment = -4108
+    # Format numeric cells as integers and center-align all summary cells
+    for row in summary.iter_rows(min_row=2, max_row=summary.max_row, min_col=1, max_col=11):
+        for cell in row:
+            try:
+                if isinstance(cell.value, (float, int)):
+                    cell.value = int(round(cell.value))
 
-        wb.save()
-        wb.close()
-        app.quit()
+            except:
+                pass
+            cell.alignment = Alignment(horizontal="center", vertical="center")
 
-    except Exception as e:
-        app.quit()
-        raise Exception(f"Default fill error: {e}")
+    # Set column widths
+    for col in range(1, 12):
+        summary.column_dimensions[get_column_letter(col)].width = 15
+
+    wb.save(output_path)
+
+def save_template_path(path, config_file=CONFIG_PATH):
+    config = load_config()
+    config["template_path"] = path
+    with open(config_file, "w") as f:
+        json.dump(config, f, indent=4)
+
+def load_template_path(config_file=CONFIG_PATH):
+    config = load_config()
+    template_path = config.get("template_path")
+    if not template_path or not os.path.exists(template_path):
+        raise FileNotFoundError("Saved template path not found or does not exist.")
+    return template_path
+
+def save_settings(settings, settings_file=SETTINGS_PATH):
+    with open(settings_file, "w") as f:
+        json.dump(settings, f, indent=4)
+
+def load_settings(settings_file=SETTINGS_PATH):
+    if os.path.exists(settings_file):
+        with open(settings_file, "r") as f:
+            return json.load(f)
+    return {}

@@ -5,8 +5,8 @@ import subprocess
 
 
 from nta_utils import (
-    process_8x12_blocks_with_template,
-    extract_final_titres_xlwings,
+    process_csv_to_template,
+    extract_final_titres_openpyxl as extract_final_titres_xlwings,
     save_template_path,
     load_template_path,
     load_settings,
@@ -96,7 +96,7 @@ def process():
     output_path = os.path.join(app.config["UPLOAD_FOLDER"], output_filename)
 
     try:
-        process_8x12_blocks_with_template(
+        process_csv_to_template(
             csv_path=csv_path,
             template_path=template_path,
             output_path=output_path,
