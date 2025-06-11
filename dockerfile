@@ -7,7 +7,7 @@ RUN apt-get update && \
     apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev
 
 # Install any R packages your R script needs
-RUN R -e "install.packages(c('ggplot2', 'dplyr'), repos='http://cran.rstudio.com/')"
+RUN Rscript -e "install.packages(c('ggplot2', 'readxl'), repos='https://cloud.r-project.org/')"
 
 # Copy and install Python dependencies
 COPY requirements.txt .
