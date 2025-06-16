@@ -5,19 +5,83 @@
 <div class="container mt-4">
   <h3 class="text-center text-secondary mb-4">Settings</h3>
 
-  <form method="post">
+  <form method="post" enctype="multipart/form-data">
     <div class="form-check form-switch mb-4">
-      <input class="form-check-input" type="checkbox" id="timestamp_in_title" name="timestamp_in_title" {% if settings.timestamp_in_title %}checked{% endif %}>
-      <label class="form-check-label" for="timestamp_in_title">Include timestamp in plot titles</label>
+      <input
+        class="form-check-input"
+        type="checkbox"
+        id="timestamp_in_filename"
+        name="timestamp_in_filename"
+        {% if settings.timestamp_in_filename %}checked{% endif %}
+      >
+      <label class="form-check-label" for="timestamp_in_filename">
+        Include timestamp in Excel filename
+      </label>
     </div>
 
+    <!-- Preset selection -->
+    <div class="mb-3">
+      <label for="preset_select" class="form-label">Select Colour Preset:</label>
+      <select id="preset_select" name="preset_select" class="form-select">
+        {% for preset_name, colours in presets.items() %}
+          <option value="{{ preset_name }}">{{ preset_name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Colour pickers -->
     <div class="row mb-3">
       {% for q in ['Q1', 'Q2', 'Q3', 'Q4'] %}
       <div class="col-md-3">
-        <label for="{{ q }}_color" class="form-label">{{ q }} Color</label>
-        <input type="color" class="form-control form-control-color" name="{{ q }}_color" id="{{ q }}_color" value="{{ settings[q + '_color'] }}">
+        <label for="{{ q }}_colour" class="form-label">{{ q }} Colour</label>
+        <input
+          type="color"
+          class="form-control form-control-color"
+          name="{{ q }}_colour"
+          id="{{ q }}_colour"
+          value="{{ settings[q + '_colour'] }}"
+        >
       </div>
       {% endfor %}
+    </div>
+
+    <!-- Preset list with delete buttons -->
+    <h5>Saved Colour Presets</h5>
+    <ul class="list-group mb-3">
+    {% for name, preset in presets.items() %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+        <div>
+            <strong>{{ name }}</strong><br>
+            Q1: <span style="color: {{ preset.Q1_colour }}">{{ preset.Q1_colour }}</span>,
+            Q2: <span style="color: {{ preset.Q2_colour }}">{{ preset.Q2_colour }}</span>,
+            Q3: <span style="color: {{ preset.Q3_colour }}">{{ preset.Q3_colour }}</span>,
+            Q4: <span style="color: {{ preset.Q4_colour }}">{{ preset.Q4_colour }}</span>
+        </div>
+        <form method="post" action="{{ url_for('settings') }}" style="margin: 0;">
+            <input type="hidden" name="delete_preset" value="{{ name }}">
+            <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete preset {{ name }}?')">Delete</button>
+        </form>
+        </li>
+    {% endfor %}
+    </ul>
+
+
+    <!-- New preset name -->
+    <div class="mb-3">
+      <label for="new_preset_name" class="form-label">Save current colours as new preset:</label>
+      <input
+        type="text"
+        id="new_preset_name"
+        name="new_preset_name"
+        placeholder="Preset name"
+        class="form-control"
+      >
+    </div>
+
+    <!-- Template file upload -->
+    <div class="mb-3">
+      <label for="template_file" class="form-label">Upload Excel Template (.xlsx):</label>
+      <input type="file" id="template_file" name="template_file" accept=".xlsx" class="form-control">
     </div>
 
     <div class="text-center">
@@ -25,4 +89,46 @@
     </div>
   </form>
 </div>
+
+<script>
+  const presets = {{ presets|tojson }};
+  const presetSelect = document.getElementById('preset_select');
+  const q1 = document.getElementById('Q1_colour');
+  const q2 = document.getElementById('Q2_colour');
+  const q3 = document.getElementById('Q3_colour');
+  const q4 = document.getElementById('Q4_colour');
+
+  presetSelect.addEventListener('change', function() {
+    const selectedPreset = presets[this.value];
+    if (selectedPreset) {
+      q1.value = selectedPreset.Q1_colour;
+      q2.value = selectedPreset.Q2_colour;
+      q3.value = selectedPreset.Q3_colour;
+      q4.value = selectedPreset.Q4_colour;
+    }
+  });
+
+  // Match current colours to preset and set dropdown on page load
+  function coloursMatchPreset(current, preset) {
+    return current.Q1_colour === preset.Q1_colour &&
+           current.Q2_colour === preset.Q2_colour &&
+           current.Q3_colour === preset.Q3_colour &&
+           current.Q4_colour === preset.Q4_colour;
+  }
+
+  window.onload = () => {
+    const currentColours = {
+      Q1_colour: q1.value,
+      Q2_colour: q2.value,
+      Q3_colour: q3.value,
+      Q4_colour: q4.value,
+    };
+    for (const [name, presetColours] of Object.entries(presets)) {
+      if (coloursMatchPreset(currentColours, presetColours)) {
+        presetSelect.value = name;
+        break;
+      }
+    }
+  };
+</script>
 {% endblock %}

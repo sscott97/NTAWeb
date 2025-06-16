@@ -1,0 +1,70 @@
+/* Custom NTA Styles */
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(to bottom right, #f0fdf4, #d6f5e3);
+  color: #333;
+}
+
+/* Make headings stand out */
+h2, h3 {
+  font-weight: bold;
+  letter-spacing: 0.5px;
+}
+
+h2.text-success, h3.text-success {
+  text-shadow: 0 1px 2px rgba(0, 128, 0, 0.1);
+}
+
+/* Form enhancements */
+label.form-label {
+  font-weight: 500;
+}
+
+input[type="text"],
+input[type="file"],
+select.form-select {
+  border-radius: 0.5rem;
+}
+
+/* Buttons */
+.btn-success {
+  font-weight: bold;
+  letter-spacing: 0.5px;
+  background-color: #28a745;
+  border-color: #28a745;
+}
+
+.btn-success:hover {
+  background-color: #218838;
+  border-color: #1e7e34;
+}
+
+.btn-outline-primary,
+.btn-outline-success,
+.btn-outline-secondary,
+.btn-outline-info {
+  font-weight: 500;
+  border-radius: 0.5rem;
+}
+
+/* Page spacing */
+.container {
+  max-width: 800px;
+}
+
+/* Navbar tweaks */
+.navbar {
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.nav-link {
+  font-weight: 500;
+}
+
+/* Image preview */
+img.img-fluid {
+  border: 2px solid #ccc;
+  border-radius: 0.5rem;
+  margin-top: 1rem;
+}

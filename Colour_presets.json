@@ -1,0 +1,26 @@
+{
+  "Default": {
+    "Q1_colour": "#ff0000",
+    "Q2_colour": "#0000ff",
+    "Q3_colour": "#00ff00",
+    "Q4_colour": "#800080"
+  },
+  "MyBlueTheme": {
+    "Q1_colour": "#003366",
+    "Q2_colour": "#336699",
+    "Q3_colour": "#6699cc",
+    "Q4_colour": "#99ccff"
+  },
+  "sam test": {
+    "Q1_colour": "#7c2a00",
+    "Q2_colour": "#006d8f",
+    "Q3_colour": "#ffb43f",
+    "Q4_colour": "#fecb3e"
+  },
+  "Sam": {
+    "Q1_colour": "#ff7e79",
+    "Q2_colour": "#ffd479",
+    "Q3_colour": "#009193",
+    "Q4_colour": "#d783ff"
+  }
+}

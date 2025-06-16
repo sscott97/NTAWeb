@@ -10,10 +10,10 @@ args <- commandArgs(trailingOnly = TRUE)
 excel_file <- args[1]
 output_plot <- args[2]
 include_timestamp <- tolower(args[3]) == "true"  # Convert properly
-q1_color <- args[4]
-q2_color <- args[5]
-q3_color <- args[6]
-q4_color <- args[7]
+q1_colour <- args[4]
+q2_colour <- args[5]
+q3_colour <- args[6]
+q4_colour <- args[7]
 
 print(paste("Include timestamp:", include_timestamp))
 
@@ -104,7 +104,7 @@ all_data$Dilution <- factor(all_data$Dilution, levels = c(50, 150, 450, 1350, 40
 ##### PLOTS ##########
 
 # Define custom colors for Q1, Q2, Q3, and Q4
-color_map <- c(Q1 = q1_color, Q2 = q2_color, Q3 = q3_color, Q4 = q4_color)
+color_map <- c(Q1 = q1_colour, Q2 = q2_colour, Q3 = q3_colour, Q4 = q4_colour)
 
 # Generate plot with modifications
 ggplot(all_data, aes(x = Dilution, y = Mean, color = Titration, group = Titration)) +
