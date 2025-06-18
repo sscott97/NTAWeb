@@ -3,27 +3,28 @@
 
 {% block content %}
 <div class="container mt-4">
-  <h3 class="text-center text-info mb-4">Help & Instructions</h3>
+  <h3 class="text-center text-success mb-4">Help</h3>
+
 
   <div class="bg-light p-4 rounded border">
-    <p><strong>**Needs updating** Welcome to the Neutralising Titre Automator information section!</strong></p>
-    <p>This application takes the raw comma-separated value (CSV) data produced by the Kaleido software on the Perkin-Elmer Luminometer and processes it using an Excel template to automatically calculate neutralising antibody titres.</p>
+    <p><strong>Welcome to the Neutralising Titre Automator information section!</strong></p>
+    <p>This application takes the raw comma-separated value (CSV) data produced by the Kaleido software on the Perkin-Elmer Luminometer and processes it using an Excel template to automatically calculate neutralising antibody titres. The data can be further processed to generate graphs.</p>
 
     <h5 class="mt-4">How to Use This Application</h5>
     <ol>
       <li><strong>Input CSV File:</strong> Upload raw data in CSV format (must be 8x12 blocks, Data Only mode).</li>
-      <li><strong>Template File:</strong> A default Excel template will be loaded automatically.</li>
-      <li><strong>Output File:</strong> The output file will be saved and downloadable after processing.</li>
-      <li><strong>Optional Assay Data:</strong> Enter pseudotype names and sample IDs, separated by commas.</li>
-      <li><strong>Process File:</strong> Processes your CSV and produces an Excel file with assay metadata.</li>
-      <li><strong>Create Graphs:</strong> After processing, choose graph colors and export dilution plots.</li>
+      <li><strong>Template File:</strong> A default Excel template will be loaded automatically, but can be replaced with a new one via the settings page.</li>
+      <li><strong>Output File:</strong> The processed output file will be saved and downloadable after processing.</li>
+      <li><strong>Optional Assay Data:</strong>  The assay title, pseudotype IDs and sample IDs can be entered, separated by commas, to label results.</li>
+      <li><strong>Process File:</strong> Processes your CSV and produces an Excel file with processed results.</li>
+      <li><strong>Create Graphs:</strong> After processing, the assays data can be graphed. Colours can be chosen in settings page</li>
     </ol>
 
     <h5 class="mt-4">Additional Notes</h5>
     <ul>
-      <li>CSV files must be saved in Data Only mode. Files in Standard mode will not be processed.</li>
-      <li>Template files should be stored in the application folder under a <code>Templates/</code> subfolder.</li>
-      <li>Settings and presets (e.g. colors) can be saved via the <a href="{{ url_for('settings') }}">Settings</a> page.</li>
+      <li>CSV files must be saved in Data Only mode. Files in Standard mode will not be processed. The input file should be an 8x12 block of results, with 2 blank lines seperating each 8x12 block</li>
+      <li>Template files should be stored in the application folder under a <code>Excel_Templates/</code> subfolder.</li>
+      <li>Settings, colour presets and templates can be saved via the <a href="{{ url_for('settings') }}">Settings</a> page.</li>
     </ul>
   </div>
 </div>

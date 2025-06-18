@@ -1,7 +1,24 @@
 {
     "timestamp_in_filename": true,
-    "Q1_colour": "#ff7e79",
-    "Q2_colour": "#ffd479",
-    "Q3_colour": "#009193",
-    "Q4_colour": "#d783ff"
+    "presets": {
+        "Default": {
+            "Q1": "#ff7e79",
+            "Q2": "#ffd479",
+            "Q3": "#009193",
+            "Q4": "#d783ff"
+        },
+        "test": {
+            "Q1": "#000000",
+            "Q2": "#ff40ff",
+            "Q3": "#00f900",
+            "Q4": "#ff2600"
+        },
+        "Sam Alt": {
+            "Q1": "#008cb4",
+            "Q2": "#77bb41",
+            "Q3": "#ff6251",
+            "Q4": "#fecb3e"
+        }
+    },
+    "selected_preset": "Sam Alt"
 }

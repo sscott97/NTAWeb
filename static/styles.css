@@ -27,10 +27,23 @@ select.form-select {
   border-radius: 0.5rem;
 }
 
-/* Buttons */
+/* Buttons - unified appearance */
+.btn,
+.btn-success,
+.btn-primary,
+.btn-danger,
+.btn-outline-primary,
+.btn-outline-success,
+.btn-outline-secondary,
+.btn-outline-info {
+  font-weight: normal;
+  letter-spacing: normal;
+  font-family: inherit;
+  border-radius: 0.5rem;
+}
+
+/* Specific color overrides remain */
 .btn-success {
-  font-weight: bold;
-  letter-spacing: 0.5px;
   background-color: #28a745;
   border-color: #28a745;
 }
@@ -38,14 +51,6 @@ select.form-select {
 .btn-success:hover {
   background-color: #218838;
   border-color: #1e7e34;
-}
-
-.btn-outline-primary,
-.btn-outline-success,
-.btn-outline-secondary,
-.btn-outline-info {
-  font-weight: 500;
-  border-radius: 0.5rem;
 }
 
 /* Page spacing */
