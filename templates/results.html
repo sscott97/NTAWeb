@@ -3,15 +3,15 @@
 
 {% block content %}
 <div class="container mt-4">
-  <h3 class="text-center text-success mb-4">Processing Complete</h3>
+  <h3 class="text-center text-success mb-4">File Processing</h3>
 
   <div class="mb-3">
-    <a href="{{ url_for('download', filename=excel_file) }}" class="btn btn-outline-primary w-100">📥 Download Processed Excel</a>
+    <a href="{{ url_for('download', filename=excel_file) }}" class="btn btn-primary w-100">📥 Download Processed Results</a>
   </div>
   
   {% if plot_file %}
     <div class="mb-3">
-      <a href="{{ url_for('download', filename=plot_file) }}" class="btn btn-outline-success w-100">🖼️ Download Generated Graph</a>
+      <a href="{{ url_for('download', filename=plot_file) }}" class="btn btn-success w-100">🖼️ Download Generated Graph</a>
       <div class="text-center mt-3">
         <img src="{{ url_for('static', filename='uploads/' + plot_file) }}" class="img-fluid" style="max-height: 500px;">
       </div>

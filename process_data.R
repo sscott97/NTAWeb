@@ -22,12 +22,9 @@ if (is.na(include_timestamp)) {
     stop("Error: include_timestamp argument is missing or invalid.")
 }
 
-# Define plot title with or without timestamp
-if (include_timestamp) {
-    plot_title <- paste0(tools::file_path_sans_ext(basename(output_plot)), " - ", format(Sys.time(), "%Y-%m-%d %H:%M:%S"))
-} else {
-    plot_title <- tools::file_path_sans_ext(basename(output_plot))  # No timestamp
-}
+# Always use the filename without timestamp for the graph title
+plot_title <- tools::file_path_sans_ext(basename(output_plot))
+
 
 if (!file.exists(excel_file)) {
     stop("Error: Excel file not found. Check the file path.")
@@ -63,12 +60,16 @@ if (length(plate_sheets) == 0) {
 
 # Function to process each plate
 process_plate <- function(sheet_name) {
+    # Read A5:A12 for dilutions (column A)
+    dilutions <- read_excel(excel_file, sheet = sheet_name, range = "A5:A12", col_names = FALSE)[[1]]
+
+    # Read B5:M12 for assay data
     data <- read_excel(excel_file, sheet = sheet_name, range = "B5:M12", col_names = FALSE)
+
     
     # Convert all data cells to numeric, coercing any text to NA
     data[] <- lapply(data, function(x) as.numeric(x))
     
-    dilutions <- c(50, 150, 450, 1350, 4050, 12150, 36450, 0)
     
     Titration <- list(
         Q1 = data[, 1:3],
@@ -95,7 +96,7 @@ process_plate <- function(sheet_name) {
 # Process all plates
 all_data <- bind_rows(lapply(plate_sheets, process_plate))
 all_data$Plate <- factor(all_data$Plate, levels = plate_sheets, ordered = TRUE)
-all_data$Dilution <- factor(all_data$Dilution, levels = c(50, 150, 450, 1350, 4050, 12150, 36450, 0))
+all_data$Dilution <- factor(all_data$Dilution, levels = unique(all_data$Dilution))
 
 
 
