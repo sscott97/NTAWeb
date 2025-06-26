@@ -3,11 +3,11 @@ Neutralising Titre Automator (NTA) Web Application
 
 Automate the processing of raw neutralisation assay data into Excel files and generate customizable graphs.
 
-# Overview
+## Overview
 
 The Neutralising Titre Automator (NTA) is a Flask-based web application designed to streamline the analysis of raw CSV data exported from the Kaleido software on the Perkin-Elmer Luminometer. It processes this data using customizable Excel templates to automatically calculate neutralising antibody titres, then generates detailed graphs based on the processed results.
 
-# Features
+## Features
 
 Upload raw CSV files (8x12 data blocks, Data Only mode).
 Select or upload Excel template files to customize output.
@@ -19,7 +19,7 @@ Download processed Excel files and generated graphs directly.
 Save and manage color presets and app settings.
 Responsive and user-friendly web interface.
 
-# Requirements
+## Requirements
 
 ### Python 3.8+
 
@@ -40,7 +40,7 @@ Install via pip:
 pip install flask openpyxl
 
 
-# Setup
+## Setup
 
 Clone this repository:
 
@@ -56,7 +56,7 @@ Run the Flask app:
 python app.py
 Open your browser and navigate to http://localhost:5000
 
-# Usage
+## Usage
 
 Home Page: Upload your raw CSV file and enter assay information.
 Settings: Select an Excel template or upload a new one, toggle filename timestamp option, and manage graph color presets.
@@ -70,7 +70,7 @@ Plate layouts update pseudotype labels and sample IDs according to the number of
 The processed workbook includes a summary sheet and neutralising titres.
 An R script generates graphs from the processed Excel file, respecting color presets and including dilution info from the template.
 
-# Customization
+## Customization
 
 Excel Templates: You can create and upload your own templates matching the required layout.
 
@@ -80,7 +80,7 @@ Filename Settings: Toggle timestamp inclusion in output filenames.
 
 Pseudotype Counts: Choose between 1 to 4 pseudotypes affecting layout.
 
-# File Structure
+## File Structure
 
 <pre>
 /app.py                # Main Flask app
@@ -93,7 +93,7 @@ Pseudotype Counts: Choose between 1 to 4 pseudotypes affecting layout.
 /config.json           # JSON file to store template location
 </pre>
 
-# Troubleshooting
+## Troubleshooting
 
 Ensure R and required packages are installed and accessible in your system PATH.
 
@@ -103,11 +103,11 @@ CSV files must be saved in "Data Only" mode from Kaleido software.
 
 Temporary files are cleaned up automatically; if you encounter issues, check file permissions.
 
-# License
+## License
 
 Feel free to use, modify, and distribute!
 
-# Contact
+## Contact
 
 Developed by Sam Scott
 
