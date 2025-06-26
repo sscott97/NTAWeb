@@ -9,15 +9,15 @@ The Neutralising Titre Automator (NTA) is a Flask-based web application designed
 
 ## Features
 
-Upload raw CSV files (8x12 data blocks, Data Only mode).
-Select or upload Excel template files to customize output.
-Input assay title, pseudotype IDs, and sample IDs for labeling.
-Automatically generates Excel reports with organized plate layouts.
-Supports 1–4 pseudotypes with dynamic plate labeling logic.
-Create graphs with configurable colour presets.
-Download processed Excel files and generated graphs directly.
-Save and manage color presets and app settings.
-Responsive and user-friendly web interface.
+- Upload raw CSV files (8x12 data blocks, Data Only mode).
+- Select or upload Excel template files to customize output.
+- Input assay title, pseudotype IDs, and sample IDs for labeling.
+- Automatically generates Excel reports with organized plate layouts.
+- Supports 1–4 pseudotypes with dynamic plate labeling logic.
+- Create graphs with configurable colour presets.
+- Download processed Excel files and generated graphs directly.
+- Save and manage color presets and app settings.
+- Responsive and user-friendly web interface.
 
 ## Requirements
 
@@ -59,16 +59,26 @@ Open your browser and navigate to http://localhost:5000
 ## Usage
 
 Home Page: Upload your raw CSV file and enter assay information.
+
 Settings: Select an Excel template or upload a new one, toggle filename timestamp option, and manage graph color presets.
+
 Process: After uploading, the app processes the CSV, generates an Excel report, and provides a download link.
+
 Graphs: Generate graphs based on processed data with the selected color presets. Graphs download as PNG images.
-How It Works
+
+
+## How It Works
 
 The app reads CSV data, splits it into 8x12 blocks.
+
 Each block is pasted into a new Excel sheet copied from the selected template.
+
 Plate layouts update pseudotype labels and sample IDs according to the number of pseudotypes chosen.
+
 The processed workbook includes a summary sheet and neutralising titres.
+
 An R script generates graphs from the processed Excel file, respecting color presets and including dilution info from the template.
+
 
 ## Customization
 
@@ -109,7 +119,5 @@ Feel free to use, modify, and distribute!
 
 ## Contact
 
-Developed by Sam Scott
-
-For questions or issues, please open an issue or contact via email: Sam.Scott.2@glasgow.ac.uk
+For questions or issues, contact via email: Sam.Scott.2@glasgow.ac.uk
 
