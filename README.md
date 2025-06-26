@@ -73,8 +73,11 @@ An R script generates graphs from the processed Excel file, respecting color pre
 # Customization
 
 Excel Templates: You can create and upload your own templates matching the required layout.
+
 Color Presets: Save and apply custom graph color presets in settings.
+
 Filename Settings: Toggle timestamp inclusion in output filenames.
+
 Pseudotype Counts: Choose between 1 to 4 pseudotypes affecting layout.
 
 # File Structure
@@ -93,8 +96,11 @@ Pseudotype Counts: Choose between 1 to 4 pseudotypes affecting layout.
 # Troubleshooting
 
 Ensure R and required packages are installed and accessible in your system PATH.
+
 Excel templates must match expected formatting and layout (8x12 data starting at B5).
+
 CSV files must be saved in "Data Only" mode from Kaleido software.
+
 Temporary files are cleaned up automatically; if you encounter issues, check file permissions.
 
 # License
@@ -104,5 +110,6 @@ Feel free to use, modify, and distribute!
 # Contact
 
 Developed by Sam Scott
+
 For questions or issues, please open an issue or contact via email: Sam.Scott.2@glasgow.ac.uk
 
