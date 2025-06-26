@@ -29,16 +29,16 @@ Responsive and user-friendly web interface.
 - dplyr
 - tidyr
 
-### Flask and Python dependencies (see below)
+Install required R packages in your R environment:
+
+install.packages(c("readxl", "ggplot2", "dplyr", "tidyr"))
+
+### Flask and Python dependencies
 
 Install via pip:
 
 pip install flask openpyxl
 
-### R packages
-Install required R packages in your R environment:
-
-install.packages(c("readxl", "ggplot2", "dplyr", "tidyr"))
 
 # Setup
 
@@ -76,7 +76,8 @@ Excel Templates: You can create and upload your own templates matching the requi
 Color Presets: Save and apply custom graph color presets in settings.
 Filename Settings: Toggle timestamp inclusion in output filenames.
 Pseudotype Counts: Choose between 1 to 4 pseudotypes affecting layout.
-File Structure
+
+# File Structure
 
 /app.py                # Main Flask app
 /nta_utils.py          # Utility functions for processing Excel and CSV
@@ -85,7 +86,9 @@ File Structure
 /templates/            # HTML templates (index.html, settings.html, help.html, results.html)
 /static/               # Static assets (CSS, JS, images)
 /settings.json         # JSON file to store user settings and presets
-Troubleshooting
+/config.json           # JSON file to store template location
+
+# Troubleshooting
 
 Ensure R and required packages are installed and accessible in your system PATH.
 Excel templates must match expected formatting and layout (8x12 data starting at B5).
