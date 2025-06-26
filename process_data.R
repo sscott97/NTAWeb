@@ -14,6 +14,12 @@ q1_colour <- args[4]
 q2_colour <- args[5]
 q3_colour <- args[6]
 q4_colour <- args[7]
+plot_title <- args[8]
+
+if (is.na(plot_title) || plot_title == "") {
+    plot_title <- tools::file_path_sans_ext(basename(output_plot))
+}
+
 
 print(paste("Include timestamp:", include_timestamp))
 
@@ -22,8 +28,6 @@ if (is.na(include_timestamp)) {
     stop("Error: include_timestamp argument is missing or invalid.")
 }
 
-# Always use the filename without timestamp for the graph title
-plot_title <- tools::file_path_sans_ext(basename(output_plot))
 
 
 if (!file.exists(excel_file)) {
@@ -107,8 +111,11 @@ all_data$Dilution <- factor(all_data$Dilution, levels = unique(all_data$Dilution
 # Define custom colors for Q1, Q2, Q3, and Q4
 color_map <- c(Q1 = q1_colour, Q2 = q2_colour, Q3 = q3_colour, Q4 = q4_colour)
 
-# Generate plot with modifications
-ggplot(all_data, aes(x = Dilution, y = Mean, color = Titration, group = Titration)) +
+# Open PNG device, write plot, then close device (no extra files)
+png(filename = output_plot, width = 12 * 96, height = 9 * 96, res = 96)  # 12x9 inches at 96 dpi
+
+print(
+  ggplot(all_data, aes(x = Dilution, y = Mean, color = Titration, group = Titration)) +
     geom_line() +
     geom_point() +
     geom_errorbar(aes(ymin = Mean - SD, ymax = Mean + SD), width = 0.2) +
@@ -119,23 +126,25 @@ ggplot(all_data, aes(x = Dilution, y = Mean, color = Titration, group = Titratio
     facet_wrap(~ Plate) +
     theme_minimal(base_size = 12) +
     theme(
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_rect(color = "black", fill = NA),
-        plot.background = element_rect(fill = "white"),
-        panel.background = element_rect(fill = "white"),
-        text = element_text(color = "black"),
-        axis.text.y = element_text(angle = 0, hjust = 1, color = "black"),
-        axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
-        axis.ticks.length = unit(0.1, "cm"),
-        axis.ticks = element_line(color = "black"),
-        axis.ticks.y = element_line(linewidth = 0.2),
-        axis.ticks.x = element_line(linewidth = 0.2),
-        strip.text = element_text(color = "black"),
-        plot.title = element_text(hjust = 0.5)
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      panel.border = element_rect(color = "black", fill = NA),
+      plot.background = element_rect(fill = "white"),
+      panel.background = element_rect(fill = "white"),
+      text = element_text(color = "black"),
+      axis.text.y = element_text(angle = 0, hjust = 1, color = "black"),
+      axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
+      axis.ticks.length = unit(0.1, "cm"),
+      axis.ticks = element_line(color = "black"),
+      axis.ticks.y = element_line(linewidth = 0.2),
+      axis.ticks.x = element_line(linewidth = 0.2),
+      strip.text = element_text(color = "black"),
+      plot.title = element_text(hjust = 0.5)
     )
+)
 
-ggsave(output_plot, width = 12, height = 9, dpi = 400)
+dev.off()
+
 
 cat("🔎 Checking file path in R:", excel_file, "\n")
 cat("🔎 file.exists(excel_file) returns:", file.exists(excel_file), "\n")

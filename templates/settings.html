@@ -5,17 +5,6 @@
 <div class="container mt-4">
 <h3 class="text-center text-success mb-4">Settings</h3>
 
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-      {% for category, message in messages %}
-        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-          {{ message }}
-          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-      {% endfor %}
-    {% endif %}
-  {% endwith %}
-
   <form method="post" enctype="multipart/form-data">
     <!-- Timestamp setting -->
     <div class="form-check form-switch mb-4">
@@ -31,11 +20,25 @@
       </label>
     </div>
 
-    <!-- Template file upload -->
+    <!-- Default template selector -->
     <div class="mb-3">
-      <label for="template_file" class="form-label">Select Excel Template (.xlsx):</label>
-      <input type="file" id="template_file" name="template_file" accept=".xlsx" class="form-control">
+      <label for="default_template_select" class="form-label">Choose a default template:</label>
+      <select name="default_template_select" id="default_template_select" class="form-select">
+        <option value="">-- Select Template --</option>
+        {% for name, path in default_templates.items() %}
+          <option value="{{ name }}" {% if settings.get('template_path') == path %}selected{% endif %}>{{ name }}</option>
+        {% endfor %}
+      </select>
     </div>
+
+    <hr>
+
+    <!-- Or upload new template file -->
+    <div class="mb-3">
+      <label for="template_file" class="form-label">Or upload a new template (.xlsx):</label>
+      <input type="file" name="template_file" id="template_file" accept=".xlsx" class="form-control">
+    </div>
+
 
     <div class="text-center mb-5">
       <button type="submit" class="btn btn-primary">💾 Save Template</button>

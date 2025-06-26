@@ -5,12 +5,12 @@ import openpyxl
 from openpyxl.styles import Alignment
 from openpyxl.utils import get_column_letter
 from openpyxl import load_workbook
-from io import BytesIO
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
 SETTINGS_PATH = os.path.join(BASE_DIR, "settings.json")
+
 
 def load_config():
     if os.path.exists(CONFIG_PATH):
@@ -20,20 +20,22 @@ def load_config():
 
 config = load_config()
 
-def load_csv_blocks(csv_stream):
+TEMPLATE_PATH = os.path.join(BASE_DIR, config.get("template_path", ""))
+
+def load_csv_blocks(csv_path):
     blocks = []
     current_block = []
-    csv_stream.seek(0)
-    reader = csv.reader(line.decode() for line in csv_stream.readlines())
-    for row in reader:
-        if not any(cell.strip() for cell in row):
-            if current_block:
-                blocks.append(current_block)
-                current_block = []
-        else:
-            current_block.append(row[:12])
-    if current_block:
-        blocks.append(current_block)
+    with open(csv_path, newline='') as f:
+        reader = csv.reader(f)
+        for row in reader:
+            if not any(cell.strip() for cell in row):
+                if current_block:
+                    blocks.append(current_block)
+                    current_block = []
+            else:
+                current_block.append(row[:12])
+        if current_block:
+            blocks.append(current_block)
     return blocks
 
 def process_csv_to_template(
@@ -120,11 +122,7 @@ def process_csv_to_template(
                 ws[cell] = ''
 
     wb.remove(template_sheet)
-
-    if isinstance(output_path, BytesIO):
-        wb.save(output_path)
-    else:
-        wb.save(output_path)
+    wb.save(output_path)
 
 def extract_final_titres_openpyxl(output_path):
     wb = load_workbook(output_path)
@@ -179,12 +177,7 @@ def extract_final_titres_openpyxl(output_path):
                 cell = summary_ws.cell(row=last_row, column=col)
                 cell.number_format = '0'
 
-    if isinstance(output_path, BytesIO):
-        output_path.seek(0)
-        wb.save(output_path)
-    else:
-        wb.save(output_path)
-
+    wb.save(output_path)
     add_default_to_final_titres(output_path)
 
 def add_default_to_final_titres(output_path):
@@ -215,11 +208,7 @@ def add_default_to_final_titres(output_path):
     for col in range(1, 12):
         summary.column_dimensions[get_column_letter(col)].width = 15
 
-    if isinstance(output_path, BytesIO):
-        output_path.seek(0)
-        wb.save(output_path)
-    else:
-        wb.save(output_path)
+    wb.save(output_path)
 
 def save_template_path(path, config_file=CONFIG_PATH):
     config = load_config()
@@ -246,6 +235,7 @@ DEFAULT_SETTINGS = {
     },
     "selected_preset": "default"
 }
+
 
 def load_settings():
     if os.path.exists(SETTINGS_PATH):

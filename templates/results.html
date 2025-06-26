@@ -6,7 +6,7 @@
   <h3 class="text-center text-success mb-4">File Processing</h3>
 
   <div class="mb-3">
-    <a href="{{ url_for('download', filename=excel_file) }}" class="btn btn-primary w-100">📥 Download Processed Results</a>
+    <a href="{{ url_for('download_memory', file_id=excel_file_id) }}" class="btn btn-primary w-100">📥 Download Processed Results</a>
   </div>
   
   {% if plot_file %}
@@ -18,7 +18,7 @@
     </div>
   {% else %}
     <form action="{{ url_for('generate_graphs') }}" method="post">
-      <input type="hidden" name="excel_file" value="{{ excel_file }}">
+      <input type="hidden" name="file_id" value="{{ excel_file_id }}">
       <button type="submit" class="btn btn-success w-100">📊 Generate Graph</button>
     </form>
   {% endif %}

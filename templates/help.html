@@ -5,9 +5,12 @@
 <div class="container mt-4">
   <h3 class="text-center text-success mb-4">Help</h3>
 
-
   <div class="bg-light p-4 rounded border">
-    <p><strong>Welcome to the Neutralising Titre Automator information section!</strong></p>
+
+    <div class="alert alert-success" role="alert">
+      <strong>Welcome to the Neutralising Titre Automator information section!</strong>
+    </div>
+
     <p>This application takes the raw comma-separated value (CSV) data produced by the Kaleido software on the Perkin-Elmer Luminometer and processes it using an Excel template to automatically calculate neutralising antibody titres. The data can be further processed to generate graphs.</p>
 
     <h5 class="mt-4">How to Use This Application</h5>
@@ -15,17 +18,48 @@
       <li><strong>Input CSV File:</strong> Upload raw data in CSV format (must be 8x12 blocks, Data Only mode).</li>
       <li><strong>Template File:</strong> A default Excel template will be loaded automatically, but can be replaced with a new one via the settings page.</li>
       <li><strong>Output File:</strong> The processed output file will be saved and downloadable after processing.</li>
-      <li><strong>Optional Assay Data:</strong>  The assay title, pseudotype IDs and sample IDs can be entered, separated by commas, to label results.</li>
+      <li><strong>Optional Assay Data:</strong> The assay title, pseudotype IDs and sample IDs can be entered, separated by commas, to label results.</li>
       <li><strong>Process File:</strong> Processes your CSV and produces an Excel file with processed results.</li>
       <li><strong>Create Graphs:</strong> After processing, the assays data can be graphed. Colours can be chosen in settings page. The graph will update the dilutions based on the selected template.</li>
     </ol>
 
+    <h5 class="mt-4">Number of Pseudotypes Logic</h5>
+    <p>The number of pseudotypes selected affects how the plate layouts are labeled and organised in the generated Excel sheets:</p>
+
+    <ul class="list-group mb-4">
+      <li class="list-group-item d-flex justify-content-between align-items-start">
+        <div>
+          <span class="badge bg-primary rounded-pill me-2">1</span>
+          <strong>1 Pseudotype:</strong> The same pseudotype ID is repeated across all four quadrants (cells <code>B3:D3</code>, <code>E3:G3</code>, <code>H3:J3</code>, <code>K3:M3</code>). Sample IDs fill each quadrant uniquely.
+        </div>
+      </li>
+      <li class="list-group-item d-flex justify-content-between align-items-start">
+        <div>
+          <span class="badge bg-primary rounded-pill me-2">2</span>
+          <strong>2 Pseudotypes:</strong> The first pseudotype ID is applied to the first two quadrants (<code>B3:D3</code>, <code>E3:G3</code>), and the second pseudotype to the last two quadrants (<code>H3:J3</code>, <code>K3:M3</code>). The first sample ID is pasted to the first and third quadrant.
+        </div>
+      </li>
+      <li class="list-group-item d-flex justify-content-between align-items-start">
+        <div>
+          <span class="badge bg-primary rounded-pill me-2">3</span>
+          <strong>3 Pseudotypes:</strong> The first three quadrants have one pseudotype ID each (<code>B3:D3</code>, <code>E3:G3</code>, <code>H3:J3</code>), while the fourth quadrant (<code>K3:M3</code>) is left blank. A single sample ID is repeated across the first three quadrants, the fourth is left blank.
+        </div>
+      </li>
+      <li class="list-group-item d-flex justify-content-between align-items-start">
+        <div>
+          <span class="badge bg-primary rounded-pill me-2">4</span>
+          <strong>4 Pseudotypes:</strong> Each quadrant has a different pseudotype ID (<code>B3:D3</code>, <code>E3:G3</code>, <code>H3:J3</code>, <code>K3:M3</code>). A single sample ID is repeated across all four quadrants.
+        </div>
+      </li>
+    </ul>
+
     <h5 class="mt-4">Additional Notes</h5>
     <ul>
-      <li>CSV files must be saved in Data Only mode. Files in Standard mode will not be processed. The input file should be an 8x12 block of results, with 2 blank lines seperating each 8x12 block</li>
+      <li>CSV files must be saved in Data Only mode. Files in Standard mode will not be processed. The input file should be an 8x12 block of results, with 2 blank lines separating each 8x12 block.</li>
       <li>Template files should be stored in the application folder under the <code>Excel_Templates/</code> subfolder.</li>
       <li>Settings, colour presets and templates can be saved via the <a href="{{ url_for('settings') }}">Settings</a> page.</li>
     </ul>
+
   </div>
 </div>
 {% endblock %}
