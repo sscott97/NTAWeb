@@ -3,11 +3,11 @@ Neutralising Titre Automator (NTA) Web Application
 
 Automate the processing of raw neutralisation assay data into Excel files and generate customizable graphs.
 
-Overview
+# Overview
 
 The Neutralising Titre Automator (NTA) is a Flask-based web application designed to streamline the analysis of raw CSV data exported from the Kaleido software on the Perkin-Elmer Luminometer. It processes this data using customizable Excel templates to automatically calculate neutralising antibody titres, then generates detailed graphs based on the processed results.
 
-Features
+# Features
 
 Upload raw CSV files (8x12 data blocks, Data Only mode).
 Select or upload Excel template files to customize output.
@@ -19,33 +19,44 @@ Download processed Excel files and generated graphs directly.
 Save and manage color presets and app settings.
 Responsive and user-friendly web interface.
 
-Requirements
-Python 3.8+
-R with the following packages installed:
-readxl
-ggplot2
-dplyr
-tidyr
-Flask and Python dependencies (see below)
-Python dependencies
+# Requirements
+
+### Python 3.8+
+
+### R with the following packages installed:
+- readxl
+- ggplot2
+- dplyr
+- tidyr
+
+### Flask and Python dependencies (see below)
+
 Install via pip:
 
 pip install flask openpyxl
-R packages
+
+### R packages
 Install required R packages in your R environment:
 
 install.packages(c("readxl", "ggplot2", "dplyr", "tidyr"))
-Setup
+
+# Setup
 
 Clone this repository:
-git clone https://github.com/yourusername/nta.git
-cd nta
+
+git clone https://github.com/sscott97/NTAWeb
+
+cd ntaweb
+
 Place your default Excel templates in the excel_templates/ directory. You can add multiple templates and select the active one in the Settings page.
+
 Ensure the process_data.R script is present in the project root.
+
 Run the Flask app:
 python app.py
 Open your browser and navigate to http://localhost:5000
-Usage
+
+# Usage
 
 Home Page: Upload your raw CSV file and enter assay information.
 Settings: Select an Excel template or upload a new one, toggle filename timestamp option, and manage graph color presets.
@@ -58,7 +69,8 @@ Each block is pasted into a new Excel sheet copied from the selected template.
 Plate layouts update pseudotype labels and sample IDs according to the number of pseudotypes chosen.
 The processed workbook includes a summary sheet and neutralising titres.
 An R script generates graphs from the processed Excel file, respecting color presets and including dilution info from the template.
-Customization
+
+# Customization
 
 Excel Templates: You can create and upload your own templates matching the required layout.
 Color Presets: Save and apply custom graph color presets in settings.
@@ -79,12 +91,13 @@ Ensure R and required packages are installed and accessible in your system PATH.
 Excel templates must match expected formatting and layout (8x12 data starting at B5).
 CSV files must be saved in "Data Only" mode from Kaleido software.
 Temporary files are cleaned up automatically; if you encounter issues, check file permissions.
-License
 
-MIT License — feel free to use, modify, and distribute!
+# License
 
-Contact
+Feel free to use, modify, and distribute!
 
-Developed by [Your Name]
-For questions or issues, please open an issue or contact via email: your.email@example.com
+# Contact
+
+Developed by Sam Scott
+For questions or issues, please open an issue or contact via email: Sam.Scott.2@glasgow.ac.uk
 
