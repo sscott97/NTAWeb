@@ -79,14 +79,14 @@ Pseudotype Counts: Choose between 1 to 4 pseudotypes affecting layout.
 
 # File Structure
 
-- /app.py                # Main Flask app
-- /nta_utils.py          # Utility functions for processing Excel and CSV
-- /process_data.R        # R script for graph generation
-- /excel_templates/      # Folder for Excel template files
-- /templates/            # HTML templates (index.html, settings.html, help.html, results.html)
-- /static/               # Static assets (CSS, JS, images)
-- /settings.json         # JSON file to store user settings and presets
-- /config.json           # JSON file to store template location
+> /app.py                # Main Flask app
+> /nta_utils.py          # Utility functions for processing Excel and CSV
+> /process_data.R        # R script for graph generation
+> /excel_templates/      # Folder for Excel template files
+> /templates/            # HTML templates (index.html, settings.html, help.html, results.html)
+> /static/               # Static assets (CSS, JS, images)
+> /settings.json         # JSON file to store user settings and presets
+> /config.json           # JSON file to store template location
 
 # Troubleshooting
 
