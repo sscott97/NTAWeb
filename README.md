@@ -13,11 +13,10 @@ The Neutralising Titre Automator (NTA) is a Flask-based web application designed
 - Select or upload Excel template files to customize output.
 - Input assay title, pseudotype IDs, and sample IDs for labeling.
 - Automatically generates Excel reports with organized plate layouts.
-- Supports 1–4 pseudotypes with dynamic plate labeling logic.
+- Supports 1–4 pseudotypes per plate with dynamic plate labeling logic.
 - Create graphs with configurable colour presets.
 - Download processed Excel files and generated graphs directly.
 - Save and manage color presets and app settings.
-- Responsive and user-friendly web interface.
 
 ## Requirements
 
@@ -54,6 +53,7 @@ Ensure the process_data.R script is present in the project root.
 
 Run the Flask app:
 python app.py
+
 Open your browser and navigate to http://localhost:5000
 
 ## Usage

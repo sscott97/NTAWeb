@@ -191,17 +191,28 @@ def add_default_to_final_titres(output_path):
     wb = openpyxl.load_workbook(output_path)
     summary = wb["Summary"]
     plate1 = wb["Plate1"]
+
+    # Get values from A5 and A11
     a5_val = plate1["A5"].value
+    a11_val = plate1["A11"].value
 
     try:
         a5_val = round(float(a5_val))
     except:
         a5_val = ""
 
+    try:
+        a11_val = round(float(a11_val))
+    except:
+        a11_val = ""
+
     for row in summary.iter_rows(min_row=2, max_row=summary.max_row, min_col=4, max_col=10):
         for cell in row:
-            if cell.value in (None, "") and a5_val:
-                cell.value = f"<{a5_val}"
+            val = cell.value
+            if (val in (None, "")) and a5_val:
+                cell.value = f"≤{a5_val}"
+            elif isinstance(val, (float, int)) and a11_val and val > a11_val:
+                cell.value = f"≥{a11_val}"
 
     for row in summary.iter_rows(min_row=2, max_row=summary.max_row, min_col=1, max_col=11):
         for cell in row:
@@ -220,6 +231,7 @@ def add_default_to_final_titres(output_path):
         wb.save(output_path)
     else:
         wb.save(output_path)
+
 
 def save_template_path(path, config_file=CONFIG_PATH):
     config = load_config()
