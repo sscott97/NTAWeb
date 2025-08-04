@@ -155,17 +155,7 @@ def extract_final_titres_openpyxl(output_path):
         if not sheet_name.startswith("Plate"):
             continue
 
-        ws = wb[sheet_name]
-
-        # Count how many pseudotypes are filled
-        filled_pseudotypes = [
-            bool(ws[cell].value and str(ws[cell].value).strip()) 
-            for cell in pseudotype_cells
-        ]
-        num_pseudotypes = sum(filled_pseudotypes)
-
-        # Only include as many columns as valid pseudotypes (up to 4, but can be 3 or fewer)
-        for i in range(num_pseudotypes):
+        for i in range(4):
             pt_formula = f'=IF(TRIM({sheet_name}!{pseudotype_cells[i]})="", "Unlabelled", {sheet_name}!{pseudotype_cells[i]})'
             sid_cell = sample_id_cells[i]
             sid_formula = f'=IF(TRIM({sheet_name}!{sid_cell})="", "Unlabelled", {sheet_name}!{sid_cell})'
@@ -196,7 +186,6 @@ def extract_final_titres_openpyxl(output_path):
         wb.save(output_path)
 
     add_default_to_final_titres(output_path)
-
 
 def add_default_to_final_titres(output_path):
     wb = openpyxl.load_workbook(output_path)
