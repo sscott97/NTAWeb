@@ -84,6 +84,30 @@
       <button type="button" class="btn btn-primary" onclick="savePreset()">💾 Save New Preset</button>
       <button type="button" class="btn btn-danger" onclick="deletePreset()">🗑️ Delete Preset</button>
     </div>
+
+    <hr>
+    <h5>Quadrants to Include in Graph</h5>
+    <div class="form-check">
+      <input class="form-check-input" type="checkbox" id="includeQ1">
+      <label class="form-check-label" for="includeQ1">Include Q1</label>
+    </div>
+    <div class="form-check">
+      <input class="form-check-input" type="checkbox" id="includeQ2">
+      <label class="form-check-label" for="includeQ2">Include Q2</label>
+    </div>
+    <div class="form-check">
+      <input class="form-check-input" type="checkbox" id="includeQ3">
+      <label class="form-check-label" for="includeQ3">Include Q3</label>
+    </div>
+    <div class="form-check">
+      <input class="form-check-input" type="checkbox" id="includeQ4">
+      <label class="form-check-label" for="includeQ4">Include Q4</label>
+    </div>
+
+    <div class="mt-3">
+      <button type="button" class="btn btn-secondary" onclick="saveQuadrantSettings()">💾 Save Quadrant Settings</button>
+    </div>
+    
   </div>
 </div>
 
@@ -94,6 +118,8 @@ document.addEventListener("DOMContentLoaded", () => {
     .then(data => {
       window.settings = data;
       populatePresetDropdown();
+      populateQuadrantCheckboxes(); 
+
     });
 });
 
@@ -196,5 +222,34 @@ function applyPreset() {
   .then(() => alert(`Preset "${name}" applied!`))
   .catch(err => alert(err));
 }
+
+function populateQuadrantCheckboxes() {
+  document.getElementById("includeQ1").checked = settings.quadrants?.Q1 ?? true;
+  document.getElementById("includeQ2").checked = settings.quadrants?.Q2 ?? true;
+  document.getElementById("includeQ3").checked = settings.quadrants?.Q3 ?? true;
+  document.getElementById("includeQ4").checked = settings.quadrants?.Q4 ?? true;
+}
+
+function saveQuadrantSettings() {
+  const quadrants = {
+    Q1: document.getElementById("includeQ1").checked,
+    Q2: document.getElementById("includeQ2").checked,
+    Q3: document.getElementById("includeQ3").checked,
+    Q4: document.getElementById("includeQ4").checked
+  };
+
+  fetch("/save_quadrants", {
+    method: "POST",
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(quadrants)
+  })
+  .then(response => {
+    if (!response.ok) throw new Error("Failed to save quadrants");
+    return response.text();
+  })
+  .then(() => alert("Quadrant settings saved!"))
+  .catch(err => alert(err));
+}
+
 </script>
 {% endblock %}

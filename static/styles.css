@@ -1,20 +1,46 @@
 /* Custom NTA Styles */
 
+
 body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: linear-gradient(to bottom right, #f0fdf4, #d6f5e3);
-  color: #333;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+
+  background: linear-gradient(45deg, #b6d9b7, #a9cbb7, #7ea69a, #c8d8c8);
+  background-size: 400% 400%;
+  animation: backgroundGradient 20s ease infinite;
 }
 
-/* Make headings stand out */
-h2, h3 {
+/* Animated gradient-filled text */
+h2.text-success, h3.text-success {
+  background: linear-gradient(135deg, #f0f4ef, #c9d8d0, #6a8471, #3e5f51);
+  background-size: 400% 400%;
+  animation: textGradient 20s ease infinite;
+  
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text; /* fallback for non-webkit */
+  color: transparent;
+
   font-weight: bold;
   letter-spacing: 0.5px;
 }
 
-h2.text-success, h3.text-success {
-  text-shadow: 0 1px 2px rgba(0, 128, 0, 0.1);
+/* Animate background diagonally */
+@keyframes backgroundGradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
+
+/* Animate text gradient the opposite way */
+@keyframes textGradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
 
 /* Form enhancements */
 label.form-label {
@@ -66,6 +92,11 @@ select.form-select {
 .nav-link {
   font-weight: 500;
 }
+
+.navbar-brand.text-success {
+  color: #3e5f51 !important;
+}
+
 
 /* Image preview */
 img.img-fluid {

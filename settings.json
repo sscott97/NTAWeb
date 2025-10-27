@@ -7,18 +7,24 @@
             "Q3": "#009193",
             "Q4": "#d783ff"
         },
-        "test": {
-            "Q1": "#000000",
-            "Q2": "#ff40ff",
-            "Q3": "#00f900",
-            "Q4": "#ff2600"
-        },
         "Sam Alt": {
             "Q1": "#008cb4",
             "Q2": "#77bb41",
             "Q3": "#ff6251",
             "Q4": "#fecb3e"
+        },
+        "2": {
+            "Q1": "#d783ff",
+            "Q2": "#73fa79",
+            "Q3": "#ff7e79",
+            "Q4": "#0096ff"
         }
     },
-    "selected_preset": "Sam Alt"
+    "selected_preset": "Sam Alt",
+    "quadrants": {
+        "Q1": true,
+        "Q2": true,
+        "Q3": true,
+        "Q4": true
+    }
 }

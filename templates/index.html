@@ -24,7 +24,7 @@
 
     <div class="mb-3">
       <label for="assay_title" class="form-label">Assay Title</label>
-      <input type="text" name="assay_title" id="assay_title" class="form-control" placeholder="e.g. Neutralisation Assay 1" required>
+      <input type="text" name="assay_title" id="assay_title" class="form-control" placeholder="e.g. Neutralisation Assay 1">
     </div>
 
     <div class="mb-3">
@@ -39,7 +39,7 @@
 
     <div class="mb-3">
       <label for="pseudotype_text" class="form-label">Pseudotype(s)</label>
-      <input type="text" name="pseudotype_text" id="pseudotype_text" class="form-control" placeholder="e.g. Alpha, Beta (Pseudotypes MUST be labelled or won't be included in summary)">
+      <input type="text" name="pseudotype_text" id="pseudotype_text" class="form-control" placeholder="e.g. Alpha, Beta (Pseudotypes MUST be labelled or won't be included in summary)" required>
     </div>
 
     <div class="mb-3">
@@ -50,11 +50,39 @@
     <button type="submit" class="btn btn-success w-100">🚀 Process File 🚀</button>
   </form>
 
+
+
   <hr class="my-4">
 
-  <div class="d-flex justify-content-between">
-    <a href="{{ url_for('help_page') }}" class="btn btn-outline-info">Help</a>
-    <a href="{{ url_for('settings') }}" class="btn btn-outline-secondary">Settings</a>
+<div class="card">
+  <div class="card-body small">
+    <h6 class="text-muted fw-bold">Current Configuration</h6>
+    <ul class="mb-0">
+      <li><strong>Template:</strong> {{ settings.template_path.split('/')[-1] if settings.template_path else 'None' }}</li>
+      <li><strong>Timestamp in Filename:</strong> {{ "Yes" if settings.timestamp_in_filename else "No" }}</li>
+      <li><strong>Graph Colours ({{ settings.selected_preset }}):</strong>
+        <ul class="mb-0">
+          <li>Q1: <span style="color: {{ settings.presets[settings.selected_preset].Q1 }}">{{ settings.presets[settings.selected_preset].Q1 }}</span></li>
+          <li>Q2: <span style="color: {{ settings.presets[settings.selected_preset].Q2 }}">{{ settings.presets[settings.selected_preset].Q2 }}</span></li>
+          <li>Q3: <span style="color: {{ settings.presets[settings.selected_preset].Q3 }}">{{ settings.presets[settings.selected_preset].Q3 }}</span></li>
+          <li>Q4: <span style="color: {{ settings.presets[settings.selected_preset].Q4 }}">{{ settings.presets[settings.selected_preset].Q4 }}</span></li>
+        </ul>
+      </li>
+      <li><strong>Quadrants Included in Plots:</strong>
+        <ul class="mb-0">
+          <li>Q1: {{ 'Yes' if settings.quadrants and settings.quadrants.get('Q1') else 'No' }}</li>
+          <li>Q2: {{ 'Yes' if settings.quadrants and settings.quadrants.get('Q2') else 'No' }}</li>
+          <li>Q3: {{ 'Yes' if settings.quadrants and settings.quadrants.get('Q3') else 'No' }}</li>
+          <li>Q4: {{ 'Yes' if settings.quadrants and settings.quadrants.get('Q4') else 'No' }}</li>
+
+        </ul>
+      </li>
+    </ul>
   </div>
+</div>
+
+
+
+
 </div>
 {% endblock %}

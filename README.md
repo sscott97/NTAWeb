@@ -113,9 +113,6 @@ CSV files must be saved in "Data Only" mode from Kaleido software.
 
 Temporary files are cleaned up automatically; if you encounter issues, check file permissions.
 
-## License
-
-Feel free to use, modify, and distribute!
 
 ## Contact
 

@@ -19,7 +19,7 @@
   {% else %}
     <form action="{{ url_for('generate_graphs') }}" method="post">
       <input type="hidden" name="file_id" value="{{ excel_file_id }}">
-      <button type="submit" class="btn btn-success w-100">📊 Generate Graph</button>
+      <button type="submit" class="btn btn-success w-100">📊 Download Graph</button>
     </form>
   {% endif %}
 </div>

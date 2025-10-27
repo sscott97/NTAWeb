@@ -2,7 +2,7 @@ import os
 import json
 import csv
 import openpyxl
-from openpyxl.styles import Alignment
+from openpyxl.styles import Alignment, PatternFill, Font, Border, Side
 from openpyxl.utils import get_column_letter
 from openpyxl import load_workbook
 from io import BytesIO
@@ -129,10 +129,10 @@ def process_csv_to_template(
 def extract_final_titres_openpyxl(output_path):
     wb = load_workbook(output_path)
 
-    if "Summary" in wb.sheetnames:
-        wb.remove(wb["Summary"])
+    if "Data Summary" in wb.sheetnames:
+        wb.remove(wb["Data Summary"])
 
-    summary_ws = wb.create_sheet("Summary", 0)
+    summary_ws = wb.create_sheet("Data Summary", 0)
 
     summary_ws.append([
         "Plate", "Pseudotype", "Sample ID", 
@@ -143,6 +143,8 @@ def extract_final_titres_openpyxl(output_path):
     for col in range(1, 12):
         cell = summary_ws.cell(row=1, column=col)
         cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    
 
     nt90_cells = [["B14", "C14", "D14"], ["E14", "F14", "G14"], ["H14", "I14", "J14"], ["K14", "L14", "M14"]]
     nt50_cells = [["B16", "C16", "D16"], ["E16", "F16", "G16"], ["H16", "I16", "J16"], ["K16", "L16", "M16"]]
@@ -189,6 +191,51 @@ def extract_final_titres_openpyxl(output_path):
                 cell = summary_ws.cell(row=last_row, column=col)
                 cell.number_format = '0'
 
+    # === Apply cell colouring ===
+    light_green = PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="solid")
+    dark_green  = PatternFill(start_color="6AA84F", end_color="6AA84F", fill_type="solid")
+    light_blue  = PatternFill(start_color="BDD7EE", end_color="BDD7EE", fill_type="solid")
+    dark_blue   = PatternFill(start_color="2E75B6", end_color="2E75B6", fill_type="solid")
+
+    for row in summary_ws.iter_rows(min_row=2, max_row=summary_ws.max_row, min_col=4, max_col=11):
+        for idx, cell in enumerate(row, start=4):
+            if idx in (4, 5, 6):  # NT90 Replicates
+                cell.fill = light_green
+            elif idx == 7:  # NT90 average
+                cell.fill = dark_green
+            elif idx in (8, 9, 10):  # NT50 Replicates
+                cell.fill = light_blue
+            elif idx == 11:  # NT50 average
+                cell.fill = dark_blue
+
+    # === Style header row ===
+    bold_font = Font(bold=True)
+    thin_border = Border(
+        left=Side(style="thin"),
+        right=Side(style="thin"),
+        top=Side(style="thin"),
+        bottom=Side(style="thin")
+    )
+
+    for col in range(1, 12):
+        cell = summary_ws.cell(row=1, column=col)
+        cell.font = bold_font
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        cell.border = thin_border
+
+    
+        # === Colour header row to match columns ===
+    summary_ws["D1"].fill = light_green
+    summary_ws["E1"].fill = light_green
+    summary_ws["F1"].fill = light_green
+    summary_ws["G1"].fill = dark_green
+
+    summary_ws["H1"].fill = light_blue
+    summary_ws["I1"].fill = light_blue
+    summary_ws["J1"].fill = light_blue
+    summary_ws["K1"].fill = dark_blue
+
+
     if isinstance(output_path, BytesIO):
         output_path.seek(0)
         wb.save(output_path)
@@ -200,7 +247,7 @@ def extract_final_titres_openpyxl(output_path):
 
 def add_default_to_final_titres(output_path):
     wb = openpyxl.load_workbook(output_path)
-    summary = wb["Summary"]
+    summary = wb["Data Summary"]
     plate1 = wb["Plate1"]
 
     # Get values from A5 and A11
@@ -217,12 +264,15 @@ def add_default_to_final_titres(output_path):
     except:
         a11_val = ""
 
+
     for row in summary.iter_rows(min_row=2, max_row=summary.max_row, min_col=4, max_col=10):
         for cell in row:
-            val = cell.value
-            if (val in (None, "")) and a5_val:
+            if isinstance(cell.value, str) and cell.value.startswith("="):
+                # leave formulas intact
+                continue
+            if (cell.value in (None, "")) and a5_val:
                 cell.value = f"≤{a5_val}"
-            elif isinstance(val, (float, int)) and a11_val and val > a11_val:
+            elif isinstance(cell.value, (float, int)) and a11_val and cell.value > a11_val:
                 cell.value = f"≥{a11_val}"
 
     for row in summary.iter_rows(min_row=2, max_row=summary.max_row, min_col=1, max_col=11):
