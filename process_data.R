@@ -1,3 +1,6 @@
+script_start <- Sys.time()
+cat("⏱ Script started at: ", script_start, "\n")
+
 library(readxl)
 library(ggplot2)
 library(dplyr)
@@ -37,33 +40,33 @@ if (length(plate_sheets) == 0) stop("Error: No 'Plate' sheets found.")
 
 ####### FUNCTION TO PROCESS A SINGLE PLATE #######
 process_plate <- function(sheet_name) {
-  safe_read_cell <- function(range) {
-    val <- tryCatch(
-      read_excel(excel_file, sheet = sheet_name, range = range, col_names = FALSE)[[1]],
-      error = function(e) NA
-    )
-    if (length(val) == 0 || is.na(val) || val == "") return(NA)
-    return(val)
-  }
+  # Read the entire sheet once
+  sheet_data <- suppressMessages(
+    read_excel(excel_file, sheet = sheet_name, col_names = FALSE)
+  )
 
-  dilutions <- read_excel(excel_file, sheet = sheet_name, range = "A5:A12", col_names = FALSE)[[1]]
-  data <- read_excel(excel_file, sheet = sheet_name, range = "B5:M12", col_names = FALSE)
+  # Extract dilutions and main data
+  dilutions <- as.numeric(sheet_data[5:12, 1][[1]])
+  data <- sheet_data[5:12, 2:13] %>% lapply(unlist) %>% as.data.frame()
   data[] <- lapply(data, as.numeric)
 
+
+  # Extract sample IDs and pseudotypes
   sample_ids <- c(
-    Q1 = safe_read_cell("B3"),
-    Q2 = safe_read_cell("E3"),
-    Q3 = safe_read_cell("H3"),
-    Q4 = safe_read_cell("K3")
+    Q1 = sheet_data[3, 2],
+    Q2 = sheet_data[3, 5],
+    Q3 = sheet_data[3, 8],
+    Q4 = sheet_data[3, 11]
   )
 
   pseudotypes <- c(
-    Q1 = safe_read_cell("B4"),
-    Q2 = safe_read_cell("E4"),
-    Q3 = safe_read_cell("H4"),
-    Q4 = safe_read_cell("K4")
+    Q1 = sheet_data[4, 2],
+    Q2 = sheet_data[4, 5],
+    Q3 = sheet_data[4, 8],
+    Q4 = sheet_data[4, 11]
   )
 
+  # Build full labels
   full_labels <- sapply(names(sample_ids), function(q) {
     sid <- trimws(as.character(sample_ids[q]))
     psd <- trimws(as.character(pseudotypes[q]))
@@ -74,6 +77,7 @@ process_plate <- function(sheet_name) {
     }
   })
 
+  # Split data by quadrant
   Titration <- list(
     Q1 = data[, 1:3],
     Q2 = data[, 4:6],
@@ -81,6 +85,7 @@ process_plate <- function(sheet_name) {
     Q4 = data[, 10:12]
   )
 
+  # Build tidy data frame for plotting
   plot_data <- bind_rows(lapply(names(Titration), function(q) {
     data.frame(
       Dilution = dilutions,
@@ -95,6 +100,7 @@ process_plate <- function(sheet_name) {
 
   return(plot_data)
 }
+
 
 ####### PROCESS ALL PLATES #######
 all_data <- bind_rows(lapply(plate_sheets, process_plate))
@@ -200,3 +206,9 @@ for (plate in plate_sheets) {
 
 cat("🔎 Checked file path in R:", excel_file, "\n")
 cat("🔎 file.exists(excel_file):", file.exists(excel_file), "\n")
+
+
+script_end <- Sys.time()
+elapsed <- difftime(script_end, script_start, units = "secs")
+cat("⏱ Script finished at: ", script_end, "\n")
+cat("⏱ Total runtime: ", round(elapsed, 2), " seconds\n")
