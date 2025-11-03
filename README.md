@@ -24,6 +24,8 @@ The Neutralising Titre Automator (NTA) is a Flask-based web application designed
 
 ### R with the following packages installed:
 - readxl
+- cowplot
+- grid
 - ggplot2
 - dplyr
 - tidyr

@@ -3,24 +3,28 @@ FROM rocker/r-ver:4.3.2
 
 # Install Python and system dependencies
 RUN apt-get update && \
-    apt-get install -y python3 python3-pip python3-venv python3-dev && \
-    apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev
+    apt-get install -y --no-install-recommends \
+        python3 python3-pip python3-venv python3-dev \
+        libcurl4-openssl-dev libssl-dev libxml2-dev && \
+    rm -rf /var/lib/apt/lists/*
 
-# Install any R packages your R script needs
-RUN Rscript -e "install.packages(c('cowplot', 'grid', 'ggplot2', 'readxl', 'dplyr', 'tidyr'), repos='https://cloud.r-project.org/')"
+# Install any R packages your R script needs (faster with pak)
+RUN R -e "install.packages('pak', repos='https://cloud.r-project.org'); \
+           pak::pak(c('cowplot', 'ggplot2', 'readxl', 'dplyr', 'tidyr'))"
+
+
+# Set the working directory
+WORKDIR /app
 
 # Copy and install Python dependencies
 COPY requirements.txt .
 RUN pip3 install --no-cache-dir -r requirements.txt
 
-# Set the working directory inside the container
-WORKDIR /app
-
-# Copy all your code files into the image
+# Copy all your app code
 COPY . .
 
-# Flask runs on port 10000 in this container
+# Expose Flask port
 EXPOSE 10000
 
-# Run your app when the container starts
+# Run Flask app
 CMD ["python3", "app.py"]
