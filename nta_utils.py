@@ -53,6 +53,11 @@ def process_csv_to_template(
     template_sheet = wb.active
 
     pseudotype_list = [pt.strip() for line in pseudotype_texts.splitlines() for pt in line.split(",") if pt.strip()]
+
+    # Pad with "Unlabelled" if not enough pseudotypes provided
+    while len(pseudotype_list) < num_pseudotypes:
+        pseudotype_list.append("Unlabelled")
+
     sample_id_list = [sid.strip() for line in sample_id_text.splitlines() for sid in line.split(",") if sid.strip()]
 
     sample_index = 0
@@ -192,10 +197,10 @@ def extract_final_titres_openpyxl(output_path):
                 cell.number_format = '0'
 
     # === Apply cell colouring ===
-    light_green = PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="solid")
-    dark_green  = PatternFill(start_color="6AA84F", end_color="6AA84F", fill_type="solid")
-    light_blue  = PatternFill(start_color="BDD7EE", end_color="BDD7EE", fill_type="solid")
-    dark_blue   = PatternFill(start_color="2E75B6", end_color="2E75B6", fill_type="solid")
+    light_green = PatternFill(start_color="C1E1C1", end_color="C1E1C1", fill_type="solid")
+    dark_green  = PatternFill(start_color="93C572", end_color="93C572", fill_type="solid")
+    light_blue  = PatternFill(start_color="96DED1", end_color="96DED1", fill_type="solid")
+    dark_blue   = PatternFill(start_color="40B5AD", end_color="40B5AD", fill_type="solid")
 
     for row in summary_ws.iter_rows(min_row=2, max_row=summary_ws.max_row, min_col=4, max_col=11):
         for idx, cell in enumerate(row, start=4):

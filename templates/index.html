@@ -39,7 +39,7 @@
 
     <div class="mb-3">
       <label for="pseudotype_text" class="form-label">Pseudotype(s)</label>
-      <input type="text" name="pseudotype_text" id="pseudotype_text" class="form-control" placeholder="e.g. Alpha, Beta (Pseudotypes MUST be labelled or won't be included in summary)" required>
+      <input type="text" name="pseudotype_text" id="pseudotype_text" class="form-control" placeholder="e.g. Alpha, Beta" required>
     </div>
 
     <div class="mb-3">
@@ -85,4 +85,72 @@
 
 
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const form = document.querySelector('form');
+  const numPseudotypesSelect = document.getElementById('num_pseudotypes');
+  const pseudotypeInput = document.getElementById('pseudotype_text');
+  const assayTitleInput = document.getElementById('assay_title');
+  const sampleIdInput = document.getElementById('sample_id_text');
+
+  // Restore form data from sessionStorage
+  const savedData = sessionStorage.getItem('formData');
+  if (savedData) {
+    const data = JSON.parse(savedData);
+    if (data.assay_title) assayTitleInput.value = data.assay_title;
+    if (data.num_pseudotypes) numPseudotypesSelect.value = data.num_pseudotypes;
+    if (data.pseudotype_text) pseudotypeInput.value = data.pseudotype_text;
+    if (data.sample_id_text) sampleIdInput.value = data.sample_id_text;
+  }
+
+  // Save form data whenever inputs change
+  function saveFormData() {
+    const formData = {
+      assay_title: assayTitleInput.value,
+      num_pseudotypes: numPseudotypesSelect.value,
+      pseudotype_text: pseudotypeInput.value,
+      sample_id_text: sampleIdInput.value
+    };
+    sessionStorage.setItem('formData', JSON.stringify(formData));
+  }
+
+  // Add event listeners to save on change
+  assayTitleInput.addEventListener('input', saveFormData);
+  numPseudotypesSelect.addEventListener('change', saveFormData);
+  pseudotypeInput.addEventListener('input', saveFormData);
+  sampleIdInput.addEventListener('input', saveFormData);
+
+  // Form validation on submit
+  form.addEventListener('submit', function(e) {
+    const numPseudotypes = parseInt(numPseudotypesSelect.value);
+    const pseudotypeText = pseudotypeInput.value.trim();
+    
+    if (!pseudotypeText) {
+      e.preventDefault();
+      alert('Please enter at least one pseudotype name.');
+      pseudotypeInput.focus();
+      return false;
+    }
+
+    const pseudotypes = pseudotypeText.split(',').map(pt => pt.trim()).filter(pt => pt);
+    
+    if (pseudotypes.length < numPseudotypes) {
+      const proceed = confirm(
+        `Warning: You selected ${numPseudotypes} pseudotype(s) but only entered ${pseudotypes.length}. ` +
+        `Missing pseudotypes will be labelled as "Unlabelled". Continue?`
+      );
+      if (!proceed) {
+        e.preventDefault();
+        pseudotypeInput.focus();
+        return false;
+      }
+    }
+    
+    // Clear saved data on successful submit
+    // sessionStorage.removeItem('formData');
+  });
+});
+</script>
+
 {% endblock %}

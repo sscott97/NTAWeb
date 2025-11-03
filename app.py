@@ -45,6 +45,12 @@ def settings():
         "Backup NTA Template": "excel_templates/Backup_NTA_Template.xlsx",
     }
 
+        # Load the current template path from config.json
+    try:
+        current_template_path = load_template_path()
+    except FileNotFoundError:
+        current_template_path = None
+
     if request.method == "POST":
         # Check if user selected a default template
         selected_template_key = request.form.get("default_template_select")
@@ -70,6 +76,9 @@ def settings():
         save_settings(new_settings)
         flash("Settings saved.", "success")
         return redirect(url_for("settings"))
+    
+    current_settings["template_path"] = current_template_path
+
 
     return render_template("settings.html", settings=current_settings, default_templates=default_templates)
 
@@ -84,8 +93,14 @@ def process():
         return redirect(url_for("index"))
     
     assay_title = request.form.get("assay_title", "")
-    pseudotypes = request.form.get("pseudotype_text", "")
+    pseudotypes = request.form.get("pseudotype_text", "").strip()
     sample_ids = request.form.get("sample_id_text", "")
+
+        # Validate pseudotypes input
+    if not pseudotypes:
+        flash("Please enter at least one pseudotype name.", "danger")
+        return redirect(url_for("index"))
+
     try:
         num_pseudotypes = int(request.form.get("num_pseudotypes", "1"))
         if num_pseudotypes not in [1, 2, 3, 4]:

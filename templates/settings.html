@@ -2,112 +2,162 @@
 {% block title %}Settings - NTA{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-<h3 class="text-center text-success mb-4">Settings</h3>
+<div class="container mt-4" style="max-width: 900px;">
 
-  <form method="post" enctype="multipart/form-data">
-    <!-- Timestamp setting -->
-    <div class="form-check form-switch mb-4">
-      <input
-        class="form-check-input"
-        type="checkbox"
-        id="timestamp_in_filename"
-        name="timestamp_in_filename"
-        {% if settings.get('timestamp_in_filename') %}checked{% endif %}
-      >
-      <label class="form-check-label" for="timestamp_in_filename">
-        Include timestamp in Excel filename
-      </label>
+  <h2 class="text-center text-success mb-4">Settings</h2>
+
+  <!-- Template Settings Card -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-success text-white">
+      <h5 class="mb-0">📄 File Configuration</h5>
     </div>
+    <div class="card-body">
+      <form method="post" enctype="multipart/form-data">
+        <!-- Timestamp Toggle -->
+        <div class="form-check form-switch mb-3">
+          <input
+            class="form-check-input"
+            type="checkbox"
+            id="timestamp_in_filename"
+            name="timestamp_in_filename"
+            {% if settings.get('timestamp_in_filename') %}checked{% endif %}
+          >
+          <label class="form-check-label" for="timestamp_in_filename">
+            <strong>Include timestamp in Excel filename</strong>
+            <small class="text-muted d-block">Adds date to output files</small>
+          </label>
+        </div>
 
-    <!-- Default template selector -->
-    <div class="mb-3">
-      <label for="default_template_select" class="form-label">Choose a default template:</label>
-      <select name="default_template_select" id="default_template_select" class="form-select">
-        <option value="">-- Select Template --</option>
-        {% for name, path in default_templates.items() %}
-          <option value="{{ name }}" {% if settings.get('template_path') == path %}selected{% endif %}>{{ name }}</option>
-        {% endfor %}
-      </select>
+        <hr>
+
+        <!-- Default Template Selector -->
+        <div class="mb-3">
+          <label for="default_template_select" class="form-label fw-bold">Choose Default Template</label>
+          <select name="default_template_select" id="default_template_select" class="form-select">
+            <option value="">-- Select Template --</option>
+            {% for name, path in default_templates.items() %}
+              <option value="{{ name }}" {% if settings.get('template_path') == path %}selected{% endif %}>
+                {{ name }}
+              </option>
+            {% endfor %}
+          </select>
+          <small class="text-muted">Current: {{ settings.template_path.split('/')[-1] if settings.template_path else 'None' }}</small>
+        </div>
+
+        <!-- Upload Custom Template -->
+        <div class="mb-3">
+          <label for="template_file" class="form-label fw-bold">Or Upload Custom Template</label>
+          <input type="file" name="template_file" id="template_file" accept=".xlsx" class="form-control">
+          <small class="text-muted">Upload a new .xlsx template file</small>
+        </div>
+
+        <div class="text-end">
+          <button type="submit" class="btn btn-success">
+            <i class="bi bi-save"></i> Save Template Settings
+          </button>
+        </div>
+      </form>
     </div>
+  </div>
 
-    <hr>
-
-    <!-- Or upload new template file -->
-    <div class="mb-3">
-      <label for="template_file" class="form-label">Or upload a new template (.xlsx):</label>
-      <input type="file" name="template_file" id="template_file" accept=".xlsx" class="form-control">
+  <!-- Graph Settings Card -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-primary text-white">
+      <h5 class="mb-0">🎨 Graph Appearance</h5>
     </div>
-
-
-    <div class="text-center mb-5">
-      <button type="submit" class="btn btn-primary">💾 Save Template</button>
-    </div>
-  </form>
-
-  <hr>
-
-  <h5>Graph Colour Presets</h5>
-
-  <div class="mb-3">
-    <label for="presetSelect" class="form-label">Select Preset:</label>
-    <select id="presetSelect" class="form-select mb-3"></select>
-
-    <div class="row g-2 mb-3">
-      <div class="col">
-        <label for="q1Colour" class="form-label">Q1 Colour</label>
-        <input type="color" id="q1Colour" class="form-control form-control-color" title="Q1 Colour">
+    <div class="card-body">
+      <!-- Preset Selector -->
+      <div class="mb-4">
+        <label for="presetSelect" class="form-label fw-bold">Color Preset</label>
+        <select id="presetSelect" class="form-select"></select>
+        <small class="text-muted">Select a saved color scheme or create a new one</small>
       </div>
-      <div class="col">
-        <label for="q2Colour" class="form-label">Q2 Colour</label>
-        <input type="color" id="q2Colour" class="form-control form-control-color" title="Q2 Colour">
+
+      <!-- Color Pickers -->
+      <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+          <label for="q1Colour" class="form-label">Q1 Color</label>
+          <input type="color" id="q1Colour" class="form-control form-control-color w-100" title="Q1 Color">
+        </div>
+        <div class="col-6 col-md-3">
+          <label for="q2Colour" class="form-label">Q2 Color</label>
+          <input type="color" id="q2Colour" class="form-control form-control-color w-100" title="Q2 Color">
+        </div>
+        <div class="col-6 col-md-3">
+          <label for="q3Colour" class="form-label">Q3 Color</label>
+          <input type="color" id="q3Colour" class="form-control form-control-color w-100" title="Q3 Color">
+        </div>
+        <div class="col-6 col-md-3">
+          <label for="q4Colour" class="form-label">Q4 Color</label>
+          <input type="color" id="q4Colour" class="form-control form-control-color w-100" title="Q4 Color">
+        </div>
       </div>
-      <div class="col">
-        <label for="q3Colour" class="form-label">Q3 Colour</label>
-        <input type="color" id="q3Colour" class="form-control form-control-color" title="Q3 Colour">
+
+      <!-- Preset Name Input -->
+      <div class="mb-3">
+        <label for="newPresetName" class="form-label">Save As New Preset</label>
+        <input
+          type="text"
+          id="newPresetName"
+          class="form-control"
+          placeholder="Enter preset name (leave blank to update current preset)"
+        >
       </div>
-      <div class="col">
-        <label for="q4Colour" class="form-label">Q4 Colour</label>
-        <input type="color" id="q4Colour" class="form-control form-control-color" title="Q4 Colour">
+
+      <!-- Preset Actions -->
+      <div class="d-flex flex-wrap gap-2 mb-4">
+        <button type="button" class="btn btn-success" onclick="applyPreset()">
+          ✅ Apply Preset
+        </button>
+        <button type="button" class="btn btn-primary" onclick="savePreset()">
+          💾 Save Preset
+        </button>
+        <button type="button" class="btn btn-danger" onclick="deletePreset()">
+          🗑️ Delete Preset
+        </button>
+      </div>
+
+      <hr>
+
+      <!-- Quadrant Visibility -->
+      <div class="mb-3">
+        <label class="form-label fw-bold">Quadrants to Include in Graphs</label>
+        <small class="text-muted d-block mb-2">Select which quadrants appear in generated plots</small>
+        
+        <div class="row">
+          <div class="col-6 col-md-3">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="includeQ1">
+              <label class="form-check-label" for="includeQ1">Q1</label>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="includeQ2">
+              <label class="form-check-label" for="includeQ2">Q2</label>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="includeQ3">
+              <label class="form-check-label" for="includeQ3">Q3</label>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="includeQ4">
+              <label class="form-check-label" for="includeQ4">Q4</label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="text-end">
+        <button type="button" class="btn btn-success" onclick="saveAllGraphSettings()">
+          <i class="bi bi-save"></i> Save Graph Settings
+        </button>
       </div>
     </div>
-
-    <input
-      type="text"
-      id="newPresetName"
-      class="form-control mb-3"
-      placeholder="New preset name (leave blank to overwrite selected preset)"
-    >
-
-    <div class="d-flex gap-2">
-      <button type="button" class="btn btn-success" onclick="applyPreset()">✅ Select Current Preset</button>
-      <button type="button" class="btn btn-primary" onclick="savePreset()">💾 Save New Preset</button>
-      <button type="button" class="btn btn-danger" onclick="deletePreset()">🗑️ Delete Preset</button>
-    </div>
-
-    <hr>
-    <h5>Quadrants to Include in Graph</h5>
-    <div class="form-check">
-      <input class="form-check-input" type="checkbox" id="includeQ1">
-      <label class="form-check-label" for="includeQ1">Include Q1</label>
-    </div>
-    <div class="form-check">
-      <input class="form-check-input" type="checkbox" id="includeQ2">
-      <label class="form-check-label" for="includeQ2">Include Q2</label>
-    </div>
-    <div class="form-check">
-      <input class="form-check-input" type="checkbox" id="includeQ3">
-      <label class="form-check-label" for="includeQ3">Include Q3</label>
-    </div>
-    <div class="form-check">
-      <input class="form-check-input" type="checkbox" id="includeQ4">
-      <label class="form-check-label" for="includeQ4">Include Q4</label>
-    </div>
-
-    <div class="mt-3">
-      <button type="button" class="btn btn-secondary" onclick="saveQuadrantSettings()">💾 Save Quadrant Settings</button>
-    </div>
-    
   </div>
 </div>
 
@@ -118,8 +168,7 @@ document.addEventListener("DOMContentLoaded", () => {
     .then(data => {
       window.settings = data;
       populatePresetDropdown();
-      populateQuadrantCheckboxes(); 
-
+      populateQuadrantCheckboxes();
     });
 });
 
@@ -148,13 +197,12 @@ function updateColourInputs(preset) {
 document.getElementById("presetSelect").addEventListener("change", () => {
   const selected = document.getElementById("presetSelect").value;
   updateColourInputs(settings.presets[selected]);
-  document.getElementById("newPresetName").value = ""; // Clear new name input on change
+  document.getElementById("newPresetName").value = "";
 });
 
 function savePreset() {
   let name = document.getElementById("newPresetName").value.trim();
   if (!name) {
-    // If blank, overwrite currently selected preset
     name = document.getElementById("presetSelect").value;
     if (!name) {
       alert("Please enter a new preset name.");
@@ -178,7 +226,10 @@ function savePreset() {
     if (!response.ok) throw new Error("Failed to save preset");
     return response.text();
   })
-  .then(() => location.reload())
+  .then(() => {
+    alert(`Preset "${name}" saved successfully!`);
+    location.reload();
+  })
   .catch(err => alert(err));
 }
 
@@ -199,7 +250,10 @@ function deletePreset() {
     if (!response.ok) throw new Error("Failed to delete preset");
     return response.text();
   })
-  .then(() => location.reload())
+  .then(() => {
+    alert(`Preset "${name}" deleted successfully!`);
+    location.reload();
+  })
   .catch(err => alert(err));
 }
 
@@ -219,7 +273,7 @@ function applyPreset() {
     if (!response.ok) throw new Error("Failed to apply preset");
     return response.text();
   })
-  .then(() => alert(`Preset "${name}" applied!`))
+  .then(() => alert(`Preset "${name}" applied successfully!`))
   .catch(err => alert(err));
 }
 
@@ -230,7 +284,7 @@ function populateQuadrantCheckboxes() {
   document.getElementById("includeQ4").checked = settings.quadrants?.Q4 ?? true;
 }
 
-function saveQuadrantSettings() {
+function saveAllGraphSettings() {
   const quadrants = {
     Q1: document.getElementById("includeQ1").checked,
     Q2: document.getElementById("includeQ2").checked,
@@ -244,12 +298,12 @@ function saveQuadrantSettings() {
     body: JSON.stringify(quadrants)
   })
   .then(response => {
-    if (!response.ok) throw new Error("Failed to save quadrants");
+    if (!response.ok) throw new Error("Failed to save settings");
     return response.text();
   })
-  .then(() => alert("Quadrant settings saved!"))
+  .then(() => alert("Graph settings saved successfully!"))
   .catch(err => alert(err));
 }
-
 </script>
+
 {% endblock %}
