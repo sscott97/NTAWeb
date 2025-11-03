@@ -197,10 +197,10 @@ def extract_final_titres_openpyxl(output_path):
                 cell.number_format = '0'
 
     # === Apply cell colouring ===
-    light_green = PatternFill(start_color="C1E1C1", end_color="C1E1C1", fill_type="solid")
-    dark_green  = PatternFill(start_color="93C572", end_color="93C572", fill_type="solid")
-    light_blue  = PatternFill(start_color="96DED1", end_color="96DED1", fill_type="solid")
-    dark_blue   = PatternFill(start_color="40B5AD", end_color="40B5AD", fill_type="solid")
+    light_green = PatternFill(start_color="AFE1AF", end_color="AFE1AF", fill_type="solid")
+    dark_green  = PatternFill(start_color="89D289", end_color="89D289", fill_type="solid")
+    light_blue  = PatternFill(start_color="7CAFB1", end_color="7CAFB1", fill_type="solid")
+    dark_blue   = PatternFill(start_color="5F9EA0", end_color="5F9EA0", fill_type="solid")
 
     for row in summary_ws.iter_rows(min_row=2, max_row=summary_ws.max_row, min_col=4, max_col=11):
         for idx, cell in enumerate(row, start=4):
