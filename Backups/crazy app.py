@@ -1,20 +1,25 @@
-from flask import Flask, render_template, request, redirect, url_for, send_file, flash, jsonify, send_from_directory, session
+from concurrent.futures import ThreadPoolExecutor
+from io import BytesIO
 import os
+import tempfile
 import uuid
 import subprocess
 from datetime import datetime
-from io import BytesIO
-import tempfile
-
+from flask import Flask, flash, redirect, render_template, request, session, url_for, send_file, jsonify, send_from_directory
 
 from nta_utils import (
     process_csv_to_template,
     extract_final_titres_openpyxl as extract_final_titres_xlwings,
-    save_template_path,
-    load_template_path,
+    add_default_to_final_titres,
     load_settings,
+    load_template_path,
+    save_template_path,
     save_settings,
 )
+
+from openpyxl import load_workbook
+from openpyxl.drawing.image import Image as XLImage
+from PIL import Image as PILImage
 
 in_memory_files = {}  # Key: UUID, Value: BytesIO
 
@@ -83,21 +88,18 @@ def settings():
     return render_template("settings.html", settings=current_settings, default_templates=default_templates)
 
 
-
-
 @app.route("/process", methods=["POST"])
 def process():
-    file = request.files["csv_file"]
+    file = request.files.get("csv_file")
     if not file:
         flash("No CSV file uploaded.", "danger")
         return redirect(url_for("index"))
-    
-    assay_title = request.form.get("assay_title", "")
-    pseudotypes = request.form.get("pseudotype_text", "").strip()
-    sample_ids = request.form.get("sample_id_text", "")
 
-        # Validate pseudotypes input
-    if not pseudotypes:
+    assay_title = request.form.get("assay_title", "")
+    pseudotypes_input = request.form.get("pseudotype_text", "").strip()
+    sample_ids_input = request.form.get("sample_id_text", "").strip()
+
+    if not pseudotypes_input:
         flash("Please enter at least one pseudotype name.", "danger")
         return redirect(url_for("index"))
 
@@ -112,121 +114,120 @@ def process():
     settings = load_settings()
     safe_title = assay_title.strip().replace(" ", "_")
     timestamp = datetime.now().strftime("%Y-%m-%d")
-    filename = f"{safe_title}_{timestamp}.xlsx" if settings.get("timestamp_in_filename", True) else f"{safe_title}.xlsx"
+    filename = (
+        f"{safe_title}_{timestamp}.xlsx"
+        if settings.get("timestamp_in_filename", True)
+        else f"{safe_title}.xlsx"
+    )
 
     csv_bytes = BytesIO(file.read())
     csv_bytes.seek(0)
 
+    # --- Split pseudotypes and sample IDs into lists ---
+    pseudotype_list = [p.strip() for p in pseudotypes_input.split(",")]
+    sample_list = [s.strip() for s in sample_ids_input.split(",")]
+
+    # Fill missing entries with empty strings if less than 4
+    while len(pseudotype_list) < 4:
+        pseudotype_list.append("")
+    while len(sample_list) < 4:
+        sample_list.append("")
+
+    # --- 1. Create Excel in memory ---
+    output_bytes = BytesIO()
     try:
         template_path = load_template_path()
     except Exception as e:
         flash(str(e), "danger")
         return redirect(url_for("index"))
 
-    # Create Excel in memory (plate sheets)
-    output_bytes = BytesIO()
     process_csv_to_template(
         csv_path=csv_bytes,
         template_path=template_path,
         output_path=output_bytes,
         num_pseudotypes=num_pseudotypes,
-        pseudotype_texts=pseudotypes,
+        pseudotype_texts=pseudotype_list,  # pass list
         assay_title_text=assay_title,
-        sample_id_text=sample_ids,
+        sample_id_text=sample_list         # pass list
     )
 
-    # Generate Summary sheet
     extract_final_titres_xlwings(output_bytes)
-
-    # Fill blank NT values with < / > as appropriate
-    from nta_utils import add_default_to_final_titres
     add_default_to_final_titres(output_bytes)
 
-    # Save temp file for R plotting
+    # --- 2. Save Excel temporarily for R processing ---
     with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp_excel:
         tmp_excel.write(output_bytes.getvalue())
         excel_path = tmp_excel.name
 
-    # Run R script to generate plot png
     r_script = os.path.join(os.getcwd(), "process_data.R")
     presets = settings.get("presets", {})
     active_preset_name = settings.get("selected_preset", None)
     default_colours = {"Q1": "#ff7e79", "Q2": "#ffd479", "Q3": "#009193", "Q4": "#d783ff"}
     colours = presets.get(active_preset_name, default_colours)
 
-    q1_colour = colours.get("Q1", default_colours["Q1"])
-    q2_colour = colours.get("Q2", default_colours["Q2"])
-    q3_colour = colours.get("Q3", default_colours["Q3"])
-    q4_colour = colours.get("Q4", default_colours["Q4"])
-
-    quadrants = settings.get("quadrants", {"Q1": True, "Q2": True, "Q3": True, "Q4": True})
-    q1_flag = str(quadrants.get("Q1", True)).lower()
-    q2_flag = str(quadrants.get("Q2", True)).lower()
-    q3_flag = str(quadrants.get("Q3", True)).lower()
-    q4_flag = str(quadrants.get("Q4", True)).lower()
-
+    quadrant_flags = settings.get("quadrants", {"Q1": True, "Q2": True, "Q3": True, "Q4": True})
     plot_title = os.path.splitext(filename)[0]
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp_png:
-        output_plot_path = tmp_png.name
 
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp_png:
+        summary_png = tmp_png.name
+
+    # --- 3. Run R script once to generate all plots (summary + per-plate) ---
     subprocess.run(
         [
             "Rscript",
             r_script,
             excel_path,
-            output_plot_path,
+            summary_png,
             str(settings.get("timestamp_in_filename", True)).lower(),
-            q1_colour,
-            q2_colour,
-            q3_colour,
-            q4_colour,
+            colours["Q1"],
+            colours["Q2"],
+            colours["Q3"],
+            colours["Q4"],
             plot_title,
-            q1_flag, q2_flag, q3_flag, q4_flag
+            str(quadrant_flags.get("Q1", True)).lower(),
+            str(quadrant_flags.get("Q2", True)).lower(),
+            str(quadrant_flags.get("Q3", True)).lower(),
+            str(quadrant_flags.get("Q4", True)).lower()
         ],
         check=True
     )
 
-    # Embed graphs into Excel
-    from openpyxl import load_workbook
-    from openpyxl.drawing.image import Image as XLImage
-    from PIL import Image as PILImage
-
+    # --- 4. Embed plots into Excel in memory ---
     wb = load_workbook(excel_path)
 
-    # --- Summary graph on its own sheet ---
-    ws = wb.create_sheet("Summary Plots")
-    img = XLImage(output_plot_path)
-    ws.add_image(img, "A1")
+    # Summary sheet
+    ws_summary = wb.create_sheet("Summary Plots")
+    ws_summary.add_image(XLImage(summary_png), "A1")
 
-    # --- Per-plate graphs ---
-    plate_dir = os.path.dirname(output_plot_path)
-    for sheet_name in wb.sheetnames:
-        if not sheet_name.startswith("Plate"):
-            continue
-
-        plate_png = os.path.join(plate_dir, f"{sheet_name}.png")
-        if os.path.exists(plate_png):
+    # Helper function for embedding per-plate images
+    def embed_plate_image(sheet_name):
+        plate_png_path = os.path.join(os.path.dirname(summary_png), f"{sheet_name}.png")
+        if os.path.exists(plate_png_path):
             ws_plate = wb[sheet_name]
+            img = XLImage(plate_png_path)
+            img.anchor = "B33"
+            ws_plate.add_image(img)
+        return True
 
-            # ensure Excel-compatible PNG
-            pil_img = PILImage.open(plate_png)
-            temp_png = os.path.join(plate_dir, f"temp_{sheet_name}.png")
-            pil_img.save(temp_png, "PNG")
+    # Parallel embedding per-plate images
+    plate_sheets = [s for s in wb.sheetnames if s.startswith("Plate")]
+    with ThreadPoolExecutor() as executor:
+        executor.map(embed_plate_image, plate_sheets)
 
-            img_plate = XLImage(temp_png)
-            img_plate.anchor = "B33"  # place to the right of data
-            ws_plate.add_image(img_plate)
+    # Save Excel back to memory
+    final_bytes = BytesIO()
+    wb.save(final_bytes)
+    final_bytes.seek(0)
 
-    wb.save(excel_path)
-
-    # Load back into BytesIO for download
-    with open(excel_path, "rb") as f:
-        final_bytes = BytesIO(f.read())
-
-    # Cleanup temp files
+    # --- 5. Cleanup temp files ---
     os.remove(excel_path)
-    os.remove(output_plot_path)
+    os.remove(summary_png)
+    for s in plate_sheets:
+        plate_png_path = os.path.join(os.path.dirname(summary_png), f"{s}.png")
+        if os.path.exists(plate_png_path):
+            os.remove(plate_png_path)
 
+    # --- 6. Store in-memory file for download ---
     file_id = uuid.uuid4().hex
     in_memory_files[file_id] = {"data": final_bytes.getvalue(), "name": filename}
     session["file_id"] = file_id
@@ -238,6 +239,8 @@ def process():
         settings=settings,
         plot_file=None
     )
+
+
 
 
 @app.route("/download_memory/<file_id>")

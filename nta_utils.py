@@ -151,6 +151,8 @@ def extract_final_titres_openpyxl(output_path):
 
     
 
+
+    # Excel cell reference location 
     nt90_cells = [["B14", "C14", "D14"], ["E14", "F14", "G14"], ["H14", "I14", "J14"], ["K14", "L14", "M14"]]
     nt50_cells = [["B16", "C16", "D16"], ["E16", "F16", "G16"], ["H16", "I16", "J16"], ["K16", "L16", "M16"]]
     pseudotype_cells = ["B3", "E3", "H3", "K3"]
@@ -205,13 +207,13 @@ def extract_final_titres_openpyxl(output_path):
     for row in summary_ws.iter_rows(min_row=2, max_row=summary_ws.max_row, min_col=4, max_col=11):
         for idx, cell in enumerate(row, start=4):
             if idx in (4, 5, 6):  # NT90 Replicates
-                cell.fill = light_green
-            elif idx == 7:  # NT90 average
-                cell.fill = dark_green
-            elif idx in (8, 9, 10):  # NT50 Replicates
                 cell.fill = light_blue
-            elif idx == 11:  # NT50 average
+            elif idx == 7:  # NT90 average
                 cell.fill = dark_blue
+            elif idx in (8, 9, 10):  # NT50 Replicates
+                cell.fill = light_green
+            elif idx == 11:  # NT50 average
+                cell.fill = dark_green
 
     # === Style header row ===
     bold_font = Font(bold=True)
@@ -230,15 +232,15 @@ def extract_final_titres_openpyxl(output_path):
 
     
         # === Colour header row to match columns ===
-    summary_ws["D1"].fill = light_green
-    summary_ws["E1"].fill = light_green
-    summary_ws["F1"].fill = light_green
-    summary_ws["G1"].fill = dark_green
+    summary_ws["D1"].fill = light_blue
+    summary_ws["E1"].fill = light_blue # NT50% replicates
+    summary_ws["F1"].fill = light_blue
+    summary_ws["G1"].fill = dark_blue
 
-    summary_ws["H1"].fill = light_blue
-    summary_ws["I1"].fill = light_blue
-    summary_ws["J1"].fill = light_blue
-    summary_ws["K1"].fill = dark_blue
+    summary_ws["H1"].fill = light_green
+    summary_ws["I1"].fill = light_green
+    summary_ws["J1"].fill = light_green # NT90% replicates
+    summary_ws["K1"].fill = dark_green
 
 
     if isinstance(output_path, BytesIO):
@@ -255,7 +257,7 @@ def add_default_to_final_titres(output_path):
     summary = wb["Data Summary"]
     plate1 = wb["Plate1"]
 
-    # Get values from A5 and A11
+    # Get dilution series start and end values from Plate1 A5 to A11
     a5_val = plate1["A5"].value
     a11_val = plate1["A11"].value
 
