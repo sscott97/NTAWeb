@@ -3,67 +3,153 @@
 
 {% block content %}
 
-<div class="container mt-4">
-<div class="mb-3">
-<h3 class="text-center text-success mb-4">Help</h3>
+<div style="max-width: 900px; margin: 0 auto;">
 
-
-
-  <div class="bg-light p-4 rounded border">
-
-    <div class="alert alert-success" role="alert">
-      <strong>Welcome to the Neutralising Titre Automator information section!</strong>
-    </div>
-
-    <p>This application takes the raw comma-separated value (CSV) data produced by the Kaleido software on the Perkin-Elmer Luminometer and processes it using an Excel template to automatically calculate neutralising antibody titres. The data can be further processed to generate graphs.</p>
-
-    <h5 class="mt-4">How to Use This Application</h5>
-    <ol>
-      <li><strong>Input CSV File:</strong> Upload raw data in CSV format (must be 8x12 blocks, Data Only mode).</li>
-      <li><strong>Template File:</strong> A default Excel template will be loaded automatically, but can be replaced with a new one via the settings page.</li>
-      <li><strong>Output File:</strong> The processed output file will be saved and downloadable after processing.</li>
-      <li><strong>Optional Assay Data:</strong> The assay title, pseudotype IDs and sample IDs can be entered, separated by commas, to label results.</li>
-      <li><strong>Process File:</strong> Processes your CSV and produces an Excel file with processed results.</li>
-      <li><strong>Create Graphs:</strong> After processing, the assays data can be graphed. Colours can be chosen in settings page. The graph will update the dilutions based on the selected template.</li>
-    </ol>
-
-    <h5 class="mt-4">Number of Pseudotypes Logic</h5>
-    <p>The number of pseudotypes selected affects how the plate layouts are labeled and organised in the generated Excel sheets:</p>
-
-    <ul class="list-group mb-4">
-      <li class="list-group-item d-flex justify-content-between align-items-start">
-        <div>
-          <span class="badge bg-primary rounded-pill me-2">1</span>
-          <strong>1 Pseudotype:</strong> The same pseudotype ID is repeated across all four quadrants (cells <code>B3:D3</code>, <code>E3:G3</code>, <code>H3:J3</code>, <code>K3:M3</code>). Sample IDs fill each quadrant uniquely.
-        </div>
-      </li>
-      <li class="list-group-item d-flex justify-content-between align-items-start">
-        <div>
-          <span class="badge bg-primary rounded-pill me-2">2</span>
-          <strong>2 Pseudotypes:</strong> The first pseudotype ID is applied to the first two quadrants (<code>B3:D3</code>, <code>E3:G3</code>), and the second pseudotype to the last two quadrants (<code>H3:J3</code>, <code>K3:M3</code>). The first sample ID is pasted to the first and third quadrant.
-        </div>
-      </li>
-      <li class="list-group-item d-flex justify-content-between align-items-start">
-        <div>
-          <span class="badge bg-primary rounded-pill me-2">3</span>
-          <strong>3 Pseudotypes:</strong> The first three quadrants have one pseudotype ID each (<code>B3:D3</code>, <code>E3:G3</code>, <code>H3:J3</code>), while the fourth quadrant (<code>K3:M3</code>) is left blank. A single sample ID is repeated across the first three quadrants, the fourth is left blank.
-        </div>
-      </li>
-      <li class="list-group-item d-flex justify-content-between align-items-start">
-        <div>
-          <span class="badge bg-primary rounded-pill me-2">4</span>
-          <strong>4 Pseudotypes:</strong> Each quadrant has a different pseudotype ID (<code>B3:D3</code>, <code>E3:G3</code>, <code>H3:J3</code>, <code>K3:M3</code>). A single sample ID is repeated across all four quadrants.
-        </div>
-      </li>
-    </ul>
-
-    <h5 class="mt-4">Additional Notes</h5>
-    <ul>
-      <li>CSV files must be saved in Data Only mode. Files in Standard mode will not be processed. The input file should be an 8x12 block of results, with 2 blank lines separating each 8x12 block.</li>
-      <li>Template files should be stored in the application folder under the <code>Excel_Templates/</code> subfolder.</li>
-      <li>Settings, colour presets and templates can be saved via the <a href="{{ url_for('settings') }}">Settings</a> page.</li>
-    </ul>
-
+  <!-- Page header -->
+  <div class="mb-4">
+    <h2 class="text-success mb-1" style="font-size: 1.75rem;">Help</h2>
   </div>
+
+  <!-- Welcome banner -->
+  <div class="alert alert-success mb-4" role="alert">
+    <strong>Welcome to the Neutralising Titre Automator information section!</strong>
+  </div>
+
+  <!-- Overview -->
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center gap-2">
+      <span style="font-size: 1rem;">📋</span>
+      <span>Overview</span>
+    </div>
+    <div class="card-body">
+      <p style="margin: 0;">This application takes the raw comma-separated value (CSV) data produced by the Kaleido software on the Perkin-Elmer Luminometer and processes it using an Excel template to automatically calculate neutralising antibody titres. The data can be further processed to generate graphs.</p>
+    </div>
+  </div>
+
+  <!-- How to use -->
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center gap-2">
+      <span style="font-size: 1rem;">🚀</span>
+      <span>How to Use This Application</span>
+    </div>
+    <div class="card-body" style="padding-bottom: 0.75rem;">
+
+      {% set steps = [
+        ('Input CSV File', 'Upload raw data in CSV format (must be 8×12 blocks, Data Only mode).'),
+        ('Template File', 'A default Excel template will be loaded automatically, but can be replaced with a new one via the settings page.'),
+        ('Output File', 'The processed output file will be saved and downloadable after processing.'),
+        ('Optional Assay Data', 'The assay title, pseudotype IDs and sample IDs can be entered, separated by commas, to label results.'),
+        ('Process File', 'Processes your CSV and produces an Excel file with processed results.'),
+        ('Create Graphs', 'After processing, the assay data can be graphed. Colours can be chosen in the settings page. The graph will update the dilutions based on the selected template.')
+      ] %}
+
+      {% for title, desc in steps %}
+      <div class="d-flex gap-3 mb-3" style="padding-bottom: 0.75rem; {% if not loop.last %}border-bottom: 1px solid var(--border, #dee2e6);{% endif %}">
+        <div style="
+          flex-shrink: 0;
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+          background: var(--teal, #28a745);
+          color: var(--bg-base, #fff);
+          font-size: 0.75rem;
+          font-weight: 700;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-top: 2px;
+        ">{{ loop.index }}</div>
+        <div>
+          <div style="font-weight: 500; margin-bottom: 2px; color: var(--text-primary, #212529);">{{ title }}</div>
+          <div style="color: var(--text-mid, #666); font-size: 0.9rem;">{{ desc }}</div>
+        </div>
+      </div>
+      {% endfor %}
+
+    </div>
+  </div>
+
+  <!-- Pseudotype logic -->
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center gap-2">
+      <span style="font-size: 1rem;">🔢</span>
+      <span>Number of Pseudotypes Logic</span>
+    </div>
+    <div class="card-body">
+      <p style="color: var(--text-mid, #666); margin-bottom: 1.25rem; font-size: 0.9rem;">The number of pseudotypes selected affects how the plate layouts are labelled and organised in the generated Excel sheets.</p>
+
+      {% set pseudotypes = [
+        ('1', 'Same pseudotype ID repeated across all four quadrants (B3:D3, E3:G3, H3:J3, K3:M3). Sample IDs fill each quadrant uniquely.'),
+        ('2', 'First pseudotype ID applied to the first two quadrants (B3:D3, E3:G3), second pseudotype to the last two (H3:J3, K3:M3). The first sample ID is pasted to the first and third quadrant.'),
+        ('3', 'First three quadrants have one pseudotype ID each (B3:D3, E3:G3, H3:J3), fourth quadrant (K3:M3) is left blank. A single sample ID is repeated across the first three quadrants; the fourth is left blank.'),
+        ('4', 'Each quadrant has a different pseudotype ID (B3:D3, E3:G3, H3:J3, K3:M3). A single sample ID is repeated across all four quadrants.')
+      ] %}
+
+      {% for num, desc in pseudotypes %}
+      <div style="
+        display: flex;
+        gap: 1rem;
+        align-items: flex-start;
+        padding: 0.85rem 1rem;
+        margin-bottom: 0.5rem;
+        background: var(--bg-raised, #f8f9fa);
+        border: 1px solid var(--border, #dee2e6);
+        border-left: 3px solid var(--teal, #28a745);
+        border-radius: var(--radius, 4px);
+      ">
+        <div style="
+          flex-shrink: 0;
+          width: 26px;
+          height: 26px;
+          border-radius: var(--radius, 4px);
+          background: var(--teal, #28a745);
+          color: var(--bg-base, #fff);
+          font-size: 0.8rem;
+          font-weight: 700;
+          font-family: 'IBM Plex Mono', monospace;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        ">{{ num }}</div>
+        <div style="font-size: 0.9rem; color: var(--text-mid, #555); line-height: 1.55;">
+          <strong style="color: var(--text-primary, #222);">{{ num }} Pseudotype{% if num != '1' %}s{% endif %}:</strong> {{ desc }}
+        </div>
+      </div>
+      {% endfor %}
+
+    </div>
+  </div>
+
+  <!-- Additional notes -->
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center gap-2">
+      <span style="font-size: 1rem;">📝</span>
+      <span>Additional Notes</span>
+    </div>
+    <div class="card-body" style="padding-bottom: 0.5rem;">
+
+      {% set notes = [
+        'CSV files must be saved in <strong>Data Only</strong> mode. Files in Standard mode will not be processed. The input file should be an 8×12 block of results, with 2 blank lines separating each 8×12 block.',
+        'Template files should be stored in the application folder under the <code style="font-family: monospace; font-size: 0.85em; background: var(--bg-raised, #f0f0f0); padding: 1px 5px; border-radius: 3px;">Excel_Templates/</code> subfolder.'
+      ] %}
+
+      {% for note in notes %}
+      <div class="d-flex gap-3 mb-3" style="padding-bottom: 0.75rem; {% if not loop.last %}border-bottom: 1px solid var(--border, #dee2e6);{% endif %}">
+        <div style="flex-shrink: 0; color: var(--teal, #28a745); margin-top: 2px; font-size: 1rem;">›</div>
+        <div style="font-size: 0.9rem; color: var(--text-mid, #555); line-height: 1.6;">{{ note | safe }}</div>
+      </div>
+      {% endfor %}
+
+      <div class="d-flex gap-3 mb-3">
+        <div style="flex-shrink: 0; color: var(--teal, #28a745); margin-top: 2px; font-size: 1rem;">›</div>
+        <div style="font-size: 0.9rem; color: var(--text-mid, #555); line-height: 1.6;">
+          Settings, colour presets and templates can be saved via the <a href="{{ url_for('settings') }}" style="color: var(--teal, #28a745); text-decoration: none; font-weight: 500;">Settings</a> page.
+        </div>
+      </div>
+
+    </div>
+  </div>
+
 </div>
+
 {% endblock %}

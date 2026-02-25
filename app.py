@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, send_file, flash, jsonify, send_from_directory, session
 import os
 import uuid
+import json
 import subprocess
 from datetime import datetime
 from io import BytesIO
@@ -14,6 +15,7 @@ from nta_utils import (
     load_template_path,
     load_settings,
     save_settings,
+    generate_sigmoid_csv,
 )
 
 in_memory_files = {}  # Key: UUID, Value: BytesIO
@@ -38,28 +40,24 @@ def help_page():
 def settings():
     current_settings = load_settings()
 
-    # Example list of your default templates (absolute or relative paths)
     default_templates = {
         "NTA Template (dil 50-36450)": "excel_templates/NTA_Template.xlsx",
         "Measles Template (dil 32-65536)": "excel_templates/Measles_NTA_Template.xlsx",
         "Backup NTA Template": "excel_templates/Backup_NTA_Template.xlsx",
     }
 
-        # Load the current template path from config.json
     try:
         current_template_path = load_template_path()
     except FileNotFoundError:
         current_template_path = None
 
     if request.method == "POST":
-        # Check if user selected a default template
         selected_template_key = request.form.get("default_template_select")
         if selected_template_key in default_templates:
             selected_template_path = default_templates[selected_template_key]
             save_template_path(selected_template_path)
             flash(f"Template set to {selected_template_key}.", "success")
         else:
-            # Otherwise check if user uploaded a new template file
             file = request.files.get("template_file")
             if file and file.filename.endswith(".xlsx"):
                 filename = f"template_{uuid.uuid4().hex}.xlsx"
@@ -69,20 +67,16 @@ def settings():
                 save_template_path(filepath)
                 flash("New template uploaded and path updated.", "success")
 
-        # Save other settings normally here
         timestamp_flag = request.form.get("timestamp_in_filename") == "on"
         new_settings = current_settings.copy()
         new_settings["timestamp_in_filename"] = timestamp_flag
         save_settings(new_settings)
         flash("Settings saved.", "success")
         return redirect(url_for("settings"))
-    
+
     current_settings["template_path"] = current_template_path
 
-
     return render_template("settings.html", settings=current_settings, default_templates=default_templates)
-
-
 
 
 @app.route("/process", methods=["POST"])
@@ -91,12 +85,11 @@ def process():
     if not file:
         flash("No CSV file uploaded.", "danger")
         return redirect(url_for("index"))
-    
+
     assay_title = request.form.get("assay_title", "")
     pseudotypes = request.form.get("pseudotype_text", "").strip()
     sample_ids = request.form.get("sample_id_text", "")
 
-        # Validate pseudotypes input
     if not pseudotypes:
         flash("Please enter at least one pseudotype name.", "danger")
         return redirect(url_for("index"))
@@ -123,7 +116,6 @@ def process():
         flash(str(e), "danger")
         return redirect(url_for("index"))
 
-    # Create Excel in memory (plate sheets)
     output_bytes = BytesIO()
     process_csv_to_template(
         csv_path=csv_bytes,
@@ -135,19 +127,15 @@ def process():
         sample_id_text=sample_ids,
     )
 
-    # Generate Summary sheet
     extract_final_titres_xlwings(output_bytes)
 
-    # Fill blank NT values with < / > as appropriate
     from nta_utils import add_default_to_final_titres
     add_default_to_final_titres(output_bytes)
 
-    # Save temp file for R plotting
     with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp_excel:
         tmp_excel.write(output_bytes.getvalue())
         excel_path = tmp_excel.name
 
-    # Run R script to generate plot png
     r_script = os.path.join(os.getcwd(), "process_data.R")
     presets = settings.get("presets", {})
     active_preset_name = settings.get("selected_preset", None)
@@ -171,59 +159,45 @@ def process():
 
     subprocess.run(
         [
-            "Rscript",
-            r_script,
-            excel_path,
-            output_plot_path,
+            "Rscript", r_script,
+            excel_path, output_plot_path,
             str(settings.get("timestamp_in_filename", True)).lower(),
-            q1_colour,
-            q2_colour,
-            q3_colour,
-            q4_colour,
+            q1_colour, q2_colour, q3_colour, q4_colour,
             plot_title,
             q1_flag, q2_flag, q3_flag, q4_flag
         ],
         check=True
     )
 
-    # Embed graphs into Excel
     from openpyxl import load_workbook
     from openpyxl.drawing.image import Image as XLImage
     from PIL import Image as PILImage
 
     wb = load_workbook(excel_path)
 
-    # --- Summary graph on its own sheet ---
     ws = wb.create_sheet("Summary Plots")
     img = XLImage(output_plot_path)
     ws.add_image(img, "A1")
 
-    # --- Per-plate graphs ---
     plate_dir = os.path.dirname(output_plot_path)
     for sheet_name in wb.sheetnames:
         if not sheet_name.startswith("Plate"):
             continue
-
         plate_png = os.path.join(plate_dir, f"{sheet_name}.png")
         if os.path.exists(plate_png):
             ws_plate = wb[sheet_name]
-
-            # ensure Excel-compatible PNG
             pil_img = PILImage.open(plate_png)
             temp_png = os.path.join(plate_dir, f"temp_{sheet_name}.png")
             pil_img.save(temp_png, "PNG")
-
             img_plate = XLImage(temp_png)
-            img_plate.anchor = "B33"  # place to the right of data
+            img_plate.anchor = "B33"
             ws_plate.add_image(img_plate)
 
     wb.save(excel_path)
 
-    # Load back into BytesIO for download
     with open(excel_path, "rb") as f:
         final_bytes = BytesIO(f.read())
 
-    # Cleanup temp files
     os.remove(excel_path)
     os.remove(output_plot_path)
 
@@ -247,7 +221,6 @@ def download_memory(file_id):
         flash("File not found in memory.", "danger")
         return redirect(url_for("index"))
 
-    # Create fresh BytesIO for each request
     file_stream = BytesIO(file_info["data"])
     file_stream.seek(0)
 
@@ -274,56 +247,66 @@ def generate_graphs():
 
     settings = load_settings()
     include_timestamp = settings.get("timestamp_in_filename", True)
+    default_colours = {"Q1": "#ff7e79", "Q2": "#ffd479", "Q3": "#009193", "Q4": "#d783ff"}
 
-    presets = settings.get("presets", {})
-    active_preset_name = settings.get("selected_preset", None)
-    default_colours = {
-        "Q1": "#ff7e79", "Q2": "#ffd479", "Q3": "#009193", "Q4": "#d783ff"
-    }
-    colours = presets.get(active_preset_name, default_colours)
+    # ── Read session-only overrides from the results page ──
+    # Field names must exactly match the hidden input name="" attributes in results.html
+    graph_preset    = request.form.get("graph_preset", "").strip()
+    graph_quadrants = request.form.get("graph_quadrants", "").strip()
+
+    # Colours: use the override preset if it exists, otherwise fall back to saved
+    if graph_preset and graph_preset in settings.get("presets", {}):
+        colours = settings["presets"][graph_preset]
+    else:
+        active_preset_name = settings.get("selected_preset", None)
+        colours = settings.get("presets", {}).get(active_preset_name, default_colours)
 
     q1_colour = colours.get("Q1", default_colours["Q1"])
     q2_colour = colours.get("Q2", default_colours["Q2"])
     q3_colour = colours.get("Q3", default_colours["Q3"])
     q4_colour = colours.get("Q4", default_colours["Q4"])
-    quadrants = settings.get("quadrants", {"Q1": True, "Q2": True, "Q3": True, "Q4": True})
-    q1_flag = quadrants.get("Q1", True)
-    q2_flag = quadrants.get("Q2", True)
-    q3_flag = quadrants.get("Q3", True)
-    q4_flag = quadrants.get("Q4", True)
+
+    # Quadrants: use override JSON if provided, otherwise fall back to saved
+    if graph_quadrants:
+        try:
+            qdata  = json.loads(graph_quadrants)
+            q1_flag = str(qdata.get("Q1", True)).lower()
+            q2_flag = str(qdata.get("Q2", True)).lower()
+            q3_flag = str(qdata.get("Q3", True)).lower()
+            q4_flag = str(qdata.get("Q4", True)).lower()
+        except (json.JSONDecodeError, ValueError):
+            quadrants = settings.get("quadrants", {"Q1": True, "Q2": True, "Q3": True, "Q4": True})
+            q1_flag = str(quadrants.get("Q1", True)).lower()
+            q2_flag = str(quadrants.get("Q2", True)).lower()
+            q3_flag = str(quadrants.get("Q3", True)).lower()
+            q4_flag = str(quadrants.get("Q4", True)).lower()
+    else:
+        quadrants = settings.get("quadrants", {"Q1": True, "Q2": True, "Q3": True, "Q4": True})
+        q1_flag = str(quadrants.get("Q1", True)).lower()
+        q2_flag = str(quadrants.get("Q2", True)).lower()
+        q3_flag = str(quadrants.get("Q3", True)).lower()
+        q4_flag = str(quadrants.get("Q4", True)).lower()
 
     try:
-        # Create fresh BytesIO from bytes
         file_stream = BytesIO(file_bytes)
         file_stream.seek(0)
 
-        # Save Excel file to temporary path for Rscript
         with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp_input:
             tmp_input.write(file_stream.read())
             input_path = tmp_input.name
 
-        # Temporary PNG output path
         with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp_output:
             output_plot_path = tmp_output.name
 
-        # Run R script
         plot_title = os.path.splitext(filename)[0]
         subprocess.run(
             [
-                "Rscript",
-                r_script,
-                input_path,
-                output_plot_path,
+                "Rscript", r_script,
+                input_path, output_plot_path,
                 str(include_timestamp).lower(),
-                q1_colour,
-                q2_colour,
-                q3_colour,
-                q4_colour,
+                q1_colour, q2_colour, q3_colour, q4_colour,
                 plot_title,
-                str(q1_flag).lower(),
-                str(q2_flag).lower(),
-                str(q3_flag).lower(),
-                str(q4_flag).lower()
+                q1_flag, q2_flag, q3_flag, q4_flag
             ],
             check=True,
             stdout=subprocess.PIPE,
@@ -331,17 +314,13 @@ def generate_graphs():
             text=True,
         )
 
-        # Load PNG image into memory
-        with open(output_plot_path, "rb") as f: 
+        with open(output_plot_path, "rb") as f:
             image_bytes = BytesIO(f.read())
 
         image_bytes.seek(0)
-
-        # Cleanup temp files
         os.remove(input_path)
         os.remove(output_plot_path)
 
-        # Return PNG as download
         png_filename = os.path.splitext(filename)[0] + ".png"
         return send_file(
             image_bytes,
@@ -381,7 +360,7 @@ def save_preset():
     settings["presets"][data["name"]] = data["colours"]
     save_settings(settings)
     return jsonify({"status": "success", "message": "Preset saved."}), 200
-    
+
 
 @app.route("/delete_preset", methods=["POST"])
 def delete_preset():
@@ -389,7 +368,7 @@ def delete_preset():
     settings = load_settings()
     settings["presets"].pop(data["name"], None)
     save_settings(settings)
-    return jsonify({"status": "success", "message": "Preset saved."}), 200
+    return jsonify({"status": "success", "message": "Preset deleted."}), 200
 
 
 @app.route("/set_active_preset", methods=["POST"])
@@ -407,6 +386,135 @@ def set_active_preset():
     save_settings(settings)
 
     return "Preset updated", 200
+
+
+@app.route("/perform_curve_fitting", methods=["POST"])
+def perform_curve_fitting():
+    """
+    Perform sigmoid curve fitting on the processed Excel data.
+    
+    This generates sigmoidData.csv, runs fit_sigmoids.R, and returns
+    downloadable outputs (IC50s.csv and plot images).
+    """
+    file_id = request.form.get("file_id")
+    if not file_id or file_id not in in_memory_files:
+        flash("No Excel file found for curve fitting.", "danger")
+        return redirect(url_for("index"))
+
+    file_info = in_memory_files[file_id]
+    file_bytes = file_info["data"]
+    filename = file_info["name"]
+
+    try:
+        # Create temporary files
+        file_stream = BytesIO(file_bytes)
+        file_stream.seek(0)
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp_excel:
+            tmp_excel.write(file_stream.read())
+            excel_path = tmp_excel.name
+
+        # Create temporary directory for outputs
+        output_dir = tempfile.mkdtemp(prefix="sigmoid_")
+        
+        # Generate sigmoidData.csv
+        sigmoid_csv_path = os.path.join(output_dir, "sigmoidData.csv")
+        generate_sigmoid_csv(excel_path, sigmoid_csv_path)
+
+        # Run R script for sigmoid fitting
+        r_script = os.path.join(os.getcwd(), "fit_sigmoids.R")
+        
+        result = subprocess.run(
+            ["Rscript", r_script, sigmoid_csv_path, output_dir],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+
+        # Collect output files
+        ic50_path = os.path.join(output_dir, "IC50s.csv")
+        
+        # Find all generated PNG files
+        plot_files = [f for f in os.listdir(output_dir) if f.endswith('.png')]
+        
+        # Store files in memory for download
+        output_files = {}
+        
+        # Store IC50s.csv
+        if os.path.exists(ic50_path):
+            with open(ic50_path, 'rb') as f:
+                output_files['IC50s.csv'] = f.read()
+        
+        # Store all plot files
+        for plot_file in plot_files:
+            plot_path = os.path.join(output_dir, plot_file)
+            with open(plot_path, 'rb') as f:
+                output_files[plot_file] = f.read()
+        
+        # Clean up temporary files
+        os.remove(excel_path)
+        for f in os.listdir(output_dir):
+            os.remove(os.path.join(output_dir, f))
+        os.rmdir(output_dir)
+        
+        # Store output files in memory with new UUID
+        fitting_id = uuid.uuid4().hex
+        in_memory_files[fitting_id] = {
+            "data": output_files,
+            "name": "sigmoid_fitting_results",
+            "type": "sigmoid_results"
+        }
+        
+        return render_template(
+            "curve_fitting_results.html",
+            fitting_id=fitting_id,
+            output_files=list(output_files.keys()),
+            settings=load_settings()
+        )
+
+    except subprocess.CalledProcessError as e:
+        flash(f"R script failed: {e.stderr}", "danger")
+        return redirect(url_for("index"))
+    except Exception as e:
+        flash(f"Curve fitting error: {str(e)}", "danger")
+        return redirect(url_for("index"))
+
+
+@app.route("/download_sigmoid/<fitting_id>/<filename>")
+def download_sigmoid(fitting_id, filename):
+    """Download individual sigmoid fitting output files"""
+    if fitting_id not in in_memory_files:
+        flash("Fitting results not found.", "danger")
+        return redirect(url_for("index"))
+    
+    file_info = in_memory_files[fitting_id]
+    if file_info.get("type") != "sigmoid_results":
+        flash("Invalid file type.", "danger")
+        return redirect(url_for("index"))
+    
+    if filename not in file_info["data"]:
+        flash("File not found.", "danger")
+        return redirect(url_for("index"))
+    
+    file_bytes = BytesIO(file_info["data"][filename])
+    file_bytes.seek(0)
+    
+    # Determine mimetype
+    if filename.endswith('.csv'):
+        mimetype = 'text/csv'
+    elif filename.endswith('.png'):
+        mimetype = 'image/png'
+    else:
+        mimetype = 'application/octet-stream'
+    
+    return send_file(
+        file_bytes,
+        as_attachment=True,
+        download_name=filename,
+        mimetype=mimetype
+    )
+
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

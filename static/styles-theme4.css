@@ -1,49 +1,54 @@
-/* NTA Web App — Modern Dark / Electric Teal */
-@import url('https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+/* NTA Web App — Neon Lab / Warm Tech */
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
 /* ── Design tokens ─────────────────────────────────── */
 :root {
-  --bg-base:      #0d1117;
-  --bg-surface:   #161b22;
-  --bg-raised:    #1c2330;
-  --bg-hover:     #212a38;
+  --bg-base:      #0a0a0f;   /* very dark slate */
+  --bg-surface:   #14141d;   /* raised panels */
+  --bg-raised:    #1c1c2b;   /* cards, headers */
+  --bg-hover:     #202035;   /* hover states */
 
-  --teal:         #00e5cc;
-  --teal-dim:     #00b8a4;
-  --teal-glow:    rgba(0, 229, 204, 0.12);
-  --teal-pale:    rgba(0, 229, 204, 0.06);
+  --primary:      #ff5fa1;   /* bright magenta-pink */
+  --primary-dim:  #d43d88;   /* dimmer hover */
+  --primary-glow: rgba(255, 95, 161, 0.12);
+  --primary-pale: rgba(255, 95, 161, 0.06);
 
-  --text-primary: #e6edf3;
-  --text-mid:     #8b949e;
-  --text-dim:     #4d5566;
+  --secondary:    #6ec1ff;   /* cyan accent */
+  --secondary-dim:#4aa8e0;   
+  --secondary-glow: rgba(110, 193, 255, 0.12);
+  --secondary-pale: rgba(110, 193, 255, 0.06);
 
-  --border:       #30363d;
-  --border-sharp: #21262d;
+  --text-primary: #edf2f8;
+  --text-mid:     #b0b8c3;
+  --text-dim:     #5a5f6c;
 
-  --danger:       #f85149;
-  --warning:      #d29922;
-  --info:         #388bfd;
+  --border:       #2a2a38;
+  --border-sharp: #1f1f2b;
 
-  --shadow-glow:  0 0 20px rgba(0, 229, 204, 0.08);
-  --shadow-md:    0 4px 24px rgba(0, 0, 0, 0.4);
-  --shadow-sm:    0 1px 6px rgba(0, 0, 0, 0.3);
+  --danger:       #ff6b6b;
+  --warning:      #f3c13a;
+  --info:         #4fc1ff;
 
-  --radius:       4px;
-  --radius-lg:    8px;
+  --shadow-glow:  0 0 20px rgba(255, 95, 161, 0.08);
+  --shadow-md:    0 4px 24px rgba(0, 0, 0, 0.5);
+  --shadow-sm:    0 1px 6px rgba(0, 0, 0, 0.35);
+
+  --radius:       5px;
+  --radius-lg:    10px;
 }
 
 /* ── Base ───────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
 
 body {
-  font-family: 'Figtree', sans-serif;
+  font-family: 'Space Grotesk', sans-serif;
   font-weight: 400;
   font-size: 14.5px;
   color: var(--text-primary);
   background-color: var(--bg-base);
   background-image:
-    radial-gradient(ellipse at 0% 0%, rgba(0,229,204,.04) 0%, transparent 50%),
-    radial-gradient(ellipse at 100% 100%, rgba(56,139,253,.04) 0%, transparent 50%);
+    radial-gradient(circle at 10% 10%, rgba(255,95,161,0.06), transparent 50%),
+    radial-gradient(circle at 90% 90%, rgba(110,193,255,0.04), transparent 50%);
   min-height: 100vh;
   margin: 0;
   padding: 0;
@@ -51,7 +56,7 @@ body {
 
 /* ── Typography ─────────────────────────────────────── */
 h1, h2, h3, h4, h5, h6 {
-  font-family: 'Figtree', sans-serif;
+  font-family: 'Space Grotesk', sans-serif;
   font-weight: 600;
   color: var(--text-primary);
   letter-spacing: -0.3px;
@@ -59,13 +64,10 @@ h1, h2, h3, h4, h5, h6 {
 
 h2.text-success,
 h3.text-success {
-  font-family: 'Figtree', sans-serif;
+  font-family: 'Space Grotesk', sans-serif;
   font-weight: 700;
-  color: var(--teal) !important;
-  -webkit-text-fill-color: var(--teal);
-  background: none;
-  letter-spacing: -0.5px;
-  text-shadow: 0 0 30px rgba(0, 229, 204, 0.3);
+  color: var(--primary) !important;
+  text-shadow: 0 0 28px rgba(255,95,161,0.35);
 }
 
 p, li {
@@ -76,6 +78,10 @@ p, li {
 code, pre, .font-mono {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 0.875em;
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  padding: 1px 5px;
+  border-radius: 3px;
 }
 
 /* ── Navbar ─────────────────────────────────────────── */
@@ -95,18 +101,18 @@ code, pre, .font-mono {
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent 0%, var(--teal) 40%, var(--teal-dim) 60%, transparent 100%);
-  opacity: 0.45;
+  background: linear-gradient(90deg, transparent 0%, var(--primary) 40%, var(--secondary) 60%, transparent 100%);
+  opacity: 0.5;
   pointer-events: none;
 }
 
 .navbar-brand.text-success {
-  font-family: 'Figtree', sans-serif;
+  font-family: 'Space Grotesk', sans-serif;
   font-weight: 700;
   font-size: 1.1rem;
-  color: var(--teal) !important;
+  color: var(--primary) !important;
   letter-spacing: 0.5px;
-  text-shadow: 0 0 16px rgba(0, 229, 204, 0.35);
+  text-shadow: 0 0 16px rgba(255,95,161,0.35);
 }
 
 .navbar .nav-link {
@@ -120,12 +126,14 @@ code, pre, .font-mono {
 }
 
 .navbar .nav-link:hover {
-  color: var(--teal) !important;
-  text-shadow: 0 0 14px var(--teal-dim);
+  color: var(--secondary) !important;
+  text-shadow: 0 0 12px var(--secondary-glow);
 }
 
 /* ── Main container ─────────────────────────────────── */
-.container { max-width: 820px; }
+.container {
+  max-width: 820px;
+}
 
 main.container {
   padding-top: 2.5rem !important;
@@ -143,7 +151,7 @@ main.container {
 .card-header {
   background: var(--bg-raised);
   border-bottom: 1px solid var(--border);
-  font-family: 'Figtree', sans-serif;
+  font-family: 'Space Grotesk', sans-serif;
   font-size: 0.95rem;
   font-weight: 600;
   color: var(--text-primary);
@@ -172,7 +180,7 @@ select.form-select,
   border: 1px solid var(--border);
   border-radius: var(--radius);
   color: var(--text-primary);
-  font-family: 'Figtree', sans-serif;
+  font-family: 'Space Grotesk', sans-serif;
   font-size: 0.9rem;
   padding: 0.5rem 0.8rem;
   transition: border-color .15s, box-shadow .15s;
@@ -183,8 +191,8 @@ input[type="file"]:focus,
 select.form-select:focus,
 .form-control:focus {
   background: var(--bg-raised);
-  border-color: var(--teal-dim);
-  box-shadow: 0 0 0 3px var(--teal-glow);
+  border-color: var(--primary-dim);
+  box-shadow: 0 0 0 3px var(--primary-glow);
   color: var(--text-primary);
   outline: none;
 }
@@ -199,7 +207,7 @@ input[type="file"]::file-selector-button {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   color: var(--text-primary);
-  font-family: 'Figtree', sans-serif;
+  font-family: 'Space Grotesk', sans-serif;
   font-size: 0.8rem;
   padding: 0.3rem 0.7rem;
   margin-right: 0.75rem;
@@ -213,7 +221,7 @@ input[type="file"]::file-selector-button:hover {
 
 /* ── Buttons ────────────────────────────────────────── */
 .btn {
-  font-family: 'Figtree', sans-serif;
+  font-family: 'Space Grotesk', sans-serif;
   font-weight: 500;
   font-size: 0.875rem;
   border-radius: var(--radius);
@@ -225,17 +233,17 @@ input[type="file"]::file-selector-button:hover {
 
 .btn-success,
 .btn-primary {
-  background: var(--teal);
-  border-color: var(--teal);
-  color: #0d1117;
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--bg-base);
   font-weight: 600;
 }
 .btn-success:hover,
 .btn-primary:hover {
-  background: var(--teal-dim);
-  border-color: var(--teal-dim);
-  color: #0d1117;
-  box-shadow: 0 0 16px rgba(0, 229, 204, 0.3);
+  background: var(--primary-dim);
+  border-color: var(--primary-dim);
+  color: var(--bg-base);
+  box-shadow: 0 0 16px rgba(255,95,161,0.3);
   transform: translateY(-1px);
 }
 .btn-success:active,
@@ -254,7 +262,7 @@ input[type="file"]::file-selector-button:hover {
   background: var(--danger);
   border-color: var(--danger);
   color: #fff;
-  box-shadow: 0 0 12px rgba(248, 81, 73, 0.25);
+  box-shadow: 0 0 12px rgba(255,107,107,0.25);
   transform: translateY(-1px);
 }
 .btn-danger:active { transform: translateY(0); }
@@ -262,15 +270,15 @@ input[type="file"]::file-selector-button:hover {
 .btn-outline-primary,
 .btn-outline-success {
   background: transparent;
-  border-color: var(--teal-dim);
-  color: var(--teal);
+  border-color: var(--primary-dim);
+  color: var(--primary);
 }
 .btn-outline-primary:hover,
 .btn-outline-success:hover {
-  background: var(--teal-pale);
-  border-color: var(--teal);
-  color: var(--teal);
-  box-shadow: 0 0 10px var(--teal-glow);
+  background: var(--primary-pale);
+  border-color: var(--primary);
+  color: var(--primary);
+  box-shadow: 0 0 10px var(--primary-glow);
 }
 
 .btn-outline-secondary {
@@ -290,7 +298,7 @@ input[type="file"]::file-selector-button:hover {
   color: var(--info);
 }
 .btn-outline-info:hover {
-  background: rgba(56, 139, 253, 0.1);
+  background: rgba(79,193,255,0.1);
   border-color: var(--info);
   color: var(--info);
 }
@@ -305,26 +313,26 @@ input[type="file"]::file-selector-button:hover {
 }
 
 .alert-success {
-  background: rgba(0, 229, 204, 0.06);
-  border-color: var(--teal-dim);
-  color: var(--teal);
+  background: rgba(255,95,161,0.06);
+  border-color: var(--primary-dim);
+  color: var(--primary);
 }
 
 .alert-danger,
 .alert-error {
-  background: rgba(248, 81, 73, 0.06);
+  background: rgba(255,107,107,0.06);
   border-color: var(--danger);
   color: #ff7b76;
 }
 
 .alert-info {
-  background: rgba(56, 139, 253, 0.06);
+  background: rgba(79,193,255,0.06);
   border-color: var(--info);
   color: #79b4ff;
 }
 
 .alert-warning {
-  background: rgba(210, 153, 34, 0.06);
+  background: rgba(243,193,58,0.06);
   border-color: var(--warning);
   color: #e3b341;
 }
@@ -341,13 +349,13 @@ input[type="file"]::file-selector-button:hover {
 }
 
 .table thead th {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Space Grotesk', monospace;
   font-weight: 500;
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.8px;
   color: var(--text-mid);
-  border-bottom: 1px solid var(--teal-dim);
+  border-bottom: 1px solid var(--primary-dim);
   background: var(--bg-raised);
   padding: 0.75rem 1rem;
 }
@@ -359,12 +367,12 @@ input[type="file"]::file-selector-button:hover {
 }
 
 .table-striped > tbody > tr:nth-of-type(odd) > * {
-  background-color: rgba(255,255,255,.02);
+  background-color: rgba(255,255,255,0.02);
   color: var(--text-primary);
 }
 
 .table-hover > tbody > tr:hover > * {
-  background-color: var(--teal-pale);
+  background-color: var(--primary-pale);
   color: var(--text-primary);
 }
 
@@ -384,7 +392,7 @@ img.img-fluid {
 
 /* ── Badges ─────────────────────────────────────────── */
 .badge {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Space Grotesk', monospace;
   font-weight: 500;
   font-size: 0.72rem;
   letter-spacing: 0.3px;
@@ -392,8 +400,8 @@ img.img-fluid {
 }
 
 .badge.bg-success {
-  background-color: var(--teal) !important;
-  color: #0d1117 !important;
+  background-color: var(--primary) !important;
+  color: var(--bg-base) !important;
 }
 
 /* ── Scrollbar ──────────────────────────────────────── */
@@ -404,11 +412,11 @@ img.img-fluid {
 
 /* ── Selection ──────────────────────────────────────── */
 ::selection {
-  background: rgba(0, 229, 204, 0.2);
-  color: var(--teal);
+  background: rgba(255,95,161,0.2);
+  color: var(--primary);
 }
 
-/* ── Bootstrap element overrides ───────────────────── */
+/* ── Dark theme overrides: Bootstrap elements that default light ── */
 
 ::placeholder {
   color: var(--text-dim) !important;
@@ -427,8 +435,8 @@ small, .small           { color: var(--text-mid) !important; }
   border-color: var(--border);
 }
 .form-check-input:checked {
-  background-color: var(--teal);
-  border-color: var(--teal);
+  background-color: var(--primary);
+  border-color: var(--primary);
 }
 
 p               { color: var(--text-mid); }
@@ -445,20 +453,17 @@ p               { color: var(--text-mid); }
 .card-body li,
 .card-body small { color: var(--text-mid) !important; }
 
-code {
-  color: var(--text-primary);
-  background: var(--bg-hover);
-  padding: 1px 5px;
-  border-radius: 3px;
+div[style*="text-transform: uppercase"] {
+  color: var(--text-mid) !important;
 }
-
-/* ── Label visibility fixes ─────────────────────────── */
-
-div[style*="text-transform: uppercase"] { color: var(--text-mid) !important; }
 
 div[style*="font-weight: 500"],
 label[style*="font-weight: 500"],
-label[style*="cursor: pointer"] { color: var(--text-primary) !important; }
+label[style*="cursor: pointer"] {
+  color: var(--text-primary) !important;
+}
 
 .card label,
-.card span:not([class*="badge"]):not([class*="btn"]) { color: var(--text-primary); }
+.card span:not([class*="badge"]):not([class*="btn"]) {
+  color: var(--text-primary);
+}

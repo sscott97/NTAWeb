@@ -1,32 +1,35 @@
-/* NTA Web App — Modern Dark / Electric Teal */
-@import url('https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+/* NTA Web App — Dark Forest / Emerald Green */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
 /* ── Design tokens ─────────────────────────────────── */
 :root {
-  --bg-base:      #0d1117;
-  --bg-surface:   #161b22;
-  --bg-raised:    #1c2330;
-  --bg-hover:     #212a38;
+  --bg-base:      #0b0f0c;
+  --bg-surface:   #111a13;
+  --bg-raised:    #172019;
+  --bg-hover:     #1e2b20;
 
-  --teal:         #00e5cc;
-  --teal-dim:     #00b8a4;
-  --teal-glow:    rgba(0, 229, 204, 0.12);
-  --teal-pale:    rgba(0, 229, 204, 0.06);
+  --teal:         #4ade80;
+  --teal-dim:     #22c55e;
+  --teal-glow:    rgba(74, 222, 128, 0.12);
+  --teal-pale:    rgba(74, 222, 128, 0.06);
 
-  --text-primary: #e6edf3;
-  --text-mid:     #8b949e;
-  --text-dim:     #4d5566;
+  --accent2:      #86efac;
+  --accent3:      #166534;
 
-  --border:       #30363d;
-  --border-sharp: #21262d;
+  --text-primary: #ecfdf0;
+  --text-mid:     #86a98c;
+  --text-dim:     #3d5c42;
 
-  --danger:       #f85149;
-  --warning:      #d29922;
-  --info:         #388bfd;
+  --border:       #1f2e22;
+  --border-sharp: #192219;
 
-  --shadow-glow:  0 0 20px rgba(0, 229, 204, 0.08);
-  --shadow-md:    0 4px 24px rgba(0, 0, 0, 0.4);
-  --shadow-sm:    0 1px 6px rgba(0, 0, 0, 0.3);
+  --danger:       #f87171;
+  --warning:      #fbbf24;
+  --info:         #60a5fa;
+
+  --shadow-glow:  0 0 24px rgba(74, 222, 128, 0.07);
+  --shadow-md:    0 4px 24px rgba(0, 0, 0, 0.5);
+  --shadow-sm:    0 1px 6px rgba(0, 0, 0, 0.35);
 
   --radius:       4px;
   --radius-lg:    8px;
@@ -36,14 +39,15 @@
 *, *::before, *::after { box-sizing: border-box; }
 
 body {
-  font-family: 'Figtree', sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
   font-weight: 400;
   font-size: 14.5px;
   color: var(--text-primary);
   background-color: var(--bg-base);
   background-image:
-    radial-gradient(ellipse at 0% 0%, rgba(0,229,204,.04) 0%, transparent 50%),
-    radial-gradient(ellipse at 100% 100%, rgba(56,139,253,.04) 0%, transparent 50%);
+    radial-gradient(ellipse at 0% 0%,    rgba(74, 222, 128, 0.05) 0%, transparent 55%),
+    radial-gradient(ellipse at 100% 100%, rgba(34, 197, 94,  0.04) 0%, transparent 55%),
+    radial-gradient(ellipse at 50%  0%,  rgba(22, 101, 52,  0.06) 0%, transparent 40%);
   min-height: 100vh;
   margin: 0;
   padding: 0;
@@ -51,7 +55,7 @@ body {
 
 /* ── Typography ─────────────────────────────────────── */
 h1, h2, h3, h4, h5, h6 {
-  font-family: 'Figtree', sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
   font-weight: 600;
   color: var(--text-primary);
   letter-spacing: -0.3px;
@@ -59,13 +63,13 @@ h1, h2, h3, h4, h5, h6 {
 
 h2.text-success,
 h3.text-success {
-  font-family: 'Figtree', sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
   font-weight: 700;
   color: var(--teal) !important;
   -webkit-text-fill-color: var(--teal);
   background: none;
   letter-spacing: -0.5px;
-  text-shadow: 0 0 30px rgba(0, 229, 204, 0.3);
+  text-shadow: 0 0 32px rgba(74, 222, 128, 0.25);
 }
 
 p, li {
@@ -95,18 +99,25 @@ code, pre, .font-mono {
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent 0%, var(--teal) 40%, var(--teal-dim) 60%, transparent 100%);
-  opacity: 0.45;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--teal-dim) 35%,
+    var(--teal) 50%,
+    var(--teal-dim) 65%,
+    transparent 100%
+  );
+  opacity: 0.5;
   pointer-events: none;
 }
 
 .navbar-brand.text-success {
-  font-family: 'Figtree', sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
   font-weight: 700;
   font-size: 1.1rem;
   color: var(--teal) !important;
-  letter-spacing: 0.5px;
-  text-shadow: 0 0 16px rgba(0, 229, 204, 0.35);
+  letter-spacing: 0.3px;
+  text-shadow: 0 0 18px rgba(74, 222, 128, 0.3);
 }
 
 .navbar .nav-link {
@@ -121,7 +132,7 @@ code, pre, .font-mono {
 
 .navbar .nav-link:hover {
   color: var(--teal) !important;
-  text-shadow: 0 0 14px var(--teal-dim);
+  background: var(--teal-pale);
 }
 
 /* ── Main container ─────────────────────────────────── */
@@ -143,7 +154,7 @@ main.container {
 .card-header {
   background: var(--bg-raised);
   border-bottom: 1px solid var(--border);
-  font-family: 'Figtree', sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 0.95rem;
   font-weight: 600;
   color: var(--text-primary);
@@ -172,7 +183,7 @@ select.form-select,
   border: 1px solid var(--border);
   border-radius: var(--radius);
   color: var(--text-primary);
-  font-family: 'Figtree', sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 0.9rem;
   padding: 0.5rem 0.8rem;
   transition: border-color .15s, box-shadow .15s;
@@ -199,7 +210,7 @@ input[type="file"]::file-selector-button {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   color: var(--text-primary);
-  font-family: 'Figtree', sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 0.8rem;
   padding: 0.3rem 0.7rem;
   margin-right: 0.75rem;
@@ -213,7 +224,7 @@ input[type="file"]::file-selector-button:hover {
 
 /* ── Buttons ────────────────────────────────────────── */
 .btn {
-  font-family: 'Figtree', sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
   font-weight: 500;
   font-size: 0.875rem;
   border-radius: var(--radius);
@@ -225,17 +236,17 @@ input[type="file"]::file-selector-button:hover {
 
 .btn-success,
 .btn-primary {
-  background: var(--teal);
-  border-color: var(--teal);
-  color: #0d1117;
+  background: var(--teal-dim);
+  border-color: var(--teal-dim);
+  color: #0b0f0c;
   font-weight: 600;
 }
 .btn-success:hover,
 .btn-primary:hover {
-  background: var(--teal-dim);
-  border-color: var(--teal-dim);
-  color: #0d1117;
-  box-shadow: 0 0 16px rgba(0, 229, 204, 0.3);
+  background: var(--teal);
+  border-color: var(--teal);
+  color: #0b0f0c;
+  box-shadow: 0 0 18px rgba(74, 222, 128, 0.3);
   transform: translateY(-1px);
 }
 .btn-success:active,
@@ -254,7 +265,7 @@ input[type="file"]::file-selector-button:hover {
   background: var(--danger);
   border-color: var(--danger);
   color: #fff;
-  box-shadow: 0 0 12px rgba(248, 81, 73, 0.25);
+  box-shadow: 0 0 12px rgba(248, 113, 113, 0.25);
   transform: translateY(-1px);
 }
 .btn-danger:active { transform: translateY(0); }
@@ -290,7 +301,7 @@ input[type="file"]::file-selector-button:hover {
   color: var(--info);
 }
 .btn-outline-info:hover {
-  background: rgba(56, 139, 253, 0.1);
+  background: rgba(96, 165, 250, 0.1);
   border-color: var(--info);
   color: var(--info);
 }
@@ -305,28 +316,28 @@ input[type="file"]::file-selector-button:hover {
 }
 
 .alert-success {
-  background: rgba(0, 229, 204, 0.06);
+  background: rgba(74, 222, 128, 0.06);
   border-color: var(--teal-dim);
   color: var(--teal);
 }
 
 .alert-danger,
 .alert-error {
-  background: rgba(248, 81, 73, 0.06);
+  background: rgba(248, 113, 113, 0.06);
   border-color: var(--danger);
-  color: #ff7b76;
+  color: #fca5a5;
 }
 
 .alert-info {
-  background: rgba(56, 139, 253, 0.06);
+  background: rgba(96, 165, 250, 0.06);
   border-color: var(--info);
-  color: #79b4ff;
+  color: #93c5fd;
 }
 
 .alert-warning {
-  background: rgba(210, 153, 34, 0.06);
+  background: rgba(251, 191, 36, 0.06);
   border-color: var(--warning);
-  color: #e3b341;
+  color: #fcd34d;
 }
 
 .alert .btn-close {
@@ -392,8 +403,8 @@ img.img-fluid {
 }
 
 .badge.bg-success {
-  background-color: var(--teal) !important;
-  color: #0d1117 !important;
+  background-color: var(--teal-dim) !important;
+  color: #0b0f0c !important;
 }
 
 /* ── Scrollbar ──────────────────────────────────────── */
@@ -404,7 +415,7 @@ img.img-fluid {
 
 /* ── Selection ──────────────────────────────────────── */
 ::selection {
-  background: rgba(0, 229, 204, 0.2);
+  background: rgba(74, 222, 128, 0.2);
   color: var(--teal);
 }
 
@@ -427,8 +438,8 @@ small, .small           { color: var(--text-mid) !important; }
   border-color: var(--border);
 }
 .form-check-input:checked {
-  background-color: var(--teal);
-  border-color: var(--teal);
+  background-color: var(--teal-dim);
+  border-color: var(--teal-dim);
 }
 
 p               { color: var(--text-mid); }
@@ -446,7 +457,7 @@ p               { color: var(--text-mid); }
 .card-body small { color: var(--text-mid) !important; }
 
 code {
-  color: var(--text-primary);
+  color: var(--teal);
   background: var(--bg-hover);
   padding: 1px 5px;
   border-radius: 3px;

@@ -1,0 +1,112 @@
+{% extends 'layout.html' %}
+{% block title %}Curve Fitting Results - NTA{% endblock %}
+{% block content %}
+
+<div style="max-width: 900px; margin: 0 auto;">
+
+  <!-- Page header -->
+  <div class="mb-4">
+    <h2 class="text-success mb-1" style="font-size: 1.75rem;">Curve Fitting Results</h2>
+  </div>
+
+  <!-- Success banner -->
+  <div class="alert alert-success mb-4" role="alert">
+    ✅ <strong>Sigmoid curve fitting complete!</strong> Your results are ready to download below.
+  </div>
+
+  <!-- IC50 Results -->
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center gap-2">
+      <span style="font-size: 1rem;">📋</span>
+      <span>IC50 Values</span>
+    </div>
+    <div class="card-body">
+      <p style="color: var(--text-mid, #666); font-size: 0.9rem; margin-bottom: 1.25rem;">
+        The IC50s.csv file contains fitted sigmoid parameters including IC50 values, upper/lower bounds, slope, R² values, and quality flags for each sample-virus combination.
+      </p>
+      <a href="{{ url_for('download_sigmoid', fitting_id=fitting_id, filename='IC50s.csv') }}" class="btn btn-success">
+        📥 Download IC50s.csv
+      </a>
+    </div>
+  </div>
+
+  <!-- Fitted Curve Plots -->
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center gap-2">
+      <span style="font-size: 1rem;">📊</span>
+      <span>Fitted Sigmoid Curves</span>
+    </div>
+    <div class="card-body">
+      <p style="color: var(--text-mid, #666); font-size: 0.9rem; margin-bottom: 1.25rem;">
+        Individual plots showing fitted sigmoid curves for each virus. Data points are colored by quality: 
+        <span style="color: #3498db; font-weight: 600;">Good</span> (stable fits) or 
+        <span style="color: #e74c3c; font-weight: 600;">Unstable</span> (parameters at bounds).
+      </p>
+
+      <div class="list-group">
+        {% for filename in output_files %}
+          {% if filename.endswith('.png') %}
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+              <div>
+                <span style="font-size: 1rem; margin-right: 0.5rem;">🖼️</span>
+                <span style="font-weight: 500;">{{ filename }}</span>
+              </div>
+              <a href="{{ url_for('download_sigmoid', fitting_id=fitting_id, filename=filename) }}" 
+                 class="btn btn-sm btn-outline-success">
+                Download
+              </a>
+            </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Understanding Results -->
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center gap-2">
+      <span style="font-size: 1rem;">💡</span>
+      <span>Understanding Your Results</span>
+    </div>
+    <div class="card-body" style="padding-bottom: 0.5rem;">
+
+      <div class="d-flex gap-3 mb-3" style="padding-bottom: 0.75rem; border-bottom: 1px solid var(--border, #dee2e6);">
+        <div style="flex-shrink: 0; color: var(--teal, #28a745); margin-top: 2px; font-size: 1rem;">›</div>
+        <div style="font-size: 0.9rem; color: var(--text-mid, #555); line-height: 1.6;">
+          <strong>IC50:</strong> The dilution at which 50% neutralisation occurs (in log2 scale). More negative values indicate higher neutralising activity.
+        </div>
+      </div>
+
+      <div class="d-flex gap-3 mb-3" style="padding-bottom: 0.75rem; border-bottom: 1px solid var(--border, #dee2e6);">
+        <div style="flex-shrink: 0; color: var(--teal, #28a745); margin-top: 2px; font-size: 1rem;">›</div>
+        <div style="font-size: 0.9rem; color: var(--text-mid, #555); line-height: 1.6;">
+          <strong>R²:</strong> Goodness of fit measure (0-1). Values above 0.5 indicate reasonable fits; below 0.5 are treated as flat curves.
+        </div>
+      </div>
+
+      <div class="d-flex gap-3 mb-3" style="padding-bottom: 0.75rem; border-bottom: 1px solid var(--border, #dee2e6);">
+        <div style="flex-shrink: 0; color: var(--teal, #28a745); margin-top: 2px; font-size: 1rem;">›</div>
+        <div style="font-size: 0.9rem; color: var(--text-mid, #555); line-height: 1.6;">
+          <strong>Quality:</strong> "Good" fits have parameters within normal ranges. "Unstable" fits have parameters at boundary limits and should be interpreted with caution.
+        </div>
+      </div>
+
+      <div class="d-flex gap-3 mb-3">
+        <div style="flex-shrink: 0; color: var(--teal, #28a745); margin-top: 2px; font-size: 1rem;">›</div>
+        <div style="font-size: 0.9rem; color: var(--text-mid, #555); line-height: 1.6;">
+          <strong>Flat curves:</strong> Samples with R² < 0.5 or failed fits are displayed as horizontal lines at their mean neutralisation value.
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Navigation -->
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">← Back to Home</a>
+  </div>
+
+</div>
+
+{% endblock %}

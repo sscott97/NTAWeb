@@ -4,14 +4,13 @@ FROM rocker/r-ver:4.3.2
 # Install Python and system dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        python3 python3-pip python3-venv python3-dev \
-        libcurl4-openssl-dev libssl-dev libxml2-dev && \
+    python3 python3-pip python3-venv python3-dev \
+    libcurl4-openssl-dev libssl-dev libxml2-dev && \
     rm -rf /var/lib/apt/lists/*
 
-# Install any R packages your R script needs (faster with pak)
+# Install R packages (including new ones for sigmoid fitting)
 RUN R -e "install.packages('pak', repos='https://cloud.r-project.org'); \
-           pak::pak(c('cowplot', 'ggplot2', 'readxl', 'dplyr', 'tidyr'))"
-
+    pak::pak(c('cowplot', 'ggplot2', 'readxl', 'dplyr', 'tidyr', 'tidyverse', 'minpack.lm'))"
 
 # Set the working directory
 WORKDIR /app

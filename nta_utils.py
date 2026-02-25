@@ -336,3 +336,309 @@ def load_settings():
 def save_settings(settings):
     with open(SETTINGS_PATH, "w") as f:
         json.dump(settings, f, indent=4)
+
+
+def generate_sigmoid_csv(excel_path_or_bytes, output_csv_path):
+    """
+    Generate sigmoidData.csv from processed Excel workbook.
+    
+    Extracts data from Plate sheets to create a CSV with columns:
+    Batch, Virus, Sample, DilutionLog2, Neutralisation
+    
+    Args:
+        excel_path_or_bytes: Path to Excel file or BytesIO object
+        output_csv_path: Path where to save the output CSV
+    """
+    import math
+    import tempfile
+    
+    # openpyxl's data_only=True doesn't work properly with BytesIO
+    # We need to save to a temp file first
+    if isinstance(excel_path_or_bytes, BytesIO):
+        excel_path_or_bytes.seek(0)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
+            tmp.write(excel_path_or_bytes.read())
+            temp_path = tmp.name
+        
+        # Load WITHOUT data_only so we can read raw values
+        wb = load_workbook(temp_path)
+        
+        # Clean up temp file after loading
+        import os
+        os.remove(temp_path)
+    else:
+        wb = load_workbook(excel_path_or_bytes)
+    
+    all_rows = []
+    debug_info = []
+    
+    # Process each Plate sheet
+    for sheet_name in wb.sheetnames:
+        if not sheet_name.startswith("Plate"):
+            continue
+        
+        ws = wb[sheet_name]
+        debug_info.append(f"Processing sheet: {sheet_name}")
+        
+        # Extract dilution series from A5:A11 (7 dilutions)
+        dilutions = []
+        for row in range(5, 12):  # A5 to A11
+            val = ws[f'A{row}'].value
+            try:
+                dilutions.append(float(val))
+            except (ValueError, TypeError):
+                dilutions.append(None)
+        
+        debug_info.append(f"  Dilutions: {dilutions}")
+        
+        # Convert dilutions to -log2
+        dilution_log2 = []
+        for d in dilutions:
+            if d and d > 0:
+                dilution_log2.append(-math.log2(d))
+            else:
+                dilution_log2.append(None)
+        
+        debug_info.append(f"  DilutionLog2: {dilution_log2}")
+        
+        # Define quadrants (triplicates)
+        # Now we'll calculate means directly from the raw data
+        quadrants = [
+            {
+                'virus_cell': 'B3', 
+                'sample_cell': 'B4', 
+                'data_cols': ['B', 'C', 'D'],
+                'nsc_cols': ['B', 'C', 'D']  # NSC triplicate in B12:D12
+            },
+            {
+                'virus_cell': 'E3', 
+                'sample_cell': 'E4', 
+                'data_cols': ['E', 'F', 'G'],
+                'nsc_cols': ['E', 'F', 'G']  # NSC triplicate in E12:G12
+            },
+            {
+                'virus_cell': 'H3', 
+                'sample_cell': 'H4', 
+                'data_cols': ['H', 'I', 'J'],
+                'nsc_cols': ['H', 'I', 'J']  # NSC triplicate in H12:J12
+            },
+            {
+                'virus_cell': 'K3', 
+                'sample_cell': 'K4', 
+                'data_cols': ['K', 'L', 'M'],
+                'nsc_cols': ['K', 'L', 'M']  # NSC triplicate in K12:M12
+            },
+        ]
+        
+        # Process each quadrant
+        for quad_idx, quad in enumerate(quadrants):
+            virus = ws[quad['virus_cell']].value
+            sample = ws[quad['sample_cell']].value
+            
+            debug_info.append(f"  Quadrant {quad_idx+1}: Virus={virus}, Sample={sample}")
+            
+            # Skip if virus or sample is empty or contains formula references
+            if not virus or not sample:
+                debug_info.append(f"    Skipped: Empty virus or sample")
+                continue
+            
+            # Handle potential formula results
+            virus_str = str(virus).strip()
+            sample_str = str(sample).strip()
+            
+            if virus_str == '' or sample_str == '' or virus_str.lower() == 'unlabelled':
+                debug_info.append(f"    Skipped: Empty or unlabelled")
+                continue
+            
+            # Calculate NSC mean directly from raw data in row 12
+            nsc_values = []
+            for col in quad['nsc_cols']:
+                cell_ref = f"{col}12"
+                val = ws[cell_ref].value
+                try:
+                    nsc_values.append(float(val))
+                except (ValueError, TypeError):
+                    pass  # Skip invalid values
+            
+            if not nsc_values:
+                debug_info.append(f"    Skipped: No valid NSC values in {quad['nsc_cols']}12")
+                continue
+            
+            nsc_mean = sum(nsc_values) / len(nsc_values)
+            debug_info.append(f"    NSC values: {nsc_values}, mean: {nsc_mean}")
+            
+            # Skip if NSC mean is 0 (would cause division by zero)
+            if nsc_mean == 0:
+                debug_info.append(f"    Skipped: NSC mean is zero")
+                continue
+            
+            # Process each dilution (rows 5-11)
+            quad_data_count = 0
+            for i, row in enumerate(range(5, 12)):
+                # Calculate triplicate mean directly from raw data
+                triplicate_values = []
+                for col in quad['data_cols']:
+                    cell_ref = f"{col}{row}"
+                    val = ws[cell_ref].value
+                    try:
+                        triplicate_values.append(float(val))
+                    except (ValueError, TypeError):
+                        pass  # Skip invalid values
+                
+                if not triplicate_values:
+                    continue  # Skip if no valid triplicate values
+                
+                triplicate_mean = sum(triplicate_values) / len(triplicate_values)
+                
+                # Calculate % neutralisation: 100 × (1 - Triplicate Mean / NSC Mean)
+                neutralisation = 100 * (1 - (triplicate_mean / nsc_mean))
+                
+                # Get corresponding dilution log2
+                if dilution_log2[i] is not None:
+                    all_rows.append({
+                        'Batch': 1,
+                        'Virus': virus_str,
+                        'Sample': sample_str,
+                        'DilutionLog2': dilution_log2[i],
+                        'Neutralisation': round(neutralisation, 4)
+                    })
+                    quad_data_count += 1
+            
+            debug_info.append(f"    Added {quad_data_count} data points")
+    
+    # Write to CSV
+    if all_rows:
+        with open(output_csv_path, 'w', newline='') as csvfile:
+            fieldnames = ['Batch', 'Virus', 'Sample', 'DilutionLog2', 'Neutralisation']
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(all_rows)
+        print(f"Successfully generated sigmoid CSV with {len(all_rows)} data points")
+    else:
+        # Print debug info to help diagnose
+        debug_str = "\n".join(debug_info)
+        raise ValueError(f"No valid data found in Plate sheets to generate sigmoid CSV.\n\nDebug info:\n{debug_str}")
+    
+    return output_csv_path
+    
+    all_rows = []
+    debug_info = []
+    
+    # Process each Plate sheet
+    for sheet_name in wb.sheetnames:
+        if not sheet_name.startswith("Plate"):
+            continue
+        
+        ws = wb[sheet_name]
+        debug_info.append(f"Processing sheet: {sheet_name}")
+        
+        # Extract dilution series from A5:A11 (7 dilutions)
+        dilutions = []
+        for row in range(5, 12):  # A5 to A11
+            val = ws[f'A{row}'].value
+            try:
+                dilutions.append(float(val))
+            except (ValueError, TypeError):
+                dilutions.append(None)
+        
+        debug_info.append(f"  Dilutions: {dilutions}")
+        
+        # Convert dilutions to -log2
+        dilution_log2 = []
+        for d in dilutions:
+            if d and d > 0:
+                dilution_log2.append(-math.log2(d))
+            else:
+                dilution_log2.append(None)
+        
+        debug_info.append(f"  DilutionLog2: {dilution_log2}")
+        
+        # Define quadrants (triplicates)
+        quadrants = [
+            {'virus_cell': 'B3', 'sample_cell': 'B4', 'data_cols': ['B', 'C', 'D'], 
+             'mean_col': 'P', 'nsc_cell': 'P12'},
+            {'virus_cell': 'E3', 'sample_cell': 'E4', 'data_cols': ['E', 'F', 'G'], 
+             'mean_col': 'Q', 'nsc_cell': 'Q12'},
+            {'virus_cell': 'H3', 'sample_cell': 'H4', 'data_cols': ['H', 'I', 'J'], 
+             'mean_col': 'R', 'nsc_cell': 'R12'},
+            {'virus_cell': 'K3', 'sample_cell': 'K4', 'data_cols': ['K', 'L', 'M'], 
+             'mean_col': 'S', 'nsc_cell': 'S12'},
+        ]
+        
+        # Process each quadrant
+        for quad_idx, quad in enumerate(quadrants):
+            virus = ws[quad['virus_cell']].value
+            sample = ws[quad['sample_cell']].value
+            
+            debug_info.append(f"  Quadrant {quad_idx+1}: Virus={virus}, Sample={sample}")
+            
+            # Skip if virus or sample is empty or contains formula references
+            if not virus or not sample:
+                debug_info.append(f"    Skipped: Empty virus or sample")
+                continue
+            
+            # Handle potential formula results
+            virus_str = str(virus).strip()
+            sample_str = str(sample).strip()
+            
+            if virus_str == '' or sample_str == '' or virus_str.lower() == 'unlabelled':
+                debug_info.append(f"    Skipped: Empty or unlabelled")
+                continue
+            
+            # Get NSC mean
+            nsc_mean_val = ws[quad['nsc_cell']].value
+            debug_info.append(f"    NSC mean value: {nsc_mean_val}")
+            
+            try:
+                nsc_mean = float(nsc_mean_val)
+            except (ValueError, TypeError):
+                debug_info.append(f"    Skipped: Invalid NSC mean")
+                continue  # Skip if NSC mean is invalid
+            
+            # Skip if NSC mean is 0 (would cause division by zero)
+            if nsc_mean == 0:
+                debug_info.append(f"    Skipped: NSC mean is zero")
+                continue
+            
+            # Process each dilution (rows 5-11)
+            quad_data_count = 0
+            for i, row in enumerate(range(5, 12)):
+                # Get triplicate mean from the mean column
+                mean_cell_ref = f"{quad['mean_col']}{row}"
+                triplicate_mean_val = ws[mean_cell_ref].value
+                
+                try:
+                    triplicate_mean = float(triplicate_mean_val)
+                except (ValueError, TypeError):
+                    continue  # Skip if triplicate mean is invalid
+                
+                # Calculate % neutralisation: 100 × (1 - Triplicate Mean / NSC Mean)
+                neutralisation = 100 * (1 - (triplicate_mean / nsc_mean))
+                
+                # Get corresponding dilution log2
+                if dilution_log2[i] is not None:
+                    all_rows.append({
+                        'Batch': 1,
+                        'Virus': virus_str,
+                        'Sample': sample_str,
+                        'DilutionLog2': dilution_log2[i],
+                        'Neutralisation': round(neutralisation, 4)
+                    })
+                    quad_data_count += 1
+            
+            debug_info.append(f"    Added {quad_data_count} data points")
+    
+    # Write to CSV
+    if all_rows:
+        with open(output_csv_path, 'w', newline='') as csvfile:
+            fieldnames = ['Batch', 'Virus', 'Sample', 'DilutionLog2', 'Neutralisation']
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(all_rows)
+        print(f"Successfully generated sigmoid CSV with {len(all_rows)} data points")
+    else:
+        # Print debug info to help diagnose
+        debug_str = "\n".join(debug_info)
+        raise ValueError(f"No valid data found in Plate sheets to generate sigmoid CSV.\n\nDebug info:\n{debug_str}")
+    
+    return output_csv_path
