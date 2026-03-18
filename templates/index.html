@@ -2,8 +2,32 @@
 {% block title %}Neutralising Titre Automator{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-  <h2 class="text-center text-success mb-4">Neutralising Titre Automator</h2>
+<style>
+@keyframes subtext-s1 {
+  0%  { opacity:0 } 3%  { opacity:1 } 22% { opacity:1 } 25% { opacity:0 } 100% { opacity:0 }
+}
+@keyframes subtext-s2 {
+  0%  { opacity:0 } 25% { opacity:0 } 27% { opacity:1 } 48% { opacity:1 } 50% { opacity:0 } 100% { opacity:0 }
+}
+@keyframes subtext-s3 {
+  0%  { opacity:0 } 50% { opacity:0 } 52% { opacity:1 } 73% { opacity:1 } 75% { opacity:0 } 100% { opacity:0 }
+}
+@keyframes subtext-s4 {
+  0%  { opacity:0 } 75% { opacity:0 } 77% { opacity:1 } 98% { opacity:1 } 100% { opacity:0 }
+}
+.subtext-stage {
+  position: absolute;
+  left: 0; right: 0; text-align: center;
+  opacity: 0;
+}
+</style>
+<div style="max-width: 900px; margin: 0 auto;">
+
+  <!-- Page header -->
+  <div class="mb-4">
+    <h2 class="text-success mb-1" style="font-size: 1.75rem;">Neutralising Titre Automator</h2>
+    <p style="color: var(--text-dim, #888); font-size: 0.85rem; margin: 0;">Upload triplicate-based titrated neutralisation assay data in CSV format to calculate neutralising antibody titres</p>
+  </div>
 
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
@@ -16,141 +40,1018 @@
     {% endif %}
   {% endwith %}
 
-  <form action="{{ url_for('process') }}" method="post" enctype="multipart/form-data">
-    <div class="mb-3">
-      <label for="csv_file" class="form-label">Upload CSV File</label>
-      <input type="file" name="csv_file" id="csv_file" class="form-control" accept=".csv" required>
+  <!-- ── New Analysis card ────────────────────────────── -->
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center gap-2">
+      <span style="font-size: 1rem;">📂</span>
+      <span style="font-weight: 600;">Data Input</span>
     </div>
+    <div class="card-body">
 
-    <div class="mb-3">
-      <label for="assay_title" class="form-label">Assay Title</label>
-      <input type="text" name="assay_title" id="assay_title" class="form-control" placeholder="e.g. Neutralisation Assay 1">
+    <form action="{{ url_for('process') }}" method="post" enctype="multipart/form-data" id="mainForm">
+
+      <!-- ── CSV Upload ──────────────────────────────── -->
+      <div class="mb-3">
+        <label for="csv_file" class="form-label">Upload CSV File</label>
+        <div id="csvDropzone" class="upload-dropzone" tabindex="0" role="button" aria-label="Click or drag CSV file here">
+          <div id="dropzoneContent">
+            <div style="font-size: 1.8rem; margin-bottom: 0.5rem; opacity: 0.6;">📄</div>
+            <div style="font-weight: 600; color: var(--text-primary, #333); margin-bottom: 0.25rem;">
+              Drag and drop CSV here, or <span style="color: var(--teal, #2e6b7b); text-decoration: underline; cursor: pointer;">browse</span>
+            </div>
+            <div style="font-size: 0.78rem; color: var(--text-dim, #888);">Accepts .csv files only (luminometer raw data file)</div>
+          </div>
+          <div id="dropzoneFileInfo" style="display: none;">
+            <div class="d-flex align-items-center justify-content-center gap-2">
+              <span style="font-size: 1.4rem;">✅</span>
+              <div>
+                <div id="dropzoneFileName" style="font-weight: 600; color: var(--text-primary, #333);"></div>
+                <div id="dropzoneFileMeta" style="font-size: 0.75rem; color: var(--text-dim, #888);"></div>
+              </div>
+              <button type="button" id="dropzoneClear" class="btn btn-sm btn-outline-secondary" style="margin-left: 0.75rem; font-size: 0.72rem; padding: 0.2rem 0.5rem;">✕ Clear</button>
+            </div>
+          </div>
+        </div>
+        <input type="file" name="csv_file" id="csv_file" class="form-control" accept=".csv" required style="display: none;">
+        <input type="hidden" name="data_mode" id="data_mode" value="">
+      </div>
+
+      <!-- ── Data mode picker ────────────────────────── -->
+      <div id="dataModePickerRow" class="mb-3" style="display: none;">
+        <label class="form-label mb-2">CSV Data Mode</label>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn flex-fill data-mode-btn" data-mode="standard"
+                  style="border-radius: 6px; padding: 0.6rem 0.75rem; text-align: left;">
+            <div style="font-weight: 600; margin-bottom: 0.2rem;">📋 Standard</div>
+            <div style="font-size: 0.72rem; color: var(--text-dim, #888);">Default luminometer output (includes plate run info)</div>
+          </button>
+          <button type="button" class="btn flex-fill data-mode-btn" data-mode="data_only"
+                  style="border-radius: 6px; padding: 0.6rem 0.75rem; text-align: left;">
+            <div style="font-weight: 600; margin-bottom: 0.2rem;">📊 Data Only</div>
+            <div style="font-size: 0.72rem; color: var(--text-dim, #888);">8×12 data only (Data Only mode on luminometer)</div>
+          </button>
+        </div>
+      </div>
+
+      <hr style="margin: 1.25rem 0; border-color: var(--border);">
+
+      <!-- ── Assay details ───────────────────────────── -->
+      <div style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-dim, #888); font-weight: 600; margin-bottom: 1rem;">Assay Details</div>
+
+      <div class="mb-3">
+        <div class="d-flex align-items-center justify-content-between mb-1">
+          <label for="assay_title" class="form-label mb-0">Assay Title</label>
+          <label style="display:flex; align-items:center; gap:0.45rem; cursor:pointer; font-size:0.78rem; color:var(--text-mid); font-weight:500; user-select:none;">
+            <div class="form-check form-switch mb-0" style="padding-left:0;">
+              <input class="form-check-input" type="checkbox" id="timestampToggle" role="switch"
+                     style="width:2.1em; height:1.1em; cursor:pointer; margin:0; vertical-align:middle;"
+                     {% if settings.get('timestamp_in_filename') %}checked{% endif %}>
+            </div>
+            Include timestamp
+          </label>
+        </div>
+        <input type="text" name="assay_title" id="assay_title" class="form-control" placeholder="Optional — e.g. Neutralisation Assay 1">
+      </div>
+
+      <!-- ── Pseudotypes per plate — pill selector ───── -->
+      <div class="mb-3">
+        <label class="form-label d-block mb-2">Pseudotypes per Plate</label>
+        <input type="hidden" name="num_pseudotypes" id="num_pseudotypes" value="1">
+        <div class="d-flex gap-2" id="pseudotypePills">
+          <button type="button" class="pt-pill pt-pill--active" data-n="1" onclick="setPseudotypes(1)">1</button>
+          <button type="button" class="pt-pill" data-n="2" onclick="setPseudotypes(2)">2</button>
+          <button type="button" class="pt-pill" data-n="3" onclick="setPseudotypes(3)">3</button>
+          <button type="button" class="pt-pill" data-n="4" onclick="setPseudotypes(4)">4</button>
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label for="pseudotype_text" class="form-label">Pseudotype(s)</label>
+        <input type="text" name="pseudotype_text" id="pseudotype_text" class="form-control" placeholder="e.g. Alpha, Beta — comma-separated (required)" required>
+      </div>
+
+      <div class="mb-4">
+        <label for="sample_id_text" class="form-label">Sample ID(s)</label>
+        <input type="text" name="sample_id_text" id="sample_id_text" class="form-control" placeholder="e.g. Sample 1, Sample 2 — comma-separated (optional)">
+      </div>
+
+      <button type="submit" id="submitBtn" class="btn btn-success w-100" style="padding: 0.65rem;">Process File</button>
+
+    </form>
+
+    </div><!-- /card-body -->
+  </div><!-- /card -->
+
+  <!-- ══════════════════════════════════════════════════
+       PROCESSING OVERLAY
+       ══════════════════════════════════════════════════ -->
+  <div id="processingOverlay" class="processing-overlay">
+    <div class="processing-overlay__inner">
+      <div class="processing-overlay__card">
+        <div class="processing-overlay__spinner"></div>
+        <div class="processing-overlay__title" id="processingTitle">Processing data…</div>
+        <div class="processing-overlay__subtext" id="processingSubtext" style="position:relative; height:1.3em;">
+          <div class="subtext-stage"><span>Extracting data</span></div>
+          <div class="subtext-stage"><span>Processing through template</span></div>
+          <div class="subtext-stage"><span>Calculating titres</span></div>
+          <div class="subtext-stage"><span>Preparing results</span></div>
+        </div>
+        <div class="processing-overlay__dots">
+          <div style="animation: 1.5s ease-in-out 0s infinite normal none running ntaPulse;"><div class="processing-overlay__dot"></div></div>
+          <div style="animation: 1.5s ease-in-out 0.3s infinite normal none running ntaPulse;"><div class="processing-overlay__dot"></div></div>
+          <div style="animation: 1.5s ease-in-out 0.6s infinite normal none running ntaPulse;"><div class="processing-overlay__dot"></div></div>
+        </div>
+      </div>
+      <div class="processing-overlay__footnote">Processing time may be up to 2 minutes on render.com</div>
     </div>
+  </div>
 
-    <div class="mb-3">
-      <label for="num_pseudotypes" class="form-label">Pseudotypes per Plate</label>
-      <select name="num_pseudotypes" id="num_pseudotypes" class="form-select" required>
-        <option value="1">1</option>
-        <option value="2">2</option>
-        <option value="3">3</option>
-        <option value="4">4</option>
-      </select>
+  <!-- ══════════════════════════════════════════════════
+       TOAST CONTAINER (custom notifications)
+       ══════════════════════════════════════════════════ -->
+  <div id="toastContainer" class="nta-toast-container"></div>
+
+
+  <!-- ══════════════════════════════════════════════════════════
+       96-WELL PLATE LAYOUT PREVIEW
+       Shows quadrant layout from form inputs. When a CSV file is
+       loaded, actual luminescence values appear inside each well.
+       ══════════════════════════════════════════════════════════ -->
+  <div class="card mt-4" id="platePreviewCard">
+    <div class="card-header d-flex align-items-center justify-content-between">
+      <div class="d-flex align-items-center gap-2">
+        <span style="font-size: 1rem;">🔬</span>
+        <span>96-Well Plate Layout Preview</span>
+        <span id="csvDataBadge" style="display:none; font-size:0.65rem; background:var(--teal,#2e6b7b); color:#f5f0e4; padding:0.15em 0.5em; border-radius:3px; font-weight:600; letter-spacing:0.3px;"></span>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <!-- Plate navigation — only visible when >1 plate loaded -->
+        <div id="plateNav" style="display:none; align-items:center; gap:0.4rem;">
+          <button id="platePrev" onclick="window.changePlate(-1)"
+            style="background:none; border:1px solid var(--border-sharp); border-radius:4px; width:26px; height:26px; cursor:pointer; font-size:0.85rem; color:var(--text-mid); line-height:1; padding:0; display:flex; align-items:center; justify-content:center; transition:border-color 0.15s, color 0.15s;">‹</button>
+          <span id="plateNavLabel" style="font-size:0.78rem; font-weight:600; color:var(--text-primary); min-width:64px; text-align:center;"></span>
+          <button id="plateNext" onclick="window.changePlate(1)"
+            style="background:none; border:1px solid var(--border-sharp); border-radius:4px; width:26px; height:26px; cursor:pointer; font-size:0.85rem; color:var(--text-mid); line-height:1; padding:0; display:flex; align-items:center; justify-content:center; transition:border-color 0.15s, color 0.15s;">›</button>
+        </div>
+        <span id="platePreviewHint" style="font-size: 0.75rem; color: var(--text-dim, #aaa);">Updates as you type</span>
+      </div>
     </div>
-
-    <div class="mb-3">
-      <label for="pseudotype_text" class="form-label">Pseudotype(s)</label>
-      <input type="text" name="pseudotype_text" id="pseudotype_text" class="form-control" placeholder="e.g. Alpha, Beta" required>
+    <div class="card-body">
+      <div id="platePreview" style="overflow-x: auto;"></div>
+      <div id="platePreviewNote" style="display:none; font-size:0.72rem; color:var(--text-dim,#888); margin-top:0.5rem; font-style:italic;"></div>
     </div>
+  </div>
 
-    <div class="mb-3">
-      <label for="sample_id_text" class="form-label">Sample ID(s)</label>
-      <input type="text" name="sample_id_text" id="sample_id_text" class="form-control" placeholder="e.g. Sample 1, Sample 2">
-    </div>
+  <script>
+  /* ═══════════════════════════════════════════════════════════
+     PLATE PREVIEW — self-contained IIFE
+     Reads quadrant config from form inputs.
+     When window.csvBlocks is populated (by the file-change handler),
+     actual CSV values are rendered inside each well cell.
+     ═══════════════════════════════════════════════════════════ */
+  (function () {
 
-    <button type="submit" class="btn btn-success w-100">🚀 Process File 🚀</button>
-  </form>
+    const Q_COLS = { Q1: [0,1,2], Q2: [3,4,5], Q3: [6,7,8], Q4: [9,10,11] };
+    const Q_LABELS = ['Q1','Q2','Q3','Q4'];
+    const ROWS = 8;
+    const COLS = 12;
 
+    const COLOUR_SETS = {
+      light: {
+        Q1: { bg: '#fff0ef', border: '#ff7e79', label: '#c0392b' },
+        Q2: { bg: '#fffbe6', border: '#ffd479', label: '#b8860b' },
+        Q3: { bg: '#e6f9f9', border: '#009193', label: '#006b6d' },
+        Q4: { bg: '#f5eeff', border: '#d783ff', label: '#7b2d8b' },
+        empty: { bg: '#f0f0f0', border: '#cccccc', label: '#999999' }
+      },
+      dark: {
+        Q1: { bg: 'rgba(220,80,70,0.14)',  border: '#c06060', label: '#f08888' },
+        Q2: { bg: 'rgba(210,170,40,0.12)', border: '#a88828', label: '#d4aa50' },
+        Q3: { bg: 'rgba(0,155,158,0.13)',  border: '#009a9d', label: '#3dbfc2' },
+        Q4: { bg: 'rgba(170,90,240,0.13)', border: '#9a60d0', label: '#c090e8' },
+        empty: { bg: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.12)', label: 'rgba(255,255,255,0.28)' }
+      }
+    };
+    function getColours() {
+      var t = localStorage.getItem('nta-theme') || 'green';
+      return (t === 'theme4') ? COLOUR_SETS.dark : COLOUR_SETS.light;
+    }
 
+    let templateDilutions = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+
+    // Shared CSV data — set by the file-change handler, read by renderPreview
+    window.csvBlocks = null;
+    let currentPlateIndex = 0;
+
+    // ── Fetch dilution labels from template ──────────────────
+    async function fetchTemplateDilutions() {
+      try {
+        const response = await fetch('/get_template_dilutions');
+        const data = await response.json();
+        if (data.status === 'success' && data.dilutions && data.dilutions.length > 0) {
+          templateDilutions = data.dilutions.slice(0, 8);
+          const rowLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+          while (templateDilutions.length < 8) templateDilutions.push(rowLetters[templateDilutions.length]);
+          renderPreview();
+          updateConfigDilutions();
+        }
+      } catch (error) {
+        console.log('Could not fetch template dilutions, using default row letters');
+      }
+    }
+
+    function updateConfigDilutions() {
+      const container = document.getElementById('dilutionSeriesDisplay');
+      if (!container) return;
+      let html = '<div class="d-flex gap-2 flex-wrap">';
+      templateDilutions.forEach((dil, idx) => {
+        const isNSC = idx === 7;
+        const labelStyle = isNSC ? 'background: var(--bg-hover, white); border: 1px solid var(--teal, #28a745);' : 'background: var(--bg-hover, white); border: 1px solid var(--border, #dee2e6);';
+        const textStyle = isNSC ? 'color: var(--teal, #28a745); font-weight: 600;' : 'color: var(--text-primary, #333); font-weight: 500;';
+        html += `<div style="padding: 0.35rem 0.6rem; ${labelStyle} border-radius: 4px; min-width: 50px; text-align: center;">`;
+        html += `<span style="font-size: 0.85rem; ${textStyle}">${dil}</span>`;
+        if (isNSC) html += `<div style="font-size: 0.65rem; color: var(--text-dim, #888); margin-top: 2px;">NSC</div>`;
+        html += `</div>`;
+      });
+      html += '</div>';
+      container.innerHTML = html;
+    }
+
+    // ── Form input helpers ────────────────────────────────────
+    function getInputs() {
+      const num = parseInt(document.getElementById('num_pseudotypes').value) || 1;
+      const ptRaw = document.getElementById('pseudotype_text').value;
+      const sidRaw = document.getElementById('sample_id_text').value;
+      const pts = ptRaw.split(',').map(s => s.trim()).filter(Boolean);
+      const sids = sidRaw.split(',').map(s => s.trim()).filter(Boolean);
+      return { num, pts, sids };
+    }
+
+    function assignQuadrants(num, pts, sids) {
+      const get = (arr, i, fallback='') => arr[i] !== undefined ? arr[i] : fallback;
+      const quadrants = Q_LABELS.map(() => ({ pseudotype: '', sampleId: '', active: false }));
+      if (num === 1) {
+        const pt = get(pts, 0, 'Unlabelled');
+        [0,1,2,3].forEach(i => { quadrants[i].pseudotype = pt; quadrants[i].sampleId = get(sids, i, '—'); quadrants[i].active = true; });
+      } else if (num === 2) {
+        quadrants[0].pseudotype = get(pts, 0, 'Unlabelled'); quadrants[1].pseudotype = get(pts, 0, 'Unlabelled');
+        quadrants[2].pseudotype = get(pts, 1, 'Unlabelled'); quadrants[3].pseudotype = get(pts, 1, 'Unlabelled');
+        const s1 = get(sids, 0, '—'), s2 = get(sids, 1, '—');
+        quadrants[0].sampleId = s1; quadrants[2].sampleId = s1; quadrants[1].sampleId = s2; quadrants[3].sampleId = s2;
+        [0,1,2,3].forEach(i => quadrants[i].active = true);
+      } else if (num === 3) {
+        [0,1,2].forEach(i => { quadrants[i].pseudotype = get(pts, i, 'Unlabelled'); quadrants[i].sampleId = get(sids, 0, '—'); quadrants[i].active = true; });
+        quadrants[3].active = false;
+      } else if (num === 4) {
+        [0,1,2,3].forEach(i => { quadrants[i].pseudotype = get(pts, i, 'Unlabelled'); quadrants[i].sampleId = get(sids, 0, '—'); quadrants[i].active = true; });
+      }
+      return quadrants;
+    }
+
+    /** Format a raw CSV value for compact display inside a well cell */
+    function fmtWell(val) {
+      if (!val || val === '') return '';
+      try {
+        const n = parseFloat(val);
+        if (isNaN(n)) return '';
+        if (n >= 1000) {
+          const exp = Math.floor(Math.log10(n));
+          const coef = n / Math.pow(10, exp);
+          const rounded = Math.round(coef * 10) / 10;
+          const coefStr = Number.isInteger(rounded) ? rounded.toString() : rounded.toFixed(1);
+          return `${coefStr}×10<sup>${exp}</sup>`;
+        }
+        if (n >= 100) return Math.round(n).toString();
+        if (n >= 10)  return n.toFixed(1);
+        return n.toFixed(2);
+      } catch(e) { return ''; }
+    }
+
+    // ── Main render ──────────────────────────────────────────
+    function renderPreview() {
+      const COLOURS = getColours();
+      const { num, pts, sids } = getInputs();
+
+      // Offset sample IDs per plate:
+      // num=1 → 4 samples/plate; num=2 → 2 samples/plate; num=3,4 → 1 sample/plate
+      const samplesPerPlate = num <= 2 ? (4 / num) : 1;
+      const sidsOffset = currentPlateIndex * samplesPerPlate;
+      const plateSids = sids.slice(sidsOffset, sidsOffset + samplesPerPlate);
+
+      const quadrants = assignQuadrants(num, pts, plateSids);
+      const container = document.getElementById('platePreview');
+      const colQuadrant = Array(COLS).fill(null);
+      Q_LABELS.forEach((q, qi) => { Q_COLS[q].forEach(c => { colQuadrant[c] = qi; }); });
+
+      // Do we have CSV data?
+      const nBlocks = (window.csvBlocks && window.csvBlocks.length > 0) ? window.csvBlocks.length : 0;
+      if (currentPlateIndex >= nBlocks) currentPlateIndex = Math.max(0, nBlocks - 1);
+      const block = nBlocks > 0 ? window.csvBlocks[currentPlateIndex] : null;
+      const hasData = !!block;
+
+      // ── Update header badge, nav & hint ──
+      const badge    = document.getElementById('csvDataBadge');
+      const hint     = document.getElementById('platePreviewHint');
+      const noteEl   = document.getElementById('platePreviewNote');
+      const navEl    = document.getElementById('plateNav');
+      const navLabel = document.getElementById('plateNavLabel');
+      const prevBtn  = document.getElementById('platePrev');
+      const nextBtn  = document.getElementById('plateNext');
+      if (hasData) {
+        badge.style.display = 'inline';
+        badge.textContent = `${nBlocks} plate${nBlocks > 1 ? 's' : ''} loaded`;
+        hint.textContent = '';
+        noteEl.style.display = 'block';
+        noteEl.textContent = `Showing plate ${currentPlateIndex + 1} of ${nBlocks}. All ${nBlocks} plate${nBlocks > 1 ? 's' : ''} will be processed.`;
+        if (nBlocks > 1) {
+          navEl.style.display = 'flex';
+          navLabel.textContent = `${currentPlateIndex + 1} / ${nBlocks}`;
+          prevBtn.disabled = currentPlateIndex === 0;
+          prevBtn.style.opacity = currentPlateIndex === 0 ? '0.35' : '1';
+          prevBtn.style.cursor  = currentPlateIndex === 0 ? 'default' : 'pointer';
+          nextBtn.disabled = currentPlateIndex === nBlocks - 1;
+          nextBtn.style.opacity = currentPlateIndex === nBlocks - 1 ? '0.35' : '1';
+          nextBtn.style.cursor  = currentPlateIndex === nBlocks - 1 ? 'default' : 'pointer';
+        } else {
+          navEl.style.display = 'none';
+        }
+      } else {
+        badge.style.display = 'none';
+        navEl.style.display = 'none';
+        hint.textContent = 'Updates live as you type';
+        noteEl.style.display = 'none';
+      }
+
+      // ── Build table ──
+      let html = '<table style="border-collapse: collapse; font-size: 0.72rem; font-family: monospace; width: 100%; table-layout: fixed;">';
+
+      // Column numbers header
+      html += '<thead><tr><th style="width:50px; min-width:50px;"></th>';
+      for (let c = 0; c < COLS; c++) {
+        const qi = colQuadrant[c];
+        const col = COLOURS[Q_LABELS[qi]];
+        html += `<th style="text-align:center; padding: 2px 0; color:${col.label}; font-weight:700;">${c+1}</th>`;
+      }
+      html += '</tr></thead><tbody>';
+
+      // Quadrant label row (Q1, Q2, Q3, Q4)
+      html += '<tr><td></td>';
+      for (let c = 0; c < COLS; c++) {
+        const qi = colQuadrant[c]; const q = quadrants[qi]; const col = q.active ? COLOURS[Q_LABELS[qi]] : COLOURS.empty;
+        if (c % 3 === 0) {
+          const label = q.active ? Q_LABELS[qi] : '—';
+          html += `<td colspan="3" style="text-align: center; padding: 3px 2px 2px; font-size: 0.7rem; font-weight: 700; color: ${col.label}; border-left: 2px solid ${col.border}; border-right: 2px solid ${col.border}; border-top: 2px solid ${col.border}; background: ${col.bg}; letter-spacing: 0.5px;">${label}</td>`;
+        }
+      }
+      html += '</tr>';
+
+      // Pseudotype row
+      html += '<tr><td style="font-size:0.65rem; color: var(--text-mid, #aaa); padding-right:3px; vertical-align:middle;">PT</td>';
+      for (let c = 0; c < COLS; c++) {
+        const qi = colQuadrant[c]; const q = quadrants[qi]; const col = q.active ? COLOURS[Q_LABELS[qi]] : COLOURS.empty;
+        if (c % 3 === 0) {
+          const text = q.active ? (q.pseudotype || '—') : '—';
+          const truncated = text.length > 14 ? text.slice(0, 13) + '…' : text;
+          html += `<td colspan="3" style="text-align: center; padding: 2px 3px; background: ${col.bg}; border-left: 2px solid ${col.border}; border-right: 2px solid ${col.border}; color: ${col.label}; font-weight: 600; white-space: nowrap; overflow: hidden;" title="${text}">${truncated}</td>`;
+        }
+      }
+      html += '</tr>';
+
+      // Sample ID row
+      html += '<tr><td style="font-size:0.65rem; color: var(--text-mid, #aaa); padding-right:3px; vertical-align:middle;">ID</td>';
+      for (let c = 0; c < COLS; c++) {
+        const qi = colQuadrant[c]; const q = quadrants[qi]; const col = q.active ? COLOURS[Q_LABELS[qi]] : COLOURS.empty;
+        if (c % 3 === 0) {
+          const text = q.active ? (q.sampleId || '—') : '—';
+          const truncated = text.length > 14 ? text.slice(0, 13) + '…' : text;
+          html += `<td colspan="3" style="text-align: center; padding: 2px 3px 3px; background: ${col.bg}; border-left: 2px solid ${col.border}; border-right: 2px solid ${col.border}; border-bottom: 1px dashed ${col.border}; color: ${col.label}; font-weight: 500; white-space: nowrap; overflow: hidden;" title="${text}">${truncated}</td>`;
+        }
+      }
+      html += '</tr>';
+
+      // ── 8 data rows (wells) ──
+      for (let r = 0; r < ROWS; r++) {
+        const isLast = r === ROWS - 1;
+        const dilutionLabel = templateDilutions[r] || '—';
+        html += `<tr><td style="text-align:right; padding-right:6px; color: var(--text-mid, #888); font-weight:600; font-size: 0.7rem; white-space: nowrap;">${dilutionLabel}</td>`;
+
+        for (let c = 0; c < COLS; c++) {
+          const qi = colQuadrant[c];
+          const q = quadrants[qi];
+          const col = q.active ? COLOURS[Q_LABELS[qi]] : COLOURS.empty;
+          const isFirstCol = c % 3 === 0;
+          const isLastCol  = c % 3 === 2;
+          const borderL = (isFirstCol ? '2px' : '1px') + ' solid ' + col.border;
+          const borderR = (isLastCol  ? '2px' : '1px') + ' solid ' + col.border;
+          const borderB = (isLast     ? '2px' : '1px') + ' solid ' + col.border;
+
+          // Get raw CSV value for this cell (if available)
+          const rawVal     = (hasData && block[r] && block[r][c]) ? block[r][c] : '';
+          const displayVal = fmtWell(rawVal);
+          const hasVal     = displayVal !== '';
+
+          if (hasData && q.active) {
+            // ── Data-filled well: show the actual luminescence value ──
+            const cellBg    = hasVal ? col.bg : 'rgba(160,53,53,0.05)';
+            const textColor = hasVal ? col.label : 'var(--text-faint, #bbb)';
+            html += `<td style="text-align:center; vertical-align:middle; font-size:0.55rem; font-weight:500; color:${textColor}; background:${cellBg}; border:1px solid ${col.border}; border-left:${borderL}; border-right:${borderR}; border-bottom:${borderB}; border-radius:4px; padding:2px 1px; overflow:hidden; white-space:nowrap;" title="${rawVal}">${hasVal ? displayVal : '—'}</td>`;
+          } else {
+            // ── Empty circle well (no CSV or inactive quadrant) ──
+            html += `<td style="width:100%; aspect-ratio:1; background:${col.bg}; border:1px solid ${col.border}; border-left:${borderL}; border-right:${borderR}; border-bottom:${borderB}; border-radius:50%; padding:0;"></td>`;
+          }
+        }
+        html += '</tr>';
+      }
+      html += '</tbody></table>';
+
+      // Legend
+      html += '<div style="display:flex; gap:1rem; flex-wrap:wrap; margin-top:1rem; font-size:0.8rem;">';
+      Q_LABELS.forEach((q, i) => {
+        const qd = quadrants[i]; if (!qd.active) return;
+        const col = COLOURS[q];
+        html += `<div style="display:flex; align-items:center; gap:0.5rem;"><div style="width:14px; height:14px; border-radius:50%; background:${col.bg}; border:2px solid ${col.border};"></div><span style="color: var(--text-primary, #333); font-weight:600;">${q}:</span><span style="color: var(--text-mid, #555);">${qd.pseudotype || '—'} / ${qd.sampleId || '—'}</span></div>`;
+      });
+      html += '</div>';
+
+      container.innerHTML = html;
+    }
+
+    // Expose to global scope
+    window.fetchTemplateDilutions = fetchTemplateDilutions;
+    window.renderPreview = renderPreview;
+    window.updateConfigDilutions = updateConfigDilutions;
+    window.resetPlateIndex = function() { currentPlateIndex = 0; };
+    window.changePlate = function(dir) {
+      const n = (window.csvBlocks && window.csvBlocks.length) || 0;
+      const next = currentPlateIndex + dir;
+      if (next < 0 || next >= n) return;
+      currentPlateIndex = next;
+      renderPreview();
+    };
+
+  })();
+  </script>
 
   <hr class="my-4">
 
-<div class="card">
-  <div class="card-body small">
-    <h6 class="text-muted fw-bold">Current Configuration</h6>
-    <ul class="mb-0">
-      <li><strong>Template:</strong> {{ settings.template_path.split('/')[-1] if settings.template_path else 'None' }}</li>
-      <li><strong>Timestamp in Filename:</strong> {{ "Yes" if settings.timestamp_in_filename else "No" }}</li>
-      <li><strong>Graph Colours ({{ settings.selected_preset }}):</strong>
-        <ul class="mb-0">
-          <li>Q1: <span style="color: {{ settings.presets[settings.selected_preset].Q1 }}">{{ settings.presets[settings.selected_preset].Q1 }}</span></li>
-          <li>Q2: <span style="color: {{ settings.presets[settings.selected_preset].Q2 }}">{{ settings.presets[settings.selected_preset].Q2 }}</span></li>
-          <li>Q3: <span style="color: {{ settings.presets[settings.selected_preset].Q3 }}">{{ settings.presets[settings.selected_preset].Q3 }}</span></li>
-          <li>Q4: <span style="color: {{ settings.presets[settings.selected_preset].Q4 }}">{{ settings.presets[settings.selected_preset].Q4 }}</span></li>
-        </ul>
-      </li>
-      <li><strong>Quadrants Included in Plots:</strong>
-        <ul class="mb-0">
-          <li>Q1: {{ 'Yes' if settings.quadrants and settings.quadrants.get('Q1') else 'No' }}</li>
-          <li>Q2: {{ 'Yes' if settings.quadrants and settings.quadrants.get('Q2') else 'No' }}</li>
-          <li>Q3: {{ 'Yes' if settings.quadrants and settings.quadrants.get('Q3') else 'No' }}</li>
-          <li>Q4: {{ 'Yes' if settings.quadrants and settings.quadrants.get('Q4') else 'No' }}</li>
+  <!-- CURRENT CONFIGURATION CARD -->
+  <div class="card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+      <div class="d-flex align-items-center gap-2">
+        <span style="font-size: 1rem;">⚙️</span>
+        <span>Current Configuration</span>
+      </div>
+      <a href="{{ url_for('settings') }}" class="btn btn-sm btn-outline-success" style="font-size: 0.8rem;">Edit Settings</a>
+    </div>
+    <div class="card-body">
+      <div class="row g-3 mb-3">
+        <div class="col-md-8">
+          <div style="padding: 0.75rem; background: var(--bg-raised, #f8f9fa); border-radius: 6px; border: 1px solid var(--border, #dee2e6);">
+            <div style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim, #888); margin-bottom: 0.35rem; font-weight: 600;">Template File</div>
+            <div style="font-size: 0.9rem; font-weight: 500; color: var(--text-primary, #333); margin-bottom: 0.5rem;">
+              {{ settings.template_path.split('/')[-1] if settings.template_path else '⚠️ None Selected' }}
+            </div>
+            <div style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim, #888); margin-bottom: 0.35rem; font-weight: 600;">Dilution Series</div>
+            <div id="dilutionSeriesDisplay">
+              <div class="d-flex gap-2 flex-wrap">
+                <div style="padding: 0.35rem 0.6rem; background: var(--bg-hover, white); border: 1px solid var(--border, #dee2e6); border-radius: 4px; min-width: 50px; text-align: center;">
+                  <span style="font-size: 0.85rem; color: var(--text-dim, #888); font-weight: 500;">Loading...</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div style="padding: 0.75rem; background: var(--bg-raised, #f8f9fa); border-radius: 6px; border: 1px solid var(--border, #dee2e6);">
+            <div style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim, #888); margin-bottom: 0.35rem; font-weight: 600;">Filename Timestamp</div>
+            <div style="font-size: 0.9rem; font-weight: 500;">
+              {% if settings.timestamp_in_filename %}
+                <span style="color: var(--teal, #28a745);">✓ Enabled</span>
+              {% else %}
+                <span style="color: var(--danger, #dc3545);">✗ Disabled</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
 
-        </ul>
-      </li>
-    </ul>
+      <div style="padding: 0.75rem; background: var(--bg-raised, #f8f9fa); border-radius: 6px; border: 1px solid var(--border, #dee2e6); margin-bottom: 0.75rem;">
+        <div style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim, #888); margin-bottom: 0.5rem; font-weight: 600;">
+          Graph Colours <span style="font-weight: 500; color: var(--text-mid, #666);">({{ settings.selected_preset }})</span>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+          {% for q in ['Q1', 'Q2', 'Q3', 'Q4'] %}
+          <div class="d-flex align-items-center gap-2" style="padding: 0.35rem 0.6rem; background: var(--bg-hover, white); border-radius: 4px; border: 1px solid var(--border, #dee2e6);">
+            <div style="width: 16px; height: 16px; border-radius: 3px; background: {{ settings.presets[settings.selected_preset][q] }}; border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 0 8px {{ settings.presets[settings.selected_preset][q] }}88;"></div>
+            <span style="font-size: 0.85rem; font-weight: 500; color: var(--text-primary, #333);">{{ q }}</span>
+            <span style="font-size: 0.75rem; color: var(--text-dim, #888); font-family: monospace;">{{ settings.presets[settings.selected_preset][q] }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div style="padding: 0.75rem; background: var(--bg-raised, #f8f9fa); border-radius: 6px; border: 1px solid var(--border, #dee2e6);">
+        <div style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim, #888); margin-bottom: 0.5rem; font-weight: 600;">Quadrants in Plots</div>
+        <div class="d-flex gap-2 flex-wrap">
+          {% for q in ['Q1', 'Q2', 'Q3', 'Q4'] %}
+          <div style="padding: 0.35rem 0.6rem; background: var(--bg-hover, white); border-radius: 4px; border: 1px solid var(--border, #dee2e6); min-width: 60px; text-align: center;">
+            <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary, #333);">{{ q }}</span>
+            {% if settings.quadrants and settings.quadrants.get(q) %}
+              <span style="color: var(--teal, #28a745); font-size: 0.85rem; margin-left: 0.25rem;">✓</span>
+            {% else %}
+              <span style="color: var(--danger, #dc3545); font-size: 0.85rem; margin-left: 0.25rem;">✗</span>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
   </div>
-</div>
+
+  <!-- ══════════════════════════════════════════════════
+       RECENT RESULTS STRIP
+       ══════════════════════════════════════════════════ -->
+  <div id="recentResultsCard" class="card mt-4" style="display: none;">
+    <div class="card-header d-flex align-items-center justify-content-between">
+      <div class="d-flex align-items-center gap-2">
+        <span style="font-size: 1rem;">🕐</span>
+        <span>Recent Results</span>
+      </div>
+      <button type="button" id="clearRecentBtn" class="btn btn-sm btn-outline-secondary" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;">Clear</button>
+    </div>
+    <div class="card-body" style="padding: 0.75rem 1rem;">
+      <div id="recentResultsList"></div>
+    </div>
+  </div>
+
+</div><!-- end container -->
 
 
-
-
-</div>
-
+<!-- ══════════════════════════════════════════════════════════════
+     MAIN SCRIPT — drag-drop, CSV parsing, toasts, validation,
+     recent results, processing overlay
+     ══════════════════════════════════════════════════════════════ -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-  const form = document.querySelector('form');
+  const form = document.getElementById('mainForm');
+  const csvFileInput = document.getElementById('csv_file');
+  const dataModeInput = document.getElementById('data_mode');
   const numPseudotypesSelect = document.getElementById('num_pseudotypes');
+
+  // ── Timestamp toggle ────────────────────────────────────────
+  var timestampToggle = document.getElementById('timestampToggle');
+  if (timestampToggle) {
+    timestampToggle.addEventListener('change', function() {
+      fetch('/save_timestamp_setting', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: timestampToggle.checked })
+      });
+    });
+  }
+
+  // ── Pseudotype pill selector ────────────────────────────────
+  window.setPseudotypes = function(n) {
+    numPseudotypesSelect.value = n;
+    document.querySelectorAll('.pt-pill').forEach(function(btn) {
+      btn.classList.toggle('pt-pill--active', parseInt(btn.dataset.n) === n);
+    });
+    window.renderPreview && window.renderPreview();
+    saveFormData && saveFormData();
+  };
   const pseudotypeInput = document.getElementById('pseudotype_text');
   const assayTitleInput = document.getElementById('assay_title');
   const sampleIdInput = document.getElementById('sample_id_text');
 
-  // Restore form data from sessionStorage
-  const savedData = sessionStorage.getItem('formData');
-  if (savedData) {
-    const data = JSON.parse(savedData);
-    if (data.assay_title) assayTitleInput.value = data.assay_title;
-    if (data.num_pseudotypes) numPseudotypesSelect.value = data.num_pseudotypes;
-    if (data.pseudotype_text) pseudotypeInput.value = data.pseudotype_text;
-    if (data.sample_id_text) sampleIdInput.value = data.sample_id_text;
+  // ═══════════════════════════════════════════════════════
+  // TOAST NOTIFICATION SYSTEM
+  // ═══════════════════════════════════════════════════════
+  const toastContainer = document.getElementById('toastContainer');
+
+  function showToast(message, type = 'info', duration = 4000) {
+    const toast = document.createElement('div');
+    toast.className = `nta-toast nta-toast--${type}`;
+    const icons = { info: 'ℹ️', warning: '⚠️', danger: '❌', success: '✅' };
+    toast.innerHTML = `
+      <span class="nta-toast__icon">${icons[type] || icons.info}</span>
+      <span class="nta-toast__msg">${message}</span>
+      <button class="nta-toast__close" onclick="this.parentElement.remove()">✕</button>
+    `;
+    toastContainer.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add('nta-toast--visible'));
+    if (duration > 0) {
+      setTimeout(() => {
+        toast.classList.remove('nta-toast--visible');
+        setTimeout(() => toast.remove(), 300);
+      }, duration);
+    }
+    return toast;
   }
 
-  // Save form data whenever inputs change
+  function showConfirm(message, confirmLabel = 'Continue', cancelLabel = 'Cancel') {
+    return new Promise(resolve => {
+      const backdrop = document.createElement('div');
+      backdrop.className = 'nta-confirm-backdrop';
+      backdrop.innerHTML = `
+        <div class="nta-confirm-dialog">
+          <div class="nta-confirm-dialog__body">${message}</div>
+          <div class="nta-confirm-dialog__actions">
+            <button class="btn btn-outline-secondary btn-sm nta-confirm-dialog__cancel">${cancelLabel}</button>
+            <button class="btn btn-success btn-sm nta-confirm-dialog__ok">${confirmLabel}</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(backdrop);
+      requestAnimationFrame(() => backdrop.classList.add('nta-confirm-backdrop--visible'));
+
+      backdrop.querySelector('.nta-confirm-dialog__ok').addEventListener('click', () => {
+        backdrop.classList.remove('nta-confirm-backdrop--visible');
+        setTimeout(() => backdrop.remove(), 200);
+        resolve(true);
+      });
+      backdrop.querySelector('.nta-confirm-dialog__cancel').addEventListener('click', () => {
+        backdrop.classList.remove('nta-confirm-backdrop--visible');
+        setTimeout(() => backdrop.remove(), 200);
+        resolve(false);
+      });
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════
+  // DRAG-AND-DROP CSV UPLOAD
+  // ═══════════════════════════════════════════════════════
+  const dropzone = document.getElementById('csvDropzone');
+  const dropzoneContent = document.getElementById('dropzoneContent');
+  const dropzoneFileInfo = document.getElementById('dropzoneFileInfo');
+  const dropzoneFileName = document.getElementById('dropzoneFileName');
+  const dropzoneFileMeta = document.getElementById('dropzoneFileMeta');
+  const dropzoneClear = document.getElementById('dropzoneClear');
+
+  dropzone.addEventListener('click', (e) => {
+    if (e.target.id === 'dropzoneClear' || e.target.closest('#dropzoneClear')) return;
+    csvFileInput.click();
+  });
+  dropzone.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); csvFileInput.click(); } });
+
+  ['dragenter', 'dragover'].forEach(evt => {
+    dropzone.addEventListener(evt, (e) => { e.preventDefault(); e.stopPropagation(); dropzone.classList.add('upload-dropzone--dragover'); });
+  });
+  ['dragleave', 'drop'].forEach(evt => {
+    dropzone.addEventListener(evt, (e) => { e.preventDefault(); e.stopPropagation(); dropzone.classList.remove('upload-dropzone--dragover'); });
+  });
+  dropzone.addEventListener('drop', (e) => {
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      const file = files[0];
+      if (!file.name.toLowerCase().endsWith('.csv')) {
+        showToast('Please drop a .csv file.', 'warning');
+        return;
+      }
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      csvFileInput.files = dt.files;
+      csvFileInput.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  });
+
+  dropzoneClear.addEventListener('click', (e) => {
+    e.stopPropagation();
+    csvFileInput.value = '';
+    sessionStorage.removeItem('savedCSV');
+    sessionStorage.removeItem('savedCSVName');
+    sessionStorage.removeItem('savedCSVMode');
+    csvFileInput.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+
+  function updateDropzoneUI(file) {
+    if (file) {
+      const sizeKB = (file.size / 1024).toFixed(1);
+      dropzoneFileName.textContent = file.name;
+      dropzoneFileMeta.textContent = `${sizeKB} KB`;
+      dropzoneContent.style.display = 'none';
+      dropzoneFileInfo.style.display = 'block';
+      dropzone.classList.add('upload-dropzone--has-file');
+    } else {
+      dropzoneContent.style.display = 'block';
+      dropzoneFileInfo.style.display = 'none';
+      dropzone.classList.remove('upload-dropzone--has-file');
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════
+  // CSV PARSING — extracts 8×12 blocks client-side
+  // Parsed blocks are stored in window.csvBlocks so the
+  // plate preview IIFE can render values inside the wells.
+  // ═══════════════════════════════════════════════════════
+  function parseCSVBlocks(text) {
+    const lines = text.split(/\r?\n/).filter(l => l.trim());
+    const ROW_LETTERS = ['A','B','C','D','E','F','G','H'];
+    const blocks = [];
+
+    // Try Standard mode first (rows starting with A-H)
+    let i = 0;
+    while (i < lines.length) {
+      const cells = lines[i].split(',').map(c => c.trim());
+      if (cells[0] === 'A' && cells.length >= 13) {
+        const block = [];
+        let valid = true;
+        for (let r = 0; r < 8; r++) {
+          if (i + r >= lines.length) { valid = false; break; }
+          const rowCells = lines[i + r].split(',').map(c => c.trim());
+          if (rowCells[0] !== ROW_LETTERS[r]) { valid = false; break; }
+          block.push(rowCells.slice(1, 13));
+        }
+        if (valid && block.length === 8) {
+          // Require at least 12 numeric values (one full row) — filters
+          // spurious summary/stats blocks the plate reader appends at the end
+          let numericCount = 0;
+          for (const row of block) {
+            for (const val of row) {
+              if (val && !isNaN(parseFloat(val))) numericCount++;
+            }
+          }
+          if (numericCount >= 12) { blocks.push(block); }
+          i += 8; continue;
+        }
+      }
+      i++;
+    }
+
+    // Fallback: Data Only (pure numeric 8-row blocks)
+    if (blocks.length === 0) {
+      let currentBlock = [];
+      for (const line of lines) {
+        const cells = line.split(',').map(c => c.trim()).filter(c => c);
+        if (cells.length >= 12) {
+          const allNumeric = cells.slice(0, 12).every(c => !isNaN(parseFloat(c)));
+          if (allNumeric) { currentBlock.push(cells.slice(0, 12)); }
+          else if (currentBlock.length > 0) {
+            if (currentBlock.length === 8) blocks.push(currentBlock);
+            currentBlock = [];
+          }
+        } else if (currentBlock.length > 0) {
+          if (currentBlock.length === 8) blocks.push(currentBlock);
+          currentBlock = [];
+        }
+      }
+      if (currentBlock.length === 8) blocks.push(currentBlock);
+    }
+    return blocks;
+  }
+
+  // ═══════════════════════════════════════════════════════
+  // FILE INPUT CHANGE — dropzone UI + CSV parse → plate preview
+  // ═══════════════════════════════════════════════════════
+  const dataModePickerRow = document.getElementById('dataModePickerRow');
+
+  function highlightModeBtn(selectedMode) {
+    document.querySelectorAll('.data-mode-btn').forEach(b => {
+      b.classList.toggle('data-mode-selected', b.getAttribute('data-mode') === selectedMode);
+    });
+  }
+
+  csvFileInput.addEventListener('change', function() {
+    csvValidationPassed = false;
+
+    if (this.files.length > 0) {
+      const file = this.files[0];
+      updateDropzoneUI(file);
+
+      // Show mode picker
+      dataModeInput.value = 'standard';
+      highlightModeBtn('standard');
+      dataModePickerRow.style.display = 'block';
+
+      // Parse CSV and feed data into the plate preview
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const csvText = e.target.result;
+        // Persist CSV so it survives page navigation
+        try {
+          sessionStorage.setItem('savedCSV', csvText);
+          sessionStorage.setItem('savedCSVName', file.name);
+          sessionStorage.setItem('savedCSVMode', dataModeInput.value || 'standard');
+        } catch(err) { /* sessionStorage full — skip persistence */ }
+        const blocks = parseCSVBlocks(csvText);
+        window.csvBlocks = (blocks && blocks.length > 0) ? blocks : null;
+        if (window.resetPlateIndex) window.resetPlateIndex();
+        window.renderPreview();   // re-render plate grid with actual values
+      };
+      reader.readAsText(file);
+    } else {
+      updateDropzoneUI(null);
+      dataModePickerRow.style.display = 'none';
+      dataModeInput.value = '';
+      window.csvBlocks = null;
+      window.renderPreview();
+    }
+  });
+
+  document.querySelectorAll('.data-mode-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      dataModeInput.value = this.getAttribute('data-mode');
+      highlightModeBtn(dataModeInput.value);
+      csvValidationPassed = false;
+      sessionStorage.setItem('savedCSVMode', dataModeInput.value);
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════
+  // PROCESSING OVERLAY
+  // ═══════════════════════════════════════════════════════
+  function showProcessingOverlay() {
+    document.getElementById('processingOverlay').classList.add('processing-overlay--visible');
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.style.opacity = '0.6';
+    btn.textContent = 'Processing…';
+    // Set animation via full inline shorthand (name last) on each wrapper div.
+    // This is the only approach that works reliably in Safari.
+    var names = ['subtext-s1','subtext-s2','subtext-s3','subtext-s4'];
+    document.querySelectorAll('.subtext-stage').forEach(function(el, i) {
+      el.style.animation = '12s linear 0s infinite normal none running ' + names[i];
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════
+  // PLATE PREVIEW — init
+  // ═══════════════════════════════════════════════════════
+  window.fetchTemplateDilutions();
+  ['num_pseudotypes','pseudotype_text','sample_id_text'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.addEventListener('input', window.renderPreview); el.addEventListener('change', window.renderPreview); }
+  });
+  window.renderPreview();
+
+  // ═══════════════════════════════════════════════════════
+  // FORM PERSISTENCE
+  // ═══════════════════════════════════════════════════════
+  const savedData = localStorage.getItem('nta-formData');
+  if (savedData) {
+    try {
+      const data = JSON.parse(savedData);
+      if (data.assay_title) assayTitleInput.value = data.assay_title;
+      if (data.num_pseudotypes) window.setPseudotypes(parseInt(data.num_pseudotypes));
+      if (data.pseudotype_text) pseudotypeInput.value = data.pseudotype_text;
+      if (data.sample_id_text) sampleIdInput.value = data.sample_id_text;
+      window.renderPreview && window.renderPreview();
+    } catch(e) {}
+  }
+
+  // ── Restore previously loaded CSV (survives navigation) ──
+  const savedCSV  = sessionStorage.getItem('savedCSV');
+  const savedName = sessionStorage.getItem('savedCSVName');
+  const savedMode = sessionStorage.getItem('savedCSVMode') || 'standard';
+  if (savedCSV && savedName) {
+    try {
+      const blob = new Blob([savedCSV], { type: 'text/csv' });
+      const file = new File([blob], savedName, { type: 'text/csv' });
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      csvFileInput.files = dt.files;
+      updateDropzoneUI(file);
+      dataModeInput.value = savedMode;
+      highlightModeBtn(savedMode);
+      dataModePickerRow.style.display = 'block';
+      const blocks = parseCSVBlocks(savedCSV);
+      window.csvBlocks = (blocks && blocks.length > 0) ? blocks : null;
+      window.renderPreview();
+    } catch(err) { /* DataTransfer not supported — skip restore */ }
+  }
+
   function saveFormData() {
-    const formData = {
+    localStorage.setItem('nta-formData', JSON.stringify({
       assay_title: assayTitleInput.value,
       num_pseudotypes: numPseudotypesSelect.value,
       pseudotype_text: pseudotypeInput.value,
       sample_id_text: sampleIdInput.value
-    };
-    sessionStorage.setItem('formData', JSON.stringify(formData));
+    }));
   }
-
-  // Add event listeners to save on change
   assayTitleInput.addEventListener('input', saveFormData);
-  numPseudotypesSelect.addEventListener('change', saveFormData);
+  // num_pseudotypes is now a hidden input updated via setPseudotypes() — no change listener needed
   pseudotypeInput.addEventListener('input', saveFormData);
   sampleIdInput.addEventListener('input', saveFormData);
 
-  // Form validation on submit
-  form.addEventListener('submit', function(e) {
+  // ═══════════════════════════════════════════════════════
+  // RECENT RESULTS
+  // ═══════════════════════════════════════════════════════
+  function loadRecentResults() {
+    const raw = sessionStorage.getItem('recentResults');
+    return raw ? JSON.parse(raw) : [];
+  }
+
+  function renderRecentResults() {
+    const results = loadRecentResults();
+    const card = document.getElementById('recentResultsCard');
+    const list = document.getElementById('recentResultsList');
+    if (results.length === 0) { card.style.display = 'none'; return; }
+    card.style.display = 'block';
+    list.innerHTML = results.map(r => `
+      <a href="/hub/${r.id}" class="d-flex align-items-center justify-content-between text-decoration-none recent-result-item" style="padding: 0.5rem 0.25rem; border-bottom: 1px solid var(--border, #eee);">
+        <div><span style="font-weight: 600; color: var(--text-primary, #333); font-size: 0.88rem;">📊 ${r.name}</span></div>
+        <span style="font-size: 0.72rem; color: var(--text-dim, #888);">${r.time}</span>
+      </a>
+    `).join('');
+  }
+
+  document.getElementById('clearRecentBtn').addEventListener('click', () => {
+    sessionStorage.removeItem('recentResults');
+    renderRecentResults();
+  });
+
+  renderRecentResults();
+
+  // ═══════════════════════════════════════════════════════
+  // FORM VALIDATION (toasts & confirm dialogs)
+  // ═══════════════════════════════════════════════════════
+  let csvValidationPassed = false;
+
+  form.addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    if (!dataModeInput.value) dataModeInput.value = 'standard';
+
     const numPseudotypes = parseInt(numPseudotypesSelect.value);
     const pseudotypeText = pseudotypeInput.value.trim();
-    
+
     if (!pseudotypeText) {
-      e.preventDefault();
-      alert('Please enter at least one pseudotype name.');
+      showToast('Please enter at least one pseudotype name.', 'warning');
       pseudotypeInput.focus();
-      return false;
+      return;
     }
 
     const pseudotypes = pseudotypeText.split(',').map(pt => pt.trim()).filter(pt => pt);
-    
+
     if (pseudotypes.length < numPseudotypes) {
-      const proceed = confirm(
-        `Warning: You selected ${numPseudotypes} pseudotype(s) but only entered ${pseudotypes.length}. ` +
-        `Missing pseudotypes will be labelled as "Unlabelled". Continue?`
+      const proceed = await showConfirm(
+        `You selected <strong>${numPseudotypes} pseudotype(s)</strong> but only entered <strong>${pseudotypes.length}</strong>.<br>Missing pseudotypes will be labelled as "Unlabelled".`,
+        'Continue anyway', 'Go back'
       );
-      if (!proceed) {
-        e.preventDefault();
-        pseudotypeInput.focus();
-        return false;
-      }
+      if (!proceed) { pseudotypeInput.focus(); return; }
     }
-    
-    // Clear saved data on successful submit
-    // sessionStorage.removeItem('formData');
+
+    // CSV mode validation (async server check)
+    if (!csvValidationPassed && csvFileInput.files.length > 0) {
+      const fd = new FormData();
+      fd.append('csv_file', csvFileInput.files[0]);
+      fd.append('data_mode', dataModeInput.value);
+
+      try {
+        const resp = await fetch('/validate_csv_mode', { method: 'POST', body: fd });
+        const result = await resp.json();
+
+        if (!result.ok) {
+          const switchMode = result.detected_mode;
+          const friendlyName = switchMode === 'standard' ? 'Standard' : 'Data Only';
+          const proceed = await showConfirm(
+            result.message + `<br><br>Switch to <strong>${friendlyName}</strong> mode?`,
+            `Switch to ${friendlyName}`, 'Cancel'
+          );
+          if (proceed) {
+            dataModeInput.value = switchMode;
+            highlightModeBtn(switchMode);
+          } else {
+            return;
+          }
+        }
+      } catch(err) {
+        // Validation endpoint failed — proceed anyway
+      }
+      csvValidationPassed = true;
+    }
+
+    saveFormData();
+    showProcessingOverlay();
+    form.submit();
   });
+
 });
 </script>
+
+<style>
+/* ── Pseudotype pill selector ── */
+.pt-pill {
+  flex: 1;
+  padding: 0.5rem 0.5rem;
+  border: 1.5px solid var(--border-sharp, rgba(0,0,0,0.13));
+  border-radius: 6px;
+  background: var(--bg-surface, #fff);
+  cursor: pointer;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary, #1c2b3a);
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.pt-pill:hover {
+  border-color: var(--teal, #4a7a9b);
+  background: var(--teal-pale, rgba(74,122,155,0.07));
+}
+.pt-pill--active {
+  border-color: var(--teal, #4a7a9b);
+  background: var(--teal-pale, rgba(74,122,155,0.07));
+  box-shadow: 0 0 0 1px var(--teal, #4a7a9b);
+  color: var(--teal-dim, #3a6280);
+}
+</style>
 
 {% endblock %}

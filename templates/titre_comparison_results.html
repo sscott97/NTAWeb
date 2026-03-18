@@ -1,0 +1,274 @@
+{% extends 'layout.html' %}
+{% block title %}Titre Comparison - NTA{% endblock %}
+
+{% block nav_left %}
+<a href="{{ url_for('analysis_hub', file_id=excel_file_id) }}" class="nav-back-btn">← Data Analysis</a>
+{% endblock %}
+
+{% block content %}
+
+<div style="max-width: 1000px; margin: 0 auto;">
+
+  <!-- Page header -->
+  <div class="mb-4">
+    <h2 class="text-success mb-1" style="font-size: 1.75rem;">Titre Comparison Analysis</h2>
+    <p style="color: var(--text-dim, #888); font-size: 0.85rem; margin: 0;">NT50 (Linear Interpolation) vs NT50/IC50 (Curve Fitting) correlation and mismatch detection</p>
+  </div>
+
+  <!-- Summary Statistics -->
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center gap-2">
+      <span style="font-size: 1rem;">📊</span>
+      <span style="font-weight: 600;">Summary Statistics</span>
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-3 text-center">
+          <div style="font-size: 2.5rem; color: #3498db; font-weight: 700; line-height: 1;">{{ stats.n_samples }}</div>
+          <div style="color: var(--text-mid, #666); font-size: 0.85rem; font-weight: 600; margin-top: 0.5rem;">Matched Samples</div>
+        </div>
+        <div class="col-md-3 text-center">
+          <div style="font-size: 2.5rem; color: #28a745; font-weight: 700; line-height: 1;">{{ "%.3f"|format(stats.correlation|float) }}</div>
+          <div style="color: var(--text-mid, #666); font-size: 0.85rem; font-weight: 600; margin-top: 0.5rem;">Correlation (r)</div>
+          <div style="font-size: 0.75rem; margin-top: 0.25rem;">
+            {% set r_abs = stats.correlation|float|abs %}
+            {% if r_abs >= 0.7 %}
+              <span style="color: #28a745; font-weight: 600;">Strong association</span>
+            {% elif r_abs >= 0.4 %}
+              <span style="color: #f39c12; font-weight: 600;">Moderate association</span>
+            {% else %}
+              <span style="color: #e74c3c; font-weight: 600;">Weak association</span>
+            {% endif %}
+            <span style="color: var(--text-dim, #aaa); display: block; font-size: 0.7rem; margin-top: 2px;">
+              {% if r_abs >= 0.7 %}|r| ≥ 0.7{% elif r_abs >= 0.4 %}0.4 ≤ |r| &lt; 0.7{% else %}|r| &lt; 0.4{% endif %}
+            </span>
+          </div>
+        </div>
+        <div class="col-md-3 text-center">
+          <div style="font-size: 2.5rem; color: #9b59b6; font-weight: 700; line-height: 1;">{{ "%.3f"|format(stats.r_squared|float) }}</div>
+          <div style="color: var(--text-mid, #666); font-size: 0.85rem; font-weight: 600; margin-top: 0.5rem;">R² Value</div>
+          <div style="font-size: 0.75rem; margin-top: 0.25rem;">
+            {% set r2 = stats.r_squared|float %}
+            {% if r2 >= 0.75 %}
+              <span style="color: #28a745; font-weight: 600;">Substantial</span>
+            {% elif r2 >= 0.50 %}
+              <span style="color: #3498db; font-weight: 600;">Moderate</span>
+            {% elif r2 >= 0.25 %}
+              <span style="color: #f39c12; font-weight: 600;">Weak</span>
+            {% else %}
+              <span style="color: #e74c3c; font-weight: 600;">Negligible</span>
+            {% endif %}
+            <span style="color: var(--text-dim, #aaa); display: block; font-size: 0.7rem; margin-top: 2px;">
+              {% if r2 >= 0.75 %}R² ≥ 0.75{% elif r2 >= 0.50 %}0.50 ≤ R² &lt; 0.75{% elif r2 >= 0.25 %}0.25 ≤ R² &lt; 0.50{% else %}R² &lt; 0.25{% endif %}
+            </span>
+          </div>
+        </div>
+        <div class="col-md-3 text-center">
+          {% set pct = stats.percent_disagreement|float %}
+          <div style="font-size: 2.5rem; color: {{ '#e74c3c' if pct > 20 else '#f39c12' if pct > 10 else '#28a745' }}; font-weight: 700; line-height: 1;">
+            {{ "%.1f"|format(pct) }}%
+          </div>
+          <div style="color: var(--text-mid, #666); font-size: 0.85rem; font-weight: 600; margin-top: 0.5rem;">Disagreements</div>
+          <div style="color: var(--text-dim, #888); font-size: 0.75rem; margin-top: 0.25rem;">&gt;2-fold difference</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Correlation Plot -->
+  {% if has_plot %}
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center gap-2">
+      <span style="font-size: 1rem;">📈</span>
+      <span style="font-weight: 600;">Correlation Plot</span>
+    </div>
+    <div class="card-body">
+      <p style="color: var(--text-mid, #666); font-size: 0.9rem; margin-bottom: 1.25rem;">
+        NT50 (linear interpolation) and NT50/IC50 (curve fitting) titres compared. <strong>Hover over points to see sample details.</strong> The dashed line represents perfect agreement (y=x), green line shows linear regression fit.
+      </p>
+      
+      <div style="border: 1px solid var(--border, #dee2e6); border-radius: 4px; overflow: hidden; margin-bottom: 1rem;">
+        <iframe 
+          src="{{ url_for('download_comparison', comparison_id=comparison_id, filename='titre_comparison_interactive.html') }}" 
+          style="width: 100%; height: 650px; border: none;"
+          title="Interactive Titre Comparison Plot">
+        </iframe>
+      </div>
+      
+      <div class="d-flex gap-2">
+        <a href="{{ url_for('download_comparison', comparison_id=comparison_id, filename='titre_comparison.png') }}" 
+           class="btn btn-success">
+          <span style="margin-right: 0.35rem;">📥</span>Download PNG
+        </a>
+        <a href="{{ url_for('download_comparison', comparison_id=comparison_id, filename='titre_comparison_interactive.html') }}" 
+           class="btn btn-outline-success"
+           download="titre_comparison_interactive.html">
+          <span style="margin-right: 0.35rem;">📥</span>Download Interactive HTML
+        </a>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Top Mismatches -->
+  {% if mismatches and mismatches|length > 0 %}
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center gap-2">
+      <span style="font-size: 1rem;">⚠️</span>
+      <span style="font-weight: 600;">Top Mismatches (&gt;2-fold difference)</span>
+    </div>
+    <div class="card-body">
+      <p style="color: var(--text-mid, #666); font-size: 0.9rem; margin-bottom: 1.25rem;">
+        Samples showing the largest log₂ fold difference between NT50 and IC50 titres. These may warrant further investigation.
+      </p>
+      
+      <div class="table-responsive">
+        <table class="table table-sm table-hover" style="font-size: 0.9rem;">
+          <thead style="background: var(--bg-raised, #f8f9fa);">
+            <tr>
+              <th>Sample</th>
+              <th>Virus</th>
+              <th class="text-end">NT50</th>
+              <th class="text-end">IC50 Titre</th>
+              <th class="text-end">Log₂ Fold Diff</th>
+              <th>Quality</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for mismatch in mismatches %}
+            <tr>
+              <td><strong>{{ mismatch.Sample }}</strong></td>
+              <td>{{ mismatch.Virus }}</td>
+              <td class="text-end">{{ "%.1f"|format(mismatch.NT50|float) }}</td>
+              <td class="text-end">{{ "%.1f"|format(mismatch.IC50_Titre|float) }}</td>
+              <td class="text-end">
+                {% set abs_lfd = mismatch.Log2_Fold_Difference|float|abs %}
+                <span class="badge" style="background: {{ '#e74c3c' if abs_lfd > 2 else '#f39c12' }};">
+                  {{ "%+.2f"|format(mismatch.Log2_Fold_Difference|float) }}
+                </span>
+              </td>
+              <td>
+                <span class="badge bg-{{ 'primary' if mismatch.Quality == 'Good' else 'danger' }}">
+                  {{ mismatch.Quality }}
+                </span>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Download All Data -->
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center gap-2">
+      <span style="font-size: 1rem;">📂</span>
+      <span style="font-weight: 600;">Download Data Files</span>
+    </div>
+    <div class="card-body">
+      <div class="d-flex flex-wrap gap-2">
+        <a href="{{ url_for('download_comparison', comparison_id=comparison_id, filename='merged_titres.csv') }}" 
+           class="btn btn-success">
+          <span style="margin-right: 0.35rem;">📥</span>Merged Titres (CSV)
+        </a>
+        <a href="{{ url_for('download_comparison', comparison_id=comparison_id, filename='comparison_stats.csv') }}" 
+           class="btn btn-outline-success">
+          <span style="margin-right: 0.35rem;">📥</span>Statistics (CSV)
+        </a>
+        {% if mismatches and mismatches|length > 0 %}
+        <a href="{{ url_for('download_comparison', comparison_id=comparison_id, filename='top_mismatches.csv') }}" 
+           class="btn btn-outline-success">
+          <span style="margin-right: 0.35rem;">📥</span>Top Mismatches (CSV)
+        </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Methods -->
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center gap-2">
+      <span style="font-size: 1rem;">📝</span>
+      <span style="font-weight: 600;">Methods</span>
+    </div>
+    <div class="card-body" style="font-size: 0.9rem; color: var(--text-mid, #444); line-height: 1.75;">
+
+      <h6 style="color: var(--text-primary, #222); font-weight: 700; margin-bottom: 0.5rem; margin-top: 0;">
+        1. Titre Derivation — Two Independent Methods
+      </h6>
+      <p style="margin-bottom: 0.75rem;">
+        Two independent approaches were used to estimate neutralising antibody titres from the same raw luminescence data, and the results compared to assess inter-method agreement:
+      </p>
+      <div style="margin-bottom: 1.5rem; padding-left: 1rem;">
+        <table style="font-size: 0.88rem; border-collapse: collapse; width: 100%;">
+          <tr style="border-bottom: 1px solid var(--border, #e9ecef);">
+            <td style="padding: 0.5rem 0.75rem 0.5rem 0; font-weight: 600; white-space: nowrap; vertical-align: top; color: var(--text-primary, #222);">NT50 (Linear Interpolation)</td>
+            <td style="padding: 0.5rem 0;">For each replicate column, the luminescence value corresponding to 50% of the no-serum control (NSC) was identified. Linear interpolation between the two flanking dilution points was used to estimate the dilution at which the 50% threshold was crossed. The three per-replicate NT50 values were then averaged to produce a single NT50 per quadrant.</td>
+          </tr>
+          <tr>
+            <td style="padding: 0.5rem 0.75rem 0.5rem 0; font-weight: 600; white-space: nowrap; vertical-align: top; color: var(--text-primary, #222);">IC50 Titre (Curve Fitting)</td>
+            <td style="padding: 0.5rem 0;">A four-parameter logistic sigmoid was fitted to the triplicate-mean neutralisation percentages across all dilutions (see Curve Fitting Methods). The IC50 — the log₂ dilution at 50% neutralisation — was converted to a reciprocal dilution titre via 2<sup>−IC50</sup>.</td>
+          </tr>
+        </table>
+      </div>
+
+      <h6 style="color: var(--text-primary, #222); font-weight: 700; margin-bottom: 0.5rem;">
+        2. Sample Matching and Correlation
+      </h6>
+      <p style="margin-bottom: 0.75rem;">
+        NT50 and IC50 titre values were matched by pseudotype (virus) name and sample identifier. Where no exact match was found, case-insensitive matching with trimmed whitespace was attempted. Both titre values were log₁₀-transformed prior to correlation analysis to account for the log-normal distribution of neutralisation titres.
+      </p>
+      <p style="margin-bottom: 1.5rem;">
+        Pearson's correlation coefficient (<em>r</em>) was computed on the log₁₀-transformed values. A linear regression model (log₁₀ IC50 ~ log₁₀ NT50) was fitted to obtain R², representing the proportion of variance in IC50 titres explained by NT50 titres. The strength of association was classified using standard thresholds: <strong>weak</strong> (|r| &lt; 0.4), <strong>moderate</strong> (0.4 ≤ |r| &lt; 0.7), or <strong>strong</strong> (|r| ≥ 0.7). The coefficient of determination was classified as <strong>negligible</strong> (R² &lt; 0.25), <strong>weak</strong> (0.25 ≤ R² &lt; 0.50), <strong>moderate</strong> (0.50 ≤ R² &lt; 0.75), or <strong>substantial</strong> (R² ≥ 0.75).
+      </p>
+
+      <h6 style="color: var(--text-primary, #222); font-weight: 700; margin-bottom: 0.5rem;">
+        3. Disagreement Classification
+      </h6>
+      <p style="margin-bottom: 0.75rem;">
+        The log₂ fold difference between the two methods was calculated for each sample as:
+      </p>
+      <div style="
+        background: var(--bg-raised, #f8f9fa);
+        border: 1px solid var(--border, #dee2e6);
+        border-left: 4px solid #28a745;
+        border-radius: 4px;
+        padding: 0.85rem 1.25rem;
+        margin-bottom: 1.25rem;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 0.88rem;
+        text-align: center;
+        letter-spacing: 0.2px;
+      ">
+        Log₂ Fold Difference = log₂(NT50 / IC50 Titre)
+      </div>
+      <p style="margin-bottom: 0.75rem;">
+        A log₂ fold difference of 0 indicates perfect agreement. Positive values indicate that the linear interpolation method yielded a higher titre, while negative values indicate that curve fitting produced a higher titre. Samples with an absolute log₂ fold difference greater than 1 (i.e. a greater than 2-fold difference) were flagged for review. This threshold is standard in serological titre comparisons and corresponds to a single dilution step discrepancy.
+      </p>
+      <p style="margin-bottom: 0.75rem;">
+        Common causes of disagreement include incomplete or atypical dose–response curves, flat titrations where the sigmoid fit is poorly constrained, or edge cases where the 50% neutralisation threshold falls outside the measured dilution range.
+      </p>
+      <p style="margin-bottom: 0;">
+        The five samples with the highest absolute log₂ fold difference are reported in the Top Mismatches table above. The curve fitting quality flag ("Good" or "Unstable") is included alongside each mismatch to aid interpretation — an "Unstable" flag indicates that the sigmoid fit for that sample had one or more parameters pressed against its bound constraint, and the IC50 titre should be treated with caution.
+      </p>
+
+    </div>
+  </div>
+
+
+</div>
+
+<script>
+// Toast notification on load (only once per comparison)
+document.addEventListener('DOMContentLoaded', function() {
+  var toastKey = 'toast_shown_compare_{{ comparison_id }}';
+  if (!sessionStorage.getItem(toastKey)) {
+    ntaToast('<strong>Comparison complete!</strong> Analysis results are ready below.', 'success');
+    sessionStorage.setItem(toastKey, '1');
+  }
+});
+</script>
+
+{% endblock %}

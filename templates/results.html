@@ -1,30 +1,455 @@
 {% extends 'layout.html' %}
 {% block title %}Results - NTA{% endblock %}
-
 {% block content %}
 
-<div class="container mt-4">
-<div class="mb-3">
+<div style="max-width: 900px; margin: 0 auto;">
 
-<h3 class="text-center text-success mb-4">File Processing</h3>
-
-
-  <div class="mb-3">
-    <a href="{{ url_for('download_memory', file_id=excel_file_id) }}" class="btn btn-primary w-100">📥 Download Processed Results</a>
+  <!-- Page header -->
+  <div class="mb-4">
+    <h2 class="text-success mb-1" style="font-size: 1.75rem;">Results</h2>
+    <p style="color: var(--text-dim, #888); font-size: 0.85rem; margin: 0;">Processing complete — download your results below</p>
   </div>
-  
-  {% if plot_file %}
-    <div class="mb-3">
-      <a href="{{ url_for('download', filename=plot_file) }}" class="btn btn-success w-100">🖼️ Download Generated Graph</a>
-      <div class="text-center mt-3">
-        <img src="{{ url_for('static', filename='uploads/' + plot_file) }}" class="img-fluid" style="max-height: 500px;">
+
+  <!-- Linear Interpolation Processing -->
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center gap-2">
+      <span style="font-size: 1rem;">📐</span>
+      <span style="font-weight: 600;">Linear Interpolation Processing</span>
+    </div>
+    <div class="card-body">
+      
+      <!-- Excel Results Section -->
+      <div class="mb-4 pb-4" style="border-bottom: 1px solid var(--border, #dee2e6);">
+        <h6 style="font-weight: 600; color: var(--text-primary, #333); margin-bottom: 0.75rem;">
+          📊 Excel Results
+        </h6>
+        <p style="color: var(--text-mid, #666); font-size: 0.9rem; margin-bottom: 1rem;">
+          Your CSV data has been processed and written into the Excel template with calculated neutralising antibody titres (NT50 and NT90 values).
+        </p>
+        <a href="{{ url_for('download_memory', file_id=excel_file_id) }}" class="btn btn-success">
+          <span style="margin-right: 0.35rem;">📥</span>Download Excel Results
+        </a>
+      </div>
+
+      <!-- Method note -->
+      <div class="mb-4 pb-4" style="border-bottom: 1px solid var(--border, #dee2e6);">
+        <h6 style="font-weight: 600; color: var(--text-primary, #333); margin-bottom: 0.75rem;">
+          📝 Method
+        </h6>
+        <div style="color: var(--text-mid, #555); font-size: 0.88rem; line-height: 1.7;">
+          <p style="margin-bottom: 0.6rem;">
+            NT50 and NT90 titres were calculated by linear interpolation on each replicate column independently. For each replicate, the luminescence value at 50% (or 90%) of the no-serum control (NSC) was identified, and the corresponding dilution was estimated by linear interpolation between the two flanking data points. The three per-replicate titres were then averaged to produce a single NT50 or NT90 per quadrant.
+          </p>
+          <p style="margin-bottom: 0;">
+            Where a sample's luminescence did not cross the threshold within the measured dilution range, a boundary value is reported: <strong>≤</strong> (the lowest dilution) if luminescence remained below the threshold at all dilutions, or <strong>≥</strong> (the highest dilution) if luminescence never fell below it.
+          </p>
+        </div>
+      </div>
+
+      <!-- Summary Graph Section -->
+      <div>
+        <h6 style="font-weight: 600; color: var(--text-primary, #333); margin-bottom: 0.75rem;">
+          🖼️ Summary Graph
+        </h6>
+
+        <!-- Quick graph settings -->
+        <div style="
+          background: var(--bg-raised, #f8f9fa);
+          border: 1px solid var(--border, #dee2e6);
+          border-radius: var(--radius, 4px);
+          padding: 1rem 1.25rem;
+          margin-bottom: 1.5rem;
+        ">
+          <div style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-mid, #888); margin-bottom: 0.9rem;">
+            Graph Options
+            <span style="font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--text-dim, #aaa);">
+              — this session only, does not change saved settings
+            </span>
+          </div>
+
+          <div class="row g-3 align-items-end">
+
+            <!-- Colour preset -->
+            <div class="col-12 col-md-5">
+              <label style="font-size: 0.8rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-mid, #888); display: block; margin-bottom: 0.35rem;">
+                Colour Preset
+              </label>
+
+              <!-- Hidden real select for form submission compatibility -->
+              <select id="selectPreset" style="display:none;"></select>
+
+              <!-- Custom dropdown -->
+              <div id="customPresetDropdown" style="position: relative;">
+                <div id="customPresetTrigger" onclick="togglePresetDropdown()" style="
+                  display: flex;
+                  align-items: center;
+                  gap: 0.5rem;
+                  padding: 0.375rem 0.75rem;
+                  border: 1px solid var(--border, #dee2e6);
+                  border-radius: 4px;
+                  background: var(--bg-base, #fff);
+                  cursor: pointer;
+                  font-size: 0.875rem;
+                  color: var(--text-primary, #212529);
+                  user-select: none;
+                ">
+                  <div id="triggerSwatches" style="display:flex; gap:3px;"></div>
+                  <span id="triggerLabel" style="flex:1;">Loading…</span>
+                  <span style="color: var(--text-dim, #aaa); font-size: 0.75rem;">▾</span>
+                </div>
+
+                <div id="customPresetList" style="
+                  display: none;
+                  position: absolute;
+                  top: calc(100% + 4px);
+                  left: 0; right: 0;
+                  background: var(--bg-base, #fff);
+                  border: 1px solid var(--border, #dee2e6);
+                  border-radius: 4px;
+                  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+                  z-index: 100;
+                  overflow: hidden;
+                "></div>
+              </div>
+            </div>
+
+            <!-- Quadrant toggles -->
+            <div class="col-12 col-md-7">
+              <label style="font-size: 0.8rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-mid, #888); display: block; margin-bottom: 0.5rem;">
+                Include Quadrants
+              </label>
+              <div class="d-flex gap-2">
+                <div id="pill-Q1" onclick="toggleQ('Q1')" class="q-pill">Q1</div>
+                <div id="pill-Q2" onclick="toggleQ('Q2')" class="q-pill">Q2</div>
+                <div id="pill-Q3" onclick="toggleQ('Q3')" class="q-pill">Q3</div>
+                <div id="pill-Q4" onclick="toggleQ('Q4')" class="q-pill">Q4</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        {% if plot_file %}
+
+          <p style="color: var(--text-mid, #666); font-size: 0.9rem; margin-bottom: 1.25rem;">
+            Graph generated. Adjust options above and regenerate if needed.
+          </p>
+
+          <div style="
+            background: var(--bg-raised, #f8f9fa);
+            border: 1px solid var(--border, #dee2e6);
+            border-radius: var(--radius, 4px);
+            padding: 1.25rem;
+            text-align: center;
+            margin-bottom: 1.25rem;
+          ">
+            <img
+              src="{{ url_for('static', filename='uploads/' + plot_file) }}"
+              class="img-fluid"
+              style="max-height: 480px; border: none; margin: 0; box-shadow: none;"
+              alt="Generated graph"
+            >
+          </div>
+
+          <div class="d-flex flex-wrap gap-2">
+            <form action="{{ url_for('generate_graphs') }}" method="post" id="graphForm">
+              <input type="hidden" name="file_id"         value="{{ excel_file_id }}">
+              <input type="hidden" name="graph_preset"    id="graph_preset">
+              <input type="hidden" name="graph_quadrants" id="graph_quadrants">
+              <button type="submit" class="btn btn-outline-success" onclick="injectSettings(event)">
+                🔄 Regenerate Graph
+              </button>
+            </form>
+            <a href="{{ url_for('download', filename=plot_file) }}" class="btn btn-success">
+              <span style="margin-right: 0.35rem;">📥</span>Download Graph
+            </a>
+          </div>
+
+        {% else %}
+
+          <p style="color: var(--text-mid, #666); font-size: 0.9rem; margin-bottom: 1.25rem;">
+            Create a summary graph from the processed results, combining all plates into one plot. Dilutions update based on template.
+          </p>
+
+          <form action="{{ url_for('generate_graphs') }}" method="post" id="graphForm">
+            <input type="hidden" name="file_id"         value="{{ excel_file_id }}">
+            <input type="hidden" name="graph_preset"    id="graph_preset">
+            <input type="hidden" name="graph_quadrants" id="graph_quadrants">
+            <button type="submit" class="btn btn-success" onclick="injectSettings(event)">
+              <span style="margin-right: 0.35rem;">📊</span>Generate Graph
+            </button>
+          </form>
+
+        {% endif %}
+
       </div>
     </div>
-  {% else %}
-    <form action="{{ url_for('generate_graphs') }}" method="post">
+  </div>
+
+
+
+  <!-- Curve Fitting section -->
+<div class="card mb-4">
+  <div class="card-header d-flex align-items-center gap-2">
+    <span style="font-size: 1rem;">📈</span>
+    <span style="font-weight: 600;">Sigmoid Curve Fitting</span>
+  </div>
+  <div class="card-body">
+    <p style="color: var(--text-mid, #666); font-size: 0.9rem; margin-bottom: 1.25rem;">
+      Fit sigmoid curves to your neutralisation data and calculate IC50 values. This will generate fitted curve plots and an IC50s.csv file for each virus in your dataset.
+    </p>
+    <form action="{{ url_for('perform_curve_fitting') }}" method="post" onsubmit="storeFittingRequest()">
       <input type="hidden" name="file_id" value="{{ excel_file_id }}">
-      <button type="submit" class="btn btn-success w-100">📊 Download Graph</button>
+      <button type="submit" class="btn btn-success">
+        <span style="margin-right: 0.35rem;">📈</span>Perform Curve Fitting
+      </button>
     </form>
-  {% endif %}
+  </div>
 </div>
+
+  <!-- Titre Comparison section -->
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center gap-2">
+      <span style="font-size: 1rem;">🔬</span>
+      <span style="font-weight: 600;">Titre Comparison Analysis</span>
+    </div>
+    <div class="card-body">
+      <p style="color: var(--text-mid, #666); font-size: 0.9rem; margin-bottom: 1.25rem;">
+        Compare NT50 titres (linear interpolation) with IC50 titres (sigmoid fitting) to assess agreement between methods. Generates correlation plot and identifies potential mismatches.
+      </p>
+      
+      <div class="alert alert-info mb-3" role="alert" style="font-size: 0.85rem;">
+        <strong>📋 Note:</strong> You must perform curve fitting first before running titre comparison.
+      </div>
+      
+      <form action="{{ url_for('compare_titres') }}" method="post" id="comparisonForm">
+        <input type="hidden" name="excel_file_id" value="{{ excel_file_id }}">
+        <input type="hidden" name="fitting_id" id="fitting_id" value="">
+        <button type="button" class="btn btn-success" onclick="checkAndSubmitComparison()">
+          <span style="margin-right: 0.35rem;">🔬</span>Compare Titres
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Back link -->
+  <div class="mb-4">
+    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+      <span style="margin-right: 0.35rem;">←</span>Back to Home
+    </a>
+  </div>
+
+</div>
+
+<script>
+// Toast on page load (only once per file)
+document.addEventListener('DOMContentLoaded', function() {
+  var toastKey = 'toast_shown_results_{{ excel_file_id }}';
+  if (!sessionStorage.getItem(toastKey)) {
+    ntaToast('<strong>Processing complete.</strong> Your results are ready to download below.', 'success');
+    sessionStorage.setItem(toastKey, '1');
+  }
+});
+
+// Store fitting_id when curve fitting is performed
+function checkAndSubmitComparison() {
+  const fittingId = sessionStorage.getItem('last_fitting_id');
+  
+  if (!fittingId) {
+    ntaToast('Please perform Sigmoid Curve Fitting first before comparing titres.', 'warning', {icon: '📋'});
+    return;
+  }
+  
+  document.getElementById('fitting_id').value = fittingId;
+  document.getElementById('comparisonForm').submit();
+}
+</script>
+
+
+
+<style>
+.q-pill {
+  padding: 0.35rem 0.9rem;
+  border-radius: var(--radius, 4px);
+  border: 1px solid var(--border, #dee2e6);
+  background: var(--bg-hover, #e9ecef);
+  color: var(--text-dim, #aaa);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  user-select: none;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.q-pill.on {
+  background: var(--teal, #28a745);
+  color: #fff;
+  border-color: var(--teal, #28a745);
+}
+</style>
+
+<script>
+var qState = { Q1: true, Q2: true, Q3: true, Q4: true };
+
+document.addEventListener('DOMContentLoaded', function () {
+  fetch('/get_settings')
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+
+      // ── Populate preset dropdown ──────────────────
+      var sel = document.getElementById('selectPreset');
+      sel.innerHTML = '';
+      var list = document.getElementById('customPresetList');
+      list.innerHTML = '';
+
+      Object.keys(data.presets || {}).forEach(function (name) {
+        var preset = data.presets[name];
+        var isActive = (name === data.selected_preset);
+
+        // Keep hidden select in sync
+        var opt = document.createElement('option');
+        opt.value = name;
+        opt.text  = name;
+        if (isActive) opt.selected = true;
+        sel.appendChild(opt);
+
+        // Build dropdown item
+        var item = document.createElement('div');
+        item.style.cssText = `
+          display: flex; align-items: center; gap: 0.6rem;
+          padding: 0.45rem 0.75rem; cursor: pointer; font-size: 0.875rem;
+          color: var(--text-primary, #212529);
+          background: ${isActive ? 'var(--bg-raised, #f8f9fa)' : 'transparent'};
+          border-left: 3px solid ${isActive ? 'var(--teal, #28a745)' : 'transparent'};
+          transition: background .1s;
+        `;
+        item.onmouseenter = function() { this.style.background = 'var(--bg-hover, #e9ecef)'; };
+        item.onmouseleave = function() { this.style.background = isActive ? 'var(--bg-raised, #f8f9fa)' : 'transparent'; };
+
+        // Four colour swatches
+        var swatches = document.createElement('div');
+        swatches.style.cssText = 'display:flex; gap:3px; flex-shrink:0;';
+        ['Q1','Q2','Q3','Q4'].forEach(function(q) {
+          var s = document.createElement('div');
+          s.style.cssText = `width:12px; height:12px; border-radius:3px; background:${preset[q]}; border:1px solid rgba(0,0,0,0.1);`;
+          swatches.appendChild(s);
+        });
+
+        var label = document.createElement('span');
+        label.textContent = name;
+
+        item.appendChild(swatches);
+        item.appendChild(label);
+
+        item.onclick = function() {
+          selectPreset(name, preset);
+        };
+
+        list.appendChild(item);
+      });
+
+      // Set trigger to show active preset
+      if (data.selected_preset && data.presets[data.selected_preset]) {
+        updateTrigger(data.selected_preset, data.presets[data.selected_preset]);
+      }
+
+      // ── Initialise quadrant state ─────────────────
+      var q = data.quadrants || {};
+      qState.Q1 = q.Q1 !== undefined ? q.Q1 : true;
+      qState.Q2 = q.Q2 !== undefined ? q.Q2 : true;
+      qState.Q3 = q.Q3 !== undefined ? q.Q3 : true;
+      qState.Q4 = q.Q4 !== undefined ? q.Q4 : true;
+      renderPills();
+    })
+    .catch(function () {
+      document.getElementById('selectPreset').innerHTML = '<option value="">Could not load</option>';
+    });
+});
+
+function toggleQ(q) {
+  qState[q] = !qState[q];
+  renderPills();
+}
+
+function renderPills() {
+  ['Q1','Q2','Q3','Q4'].forEach(function (q) {
+    var el = document.getElementById('pill-' + q);
+    if (qState[q]) { el.classList.add('on'); }
+    else            { el.classList.remove('on'); }
+  });
+}
+
+function buildSwatches(preset) {
+  var wrap = document.getElementById('triggerSwatches');
+  wrap.innerHTML = '';
+  ['Q1','Q2','Q3','Q4'].forEach(function(q) {
+    var s = document.createElement('div');
+    s.style.cssText = `width:12px; height:12px; border-radius:3px; background:${preset[q]}; border:1px solid rgba(0,0,0,0.1);`;
+    wrap.appendChild(s);
+  });
+}
+
+function updateTrigger(name, preset) {
+  document.getElementById('triggerLabel').textContent = name;
+  buildSwatches(preset);
+}
+
+function selectPreset(name, preset) {
+  // Sync hidden select
+  document.getElementById('selectPreset').value = name;
+  // Update trigger display
+  updateTrigger(name, preset);
+  // Close dropdown
+  document.getElementById('customPresetList').style.display = 'none';
+  // Re-render items to update active highlight
+  var items = document.getElementById('customPresetList').children;
+  Array.from(items).forEach(function(item) {
+    var isNowActive = item.querySelector('span').textContent === name;
+    item.style.borderLeft = isNowActive ? '3px solid var(--teal, #28a745)' : '3px solid transparent';
+    item.style.background = isNowActive ? 'var(--bg-raised, #f8f9fa)' : 'transparent';
+  });
+}
+
+function togglePresetDropdown() {
+  var list = document.getElementById('customPresetList');
+  list.style.display = list.style.display === 'none' ? 'block' : 'none';
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', function(e) {
+  if (!document.getElementById('customPresetDropdown').contains(e.target)) {
+    document.getElementById('customPresetList').style.display = 'none';
+  }
+});
+
+function injectSettings(e) {
+  // Populate hidden fields BEFORE the form submits
+  document.getElementById('graph_preset').value    = document.getElementById('selectPreset').value;
+  document.getElementById('graph_quadrants').value = JSON.stringify(qState);
+  // Do NOT call e.preventDefault() — let the form submit normally
+}
+
+function storeFittingRequest() {
+  // Store BOTH excel_file_id and requested_fitting flag
+  sessionStorage.setItem('excel_file_id', '{{ excel_file_id }}');
+  sessionStorage.setItem('requested_fitting', 'true');
+  console.log('Stored excel_file_id:', '{{ excel_file_id }}'); // Debug
+}
+
+function checkAndSubmitComparison() {
+  const fittingId = sessionStorage.getItem('last_fitting_id');
+  
+  console.log('Checking fitting_id:', fittingId); // Debug
+  
+  if (!fittingId) {
+    ntaToast('Please perform Sigmoid Curve Fitting first before comparing titres.', 'warning', {icon: '📋'});
+    return;
+  }
+  
+  document.getElementById('fitting_id').value = fittingId;
+  console.log('Submitting comparison with fitting_id:', fittingId); // Debug
+  document.getElementById('comparisonForm').submit();
+}
+
+</script>
+
 {% endblock %}

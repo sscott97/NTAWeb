@@ -1,0 +1,734 @@
+{% extends 'layout.html' %}
+{% block title %}Linear Interpolation - NTA{% endblock %}
+
+{% block nav_left %}
+<a href="{{ url_for('analysis_hub', file_id=excel_file_id) }}" class="nav-back-btn">← Data Analysis</a>
+{% endblock %}
+
+{% block content %}
+
+<div style="max-width: 900px; margin: 0 auto;">
+
+  <!-- Page header -->
+  <div class="mb-4">
+    <h2 class="text-success mb-1" style="font-size: 1.75rem;">Linear Interpolation Results</h2>
+    <p style="color: var(--text-dim, #888); font-size: 0.85rem; margin: 0;">Data processed through excel to produce neutralising titres</p>
+  </div>
+
+  <!-- Data Summary Metrics -->
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center gap-2">
+      <span style="font-size: 1rem;">📋</span>
+      <span style="font-weight: 600;">Data Summary</span>
+    </div>
+    <div class="card-body">
+      <div class="row g-3" id="dataSummaryMetrics">
+        <div class="col-12 text-center">
+          <div class="spinner-border spinner-border-sm text-success" role="status"></div>
+          <span class="text-muted" style="font-size: 0.85rem; margin-left: 0.5rem;">Loading summary…</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Excel Results -->
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center gap-2">
+      <span style="font-size: 1rem;">📊</span>
+      <span style="font-weight: 600;">Excel Results</span>
+    </div>
+    <div class="card-body">
+      <p style="color: var(--text-mid, #666); font-size: 0.9rem; margin-bottom: 1rem;">
+        The CSV data has been processed and written into the Excel template with calculated neutralising antibody titres (NT50 and NT90 values).
+      </p>
+      <a href="{{ url_for('download_memory', file_id=excel_file_id) }}" class="btn btn-success">
+        <span style="margin-right: 0.35rem;">📥</span>Download Excel Results
+      </a>
+    </div>
+  </div>
+
+  <!-- Summary Graph -->
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center justify-content-between" style="cursor:pointer;" onclick="toggleCard('summary-graph-body')">
+      <div class="d-flex align-items-center gap-2">
+        <span class="card-chevron" id="chevron-summary-graph-body">▾</span>
+        <span style="font-size:1rem;">🖼️</span>
+        <span>Summary Graph</span>
+      </div>
+      <a href="#" id="downloadGraphBtn" class="graph-dl-btn" style="display:none;" download onclick="event.stopPropagation();">↓ PNG</a>
+    </div>
+    <div id="summary-graph-body" class="card-collapsible">
+      <div class="graph-opts-bar">
+        <span class="opts-lbl">Preset</span>
+        <div style="position:relative;">
+          <input type="hidden" id="selectPreset" value="">
+          <div id="customPresetTrigger" class="opt-pill opt-pill--wide" onclick="togglePresetDropdown()">
+            <div id="triggerSwatches" style="display:flex;gap:2px;flex-shrink:0;"></div>
+            <span id="triggerLabel" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">…</span>
+            <span style="color:var(--text-faint);font-size:0.6rem;flex-shrink:0;">▾</span>
+          </div>
+          <div id="customPresetList" class="opts-dropdown"></div>
+        </div>
+        <div class="opts-sep"></div>
+        <span class="opts-lbl">Quadrants</span>
+        <div id="pill-Q1" class="opt-pill" onclick="toggleGraphQ('Q1')">Q1</div>
+        <div id="pill-Q2" class="opt-pill" onclick="toggleGraphQ('Q2')">Q2</div>
+        <div id="pill-Q3" class="opt-pill" onclick="toggleGraphQ('Q3')">Q3</div>
+        <div id="pill-Q4" class="opt-pill" onclick="toggleGraphQ('Q4')">Q4</div>
+      </div>
+      <div id="graphDisplayArea" class="graph-area">
+        <div style="padding:2rem;">
+          <div class="spinner-border spinner-border-sm text-success" role="status"></div>
+          <span style="font-size:0.82rem;color:var(--text-dim);margin-left:0.5rem;">Generating…</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Box Plot -->
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center justify-content-between" style="cursor:pointer;" onclick="toggleCard('boxplot-body')">
+      <div class="d-flex align-items-center gap-2">
+        <span class="card-chevron" id="chevron-boxplot-body">▾</span>
+        <span style="font-size:1rem;">📦</span>
+        <span id="boxplotTitle">NT50 Box Plot</span>
+      </div>
+      <a href="#" id="downloadBoxplotBtn" class="graph-dl-btn" style="display:none;" onclick="event.stopPropagation();">↓ PNG</a>
+    </div>
+    <div id="boxplot-body" class="card-collapsible">
+      <div class="graph-opts-bar">
+        <span class="opts-lbl">Titre</span>
+        <div id="bp-pill-50" class="opt-pill on" onclick="switchBoxplotThreshold(50)">NT50</div>
+        <div id="bp-pill-90" class="opt-pill" onclick="switchBoxplotThreshold(90)">NT90</div>
+        <div class="opts-sep"></div>
+        <span class="opts-lbl">Quadrants</span>
+        <div id="bpill-Q1" class="opt-pill" onclick="toggleBoxplotQ('Q1')">Q1</div>
+        <div id="bpill-Q2" class="opt-pill" onclick="toggleBoxplotQ('Q2')">Q2</div>
+        <div id="bpill-Q3" class="opt-pill" onclick="toggleBoxplotQ('Q3')">Q3</div>
+        <div id="bpill-Q4" class="opt-pill" onclick="toggleBoxplotQ('Q4')">Q4</div>
+      </div>
+      <div id="boxplotArea" class="graph-area" style="display:flex;">
+        <div style="padding:2rem;">
+          <div class="spinner-border spinner-border-sm text-success" role="status"></div>
+          <span style="font-size:0.82rem;color:var(--text-dim);margin-left:0.5rem;">Loading…</span>
+        </div>
+      </div>
+      <div id="boxplotLegend" style="padding:0 1rem 0.25rem;"></div>
+      <div style="padding:0.4rem 1rem 0.65rem;font-size:0.70rem;color:var(--text-faint);font-style:italic;border-top:1px solid var(--border);">
+        Tukey box plot: box = IQR, line = median, whiskers = 1.5× IQR, dots = outliers. Each point is the average of 3 replicates per sample (linear interpolation). Boundary values (≤/≥) excluded.
+      </div>
+    </div>
+  </div>
+
+  <!-- Method -->
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center gap-2">
+      <span style="font-size: 1rem;">📝</span>
+      <span style="font-weight: 600;">Method</span>
+    </div>
+    <div class="card-body" style="font-size: 0.9rem; color: var(--text-mid, #444); line-height: 1.75;">
+
+      <p style="margin-bottom: 0.8rem; font-weight: 600; color: var(--text-primary, #222);">
+        Neutralising Antibody Titre Determination by Linear Interpolation
+      </p>
+
+      <p style="margin-bottom: 0.6rem;">
+        Neutralising antibody titres were determined at 50% and 90% neutralisation levels (NT50 and NT90).
+      </p>
+
+      <p style="margin-bottom: 0.8rem; font-weight: 600; color: var(--text-primary, #222);">
+        Threshold Calculation
+      </p>
+
+      <p style="margin-bottom: 0.6rem;">
+        For each replicate column, the titre was estimated relative to the NSC luminescence::
+      </p>
+
+      <div style="
+        background: var(--bg-raised, #f5f0e4);
+        border: 1px solid var(--border, #dee2e6);
+        border-radius: var(--radius, 4px);
+        padding: 1rem 1.25rem;
+        margin: 0.75rem 0 1rem 0;
+        font-family: 'JetBrains Mono', 'Courier New', monospace;
+        font-size: 0.82rem;
+        line-height: 1.9;
+        color: var(--text-primary, #333);
+      ">
+        <div>Target<sub>NT50</sub> = luminescence(cps)<sub>NSC</sub> × 0.50</div>
+        <div>Target<sub>NT90</sub> = luminescence(cps)<sub>NSC</sub> × 0.10</div>
+      </div>
+
+      <p style="margin-bottom: 0.8rem; font-weight: 600; color: var(--text-primary, #222);">
+        Linear Interpolation
+      </p>
+
+      <p style="margin-bottom: 0.6rem;">
+        The neutralising titre for each replicate was estimated by linear interpolation between the two assay dilution points on either side of to the titre estimation:
+      </p>
+
+      <div style="
+        background: var(--bg-raised, #f5f0e4);
+        border: 1px solid var(--border, #dee2e6);
+        border-radius: var(--radius, 4px);
+        padding: 1rem 1.25rem;
+        margin: 0.75rem 0 1rem 0;
+        font-family: 'JetBrains Mono', 'Courier New', monospace;
+        font-size: 0.82rem;
+        line-height: 1.9;
+        color: var(--text-primary, #333);
+        text-align: center;
+      ">
+        <div>NT = x<sub>i</sub> + (Target − y<sub>i</sub>) / (y<sub>i+1</sub> − y<sub>i</sub>) × (x<sub>i+1</sub> − x<sub>i</sub>)</div>
+      </div>
+
+      <p style="margin-bottom: 0.6rem;">
+        where <em>x<sub>i</sub></em> and <em>x<sub>i+1</sub></em> are the serum dilution factors at the two adjacent dilution points, and <em>y<sub>i</sub></em> and <em>y<sub>i+1</sub></em> are the corresponding luminescence values.
+      </p>
+
+      <p style="margin-bottom: 0.8rem; font-weight: 600; color: var(--text-primary, #222);">
+        Titre Calculation
+      </p>
+
+      <p style="margin-bottom: 0.6rem;">
+        Neutralising titres were calculated for each of replicate within the assay and the mean calculated for each triplicate at 50% and 90% neutralisation thresholds. If the titre was outwith the bounds of the dilution series in the excel template file (cells A5-A12) then the titre was reported as either &lt;A5 or &gt;A12. Boundary values were excluded from the box plot visualisation and from downstream analyses.
+      </p>
+
+      <p style="margin-bottom: 0.8rem; font-weight: 600; color: var(--text-primary, #222);">
+        Box Plot
+      </p>
+
+      <p style="margin-bottom: 0;">
+        Neutralising titres are compared for each pseudotype in a Tukey box plot (log<sub>10</sub>scale). Boxes span the interquartile range (Q1–Q3), the horizontal line is the median and whiskers reach the furthest data point within 1.5× IQR of the box. Points beyond the whiskers are plotted individually as outliers. All individual averaged titres are overlaid for transparency.
+      </p>
+
+    </div>
+  </div>
+
+
+</div>
+
+<style>
+/* ── Graph options bar ── */
+.graph-opts-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.38rem;
+  padding: 0.38rem 1rem;
+  background: var(--bg-raised, #e6dac2);
+  border-bottom: 1px solid var(--border, rgba(120,100,65,0.14));
+  flex-wrap: wrap;
+  min-height: 34px;
+}
+.opts-lbl {
+  font-size: 0.60rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-faint, #b5a992);
+  font-weight: 600;
+  margin-right: 0.05rem;
+}
+.opt-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.48rem;
+  border-radius: var(--radius, 3px);
+  border: 1.5px solid var(--border-sharp, rgba(120,100,65,0.26));
+  background: var(--bg-surface, rgba(248,241,227,0.92));
+  color: var(--text-dim, #928774);
+  cursor: pointer;
+  font-size: 0.67rem;
+  font-weight: 600;
+  user-select: none;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.opt-pill:hover {
+  border-color: var(--teal, #2e6b7b);
+  color: var(--teal-dim, #1e4f5e);
+  background: var(--teal-pale, rgba(46,107,123,0.07));
+}
+.opt-pill.on {
+  background: var(--teal, #2e6b7b);
+  color: #f5f0e4;
+  border-color: var(--teal-dim, #1e4f5e);
+}
+.opt-pill--wide {
+  max-width: 160px;
+  min-width: 90px;
+}
+.opts-sep {
+  width: 1px;
+  height: 13px;
+  background: var(--border-sharp, rgba(120,100,65,0.26));
+  flex-shrink: 0;
+  margin: 0 0.2rem;
+}
+.opts-dropdown {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 165px;
+  background: var(--bg-surface, rgba(248,241,227,0.95));
+  border: 1.5px solid var(--border-sharp, rgba(120,100,65,0.26));
+  border-radius: var(--radius, 3px);
+  box-shadow: var(--shadow-md, 0 6px 20px rgba(80,60,30,0.10));
+  z-index: 300;
+  overflow: hidden;
+}
+/* ── Shared graph display area ── */
+.graph-area {
+  min-height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: var(--bg-inset, #e2d7bf);
+}
+.graph-area img { max-width: 100%; display: block; }
+/* ── Download link in header ── */
+.graph-dl-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  padding: 0.18rem 0.55rem;
+  font-size: 0.67rem;
+  font-weight: 600;
+  border: 1.5px solid var(--border-sharp, rgba(120,100,65,0.26));
+  border-radius: var(--radius, 3px);
+  color: var(--text-dim, #928774);
+  background: transparent;
+  text-decoration: none;
+  letter-spacing: 0.3px;
+  transition: all 0.15s;
+}
+.graph-dl-btn:hover {
+  border-color: var(--teal, #2e6b7b);
+  color: var(--teal-dim, #1e4f5e);
+  background: var(--teal-pale, rgba(46,107,123,0.07));
+  text-decoration: none;
+}
+/* ── Card collapse ── */
+.card-collapsible {
+  overflow: hidden;
+  max-height: 4000px;
+  transition: max-height 0.28s ease;
+}
+.card-collapsible.collapsed {
+  max-height: 0;
+}
+.card-chevron {
+  font-size: 0.65rem;
+  color: var(--text-dim, #888);
+  display: inline-block;
+  width: 10px;
+  transition: transform 0.22s ease;
+  flex-shrink: 0;
+}
+.card-chevron.collapsed {
+  transform: rotate(-90deg);
+}
+</style>
+
+<script>
+/* ── Card collapse toggle ───────────────────────────────────── */
+function toggleCard(id) {
+  var body    = document.getElementById(id);
+  var chevron = document.getElementById('chevron-' + id);
+  if (!body) return;
+  var collapsing = !body.classList.contains('collapsed');
+  body.classList.toggle('collapsed', collapsing);
+  if (chevron) chevron.classList.toggle('collapsed', collapsing);
+}
+
+/* ═══════════════════════════════════════════════════════
+   SHARED STATE
+   ═══════════════════════════════════════════════════════ */
+var graphQState   = { Q1: true, Q2: true, Q3: true, Q4: true };
+var boxplotQState = { Q1: true, Q2: true, Q3: true, Q4: true };
+var currentThreshold = 50;
+var currentPresetColours = { Q1:'#ff7e79', Q2:'#ffd479', Q3:'#009193', Q4:'#d783ff' };
+var boxplotCanvas = null;
+
+/* ── Q pill rendering (each bar independent) ── */
+function renderGraphQPills() {
+  ['Q1','Q2','Q3','Q4'].forEach(function(q) {
+    var p = document.getElementById('pill-' + q);
+    if (p) p.classList.toggle('on', !!graphQState[q]);
+  });
+}
+function renderBoxplotQPills() {
+  ['Q1','Q2','Q3','Q4'].forEach(function(q) {
+    var p = document.getElementById('bpill-' + q);
+    if (p) p.classList.toggle('on', !!boxplotQState[q]);
+  });
+}
+
+function toggleGraphQ(q) {
+  graphQState[q] = !graphQState[q];
+  renderGraphQPills();
+  generateGraph();
+}
+function toggleBoxplotQ(q) {
+  boxplotQState[q] = !boxplotQState[q];
+  renderBoxplotQPills();
+  loadBoxplotData(currentThreshold);
+}
+
+/* ═══════════════════════════════════════════════════════
+   SETTINGS LOAD → auto-generate both graphs
+   ═══════════════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', function() {
+  fetch('/get_settings')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var q = data.quadrants || {};
+      ['Q1','Q2','Q3','Q4'].forEach(function(k) {
+        var v = q[k] !== undefined ? q[k] : true;
+        graphQState[k] = v;
+        boxplotQState[k] = v;
+      });
+      renderGraphQPills();
+      renderBoxplotQPills();
+
+      /* Build preset picker */
+      var selInput = document.getElementById('selectPreset');
+      var list = document.getElementById('customPresetList');
+      list.innerHTML = '';
+
+      Object.keys(data.presets || {}).forEach(function(name) {
+        var preset = data.presets[name];
+        var isActive = (name === data.selected_preset);
+        if (isActive) {
+          currentPresetColours = preset;
+          selInput.value = name;
+          updateTrigger(name, preset);
+        }
+        var item = document.createElement('div');
+        item.style.cssText = 'display:flex;align-items:center;gap:0.45rem;padding:0.38rem 0.7rem;cursor:pointer;font-size:0.73rem;color:var(--text-primary);background:'+(isActive?'var(--bg-raised)':'transparent')+';border-left:2px solid '+(isActive?'var(--teal)':'transparent')+';transition:background .1s;';
+        item.onmouseenter = function(){ this.style.background='var(--bg-hover)'; };
+        item.onmouseleave = function(){ this.style.background=isActive?'var(--bg-raised)':'transparent'; };
+        var swatches = document.createElement('div');
+        swatches.style.cssText = 'display:flex;gap:2px;flex-shrink:0;';
+        ['Q1','Q2','Q3','Q4'].forEach(function(q) {
+          var s = document.createElement('div');
+          s.style.cssText = 'width:10px;height:10px;border-radius:2px;background:'+preset[q]+';border:1px solid rgba(0,0,0,0.1);';
+          swatches.appendChild(s);
+        });
+        var label = document.createElement('span'); label.textContent = name;
+        item.appendChild(swatches); item.appendChild(label);
+        item.onclick = function() { selectPreset(name, preset); };
+        list.appendChild(item);
+      });
+
+      /* Auto-generate both */
+      generateGraph();
+      loadBoxplotData(currentThreshold);
+    });
+});
+
+function buildSwatches(preset) {
+  var wrap = document.getElementById('triggerSwatches'); wrap.innerHTML = '';
+  ['Q1','Q2','Q3','Q4'].forEach(function(q) {
+    var s = document.createElement('div');
+    s.style.cssText = 'width:9px;height:9px;border-radius:2px;background:'+preset[q]+';border:1px solid rgba(0,0,0,0.1);flex-shrink:0;';
+    wrap.appendChild(s);
+  });
+}
+function updateTrigger(name, preset) {
+  document.getElementById('triggerLabel').textContent = name;
+  buildSwatches(preset);
+}
+function selectPreset(name, preset) {
+  document.getElementById('selectPreset').value = name;
+  currentPresetColours = preset;
+  updateTrigger(name, preset);
+  document.getElementById('customPresetList').style.display = 'none';
+  generateGraph();
+}
+function togglePresetDropdown() {
+  var l = document.getElementById('customPresetList');
+  l.style.display = l.style.display === 'none' ? 'block' : 'none';
+}
+document.addEventListener('click', function(e) {
+  var t = document.getElementById('customPresetTrigger');
+  var l = document.getElementById('customPresetList');
+  if (t && !t.contains(e.target) && l && !l.contains(e.target)) l.style.display = 'none';
+});
+
+/* ═══════════════════════════════════════════════════════
+   SUMMARY GRAPH — auto-generates, no button needed
+   ═══════════════════════════════════════════════════════ */
+function generateGraph() {
+  var area  = document.getElementById('graphDisplayArea');
+  var dlBtn = document.getElementById('downloadGraphBtn');
+  area.innerHTML = '<div style="padding:2rem;"><div class="spinner-border spinner-border-sm text-success" role="status"></div><span style="font-size:0.82rem;color:var(--text-dim);margin-left:0.5rem;">Generating…</span></div>';
+  area.style.display = 'flex';
+  dlBtn.style.display = 'none';
+
+  var fd = new FormData();
+  fd.append('file_id', '{{ excel_file_id }}');
+  fd.append('graph_preset', document.getElementById('selectPreset').value || '');
+  fd.append('graph_quadrants', JSON.stringify(graphQState));
+
+  fetch("{{ url_for('generate_graphs') }}", { method:'POST', body:fd })
+    .then(function(r) { if (!r.ok) throw new Error('failed'); return r.blob(); })
+    .then(function(blob) {
+      var url = URL.createObjectURL(blob);
+      area.innerHTML = '<img src="' + url + '" style="max-width:100%;display:block;" alt="Summary Graph">';
+      area.style.display = 'block';
+      dlBtn.href = url;
+      dlBtn.download = '{{ filename }}'.replace('.xlsx', '.png');
+      dlBtn.style.display = 'inline-flex';
+    })
+    .catch(function() {
+      area.innerHTML = '<div style="padding:1.5rem;color:var(--text-dim);font-size:0.82rem;">Graph generation failed.</div>';
+      area.style.display = 'flex';
+    });
+}
+
+/* ═══════════════════════════════════════════════════════
+   BOX PLOT
+   ═══════════════════════════════════════════════════════ */
+function switchBoxplotThreshold(t) {
+  currentThreshold = t;
+  document.getElementById('bp-pill-50').classList.toggle('on', t === 50);
+  document.getElementById('bp-pill-90').classList.toggle('on', t === 90);
+  document.getElementById('boxplotTitle').textContent = 'NT' + t + ' Box Plot';
+  document.getElementById('downloadBoxplotBtn').style.display = 'none';
+  loadBoxplotData(t);
+}
+
+function loadBoxplotData(threshold) {
+  var area = document.getElementById('boxplotArea');
+  area.innerHTML = '<div style="padding:2rem;"><div class="spinner-border spinner-border-sm text-success" role="status"></div><span style="font-size:0.82rem;color:var(--text-dim);margin-left:0.5rem;">Loading NT'+threshold+'…</span></div>';
+  area.style.display = 'flex';
+  document.getElementById('boxplotLegend').innerHTML = '';
+  document.getElementById('downloadBoxplotBtn').style.display = 'none';
+
+  var qp = '&q1='+boxplotQState.Q1+'&q2='+boxplotQState.Q2+'&q3='+boxplotQState.Q3+'&q4='+boxplotQState.Q4;
+  fetch("{{ url_for('boxplot_data', file_id=excel_file_id) }}?threshold="+threshold+qp)
+    .then(function(r) { return r.json(); })
+    .then(function(resp) {
+      if (resp.status !== 'success') throw new Error(resp.message || 'Failed');
+      var labels = Object.keys(resp.data).sort();
+      if (labels.length === 0) throw new Error('No data for active quadrants');
+      drawBoxplot(labels.map(function(l){ return { label:l, values:resp.data[l] }; }),
+                  resp.titre_label || ('NT'+threshold));
+    })
+    .catch(function(err) {
+      area.innerHTML = '<div style="padding:1.5rem;color:var(--text-dim);font-size:0.82rem;">Box plot unavailable: '+(err.message||'no data')+'</div>';
+    });
+}
+
+/* ── Canvas draw ── */
+function percentile(sorted, p) {
+  if (sorted.length === 1) return sorted[0];
+  var idx = (p/100)*(sorted.length-1), lo = Math.floor(idx), hi = Math.ceil(idx);
+  return lo === hi ? sorted[lo] : sorted[lo] + (idx-lo)*(sorted[hi]-sorted[lo]);
+}
+function hexToRgba(hex, a) {
+  return 'rgba('+parseInt(hex.slice(1,3),16)+','+parseInt(hex.slice(3,5),16)+','+parseInt(hex.slice(5,7),16)+','+a+')';
+}
+function fmtLogTick(p) {
+  var v = Math.pow(10,p);
+  if (v>=10000) return (v/1000).toFixed(0)+'k';
+  if (v>=1000)  return (v/1000).toFixed(1).replace(/\.0$/,'')+'k';
+  if (v<1) return v.toPrecision(1);
+  return v.toFixed(0);
+}
+
+function drawBoxplot(groups, titreLabel) {
+  /* Colours: follow current preset (Q1→Q2→Q3→Q4), fallback for extras */
+  var FALLBACK = ['#4e79a7','#e15759','#59a14f','#f28e2b','#b07aa1','#76b7b2','#ff9da7','#9c755f'];
+  var PKEYS    = ['Q1','Q2','Q3','Q4'];
+  var COLOURS  = groups.map(function(_, i) {
+    return (i < 4 && currentPresetColours[PKEYS[i]]) ? currentPresetColours[PKEYS[i]] : FALLBACK[i % FALLBACK.length];
+  });
+
+  var area = document.getElementById('boxplotArea');
+  var legendEl = document.getElementById('boxplotLegend');
+  var dpr = window.devicePixelRatio || 1;
+  var W = Math.min(area.clientWidth || 800, 860);
+  var H = 400;
+  var PAD = { top:28, right:28, bottom:68, left:70 };
+
+  area.innerHTML = ''; area.style.display = 'block';
+  var canvas = document.createElement('canvas');
+  canvas.width = W*dpr; canvas.height = H*dpr;
+  canvas.style.width = W+'px'; canvas.style.height = H+'px'; canvas.style.maxWidth = '100%';
+  area.appendChild(canvas);
+  boxplotCanvas = canvas;
+
+  var ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, W, H);
+
+  var plotW = W-PAD.left-PAD.right, plotH = H-PAD.top-PAD.bottom;
+
+  /* Compute log stats */
+  var logStats = groups.map(function(s, i) {
+    var lv = s.values.filter(function(v){return v>0;}).map(function(v){return Math.log10(v);}).sort(function(a,b){return a-b;});
+    if (!lv.length) return null;
+    var n=lv.length, q1=percentile(lv,25), med=percentile(lv,50), q3=percentile(lv,75);
+    var iqr=q3-q1, fLo=q1-1.5*iqr, fHi=q3+1.5*iqr;
+    var wLo=lv[0], wHi=lv[n-1];
+    for(var j=0;j<n;j++){if(lv[j]>=fLo){wLo=lv[j];break;}}
+    for(var j=n-1;j>=0;j--){if(lv[j]<=fHi){wHi=lv[j];break;}}
+    return { label:s.label, n:n, lv:lv, q1:q1, med:med, q3:q3,
+             wLo:wLo, wHi:wHi, outliers:lv.filter(function(v){return v<fLo||v>fHi;}),
+             medReal:Math.pow(10,med), col:COLOURS[i] };
+  }).filter(Boolean);
+
+  if (!logStats.length) {
+    area.innerHTML = '<div style="padding:1.5rem;color:var(--text-dim);font-size:0.82rem;">No positive values.</div>';
+    return;
+  }
+
+  var allLv = []; logStats.forEach(function(s){allLv=allLv.concat(s.lv);});
+  var lgFloor = Math.floor(Math.min.apply(null,allLv));
+  var lgCeil  = Math.ceil(Math.max.apply(null,allLv));
+  if (Math.min.apply(null,allLv)-lgFloor < 0.15) lgFloor--;
+  if (lgCeil-Math.max.apply(null,allLv) < 0.15)  lgCeil++;
+  var lgRange = lgCeil-lgFloor;
+  function yS(v){ return PAD.top+plotH-((v-lgFloor)/lgRange)*plotH; }
+
+  var nG = logStats.length, gW = plotW/nG, bW = Math.min(gW*0.48, 72);
+
+  /* Grid */
+  ctx.font = '10px Calibri, Arial, sans-serif'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  for (var p=lgFloor; p<=lgCeil; p++) {
+    var ty = yS(p);
+    ctx.strokeStyle = 'rgba(120,100,65,0.13)'; ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(PAD.left,ty); ctx.lineTo(W-PAD.right,ty); ctx.stroke();
+    ctx.fillStyle = '#7a6e60'; ctx.fillText(fmtLogTick(p), PAD.left-6, ty);
+    if (lgRange <= 5) {
+      [2,3,4,5,6,7,8,9].forEach(function(m){
+        var ml = p+Math.log10(m); if (ml>lgCeil) return;
+        ctx.strokeStyle='rgba(120,100,65,0.05)'; ctx.lineWidth=0.4;
+        ctx.beginPath(); ctx.moveTo(PAD.left,yS(ml)); ctx.lineTo(W-PAD.right,yS(ml)); ctx.stroke();
+      });
+    }
+  }
+  ctx.save();
+  ctx.translate(14, PAD.top+plotH/2); ctx.rotate(-Math.PI/2);
+  ctx.textAlign='center'; ctx.fillStyle='#7a6e60'; ctx.font='bold 11px Calibri, Arial, sans-serif';
+  ctx.fillText(titreLabel+' (log₁₀)', 0, 0); ctx.restore();
+
+  /* Boxes */
+  logStats.forEach(function(s, i) {
+    var cx = PAD.left+gW*i+gW/2, col=s.col, capW=bW*0.38;
+    var bTop=yS(s.q3), bBot=yS(s.q1);
+    ctx.strokeStyle=col; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(cx,yS(s.wHi)); ctx.lineTo(cx,yS(s.wLo)); ctx.stroke();
+    [s.wHi, s.wLo].forEach(function(w){
+      ctx.beginPath(); ctx.moveTo(cx-capW/2,yS(w)); ctx.lineTo(cx+capW/2,yS(w)); ctx.stroke();
+    });
+    ctx.fillStyle=hexToRgba(col,0.18); ctx.fillRect(cx-bW/2,bTop,bW,bBot-bTop);
+    ctx.strokeStyle=col; ctx.lineWidth=1.8; ctx.strokeRect(cx-bW/2,bTop,bW,bBot-bTop);
+    ctx.strokeStyle=col; ctx.lineWidth=2.5;
+    ctx.beginPath(); ctx.moveTo(cx-bW/2,yS(s.med)); ctx.lineTo(cx+bW/2,yS(s.med)); ctx.stroke();
+    ctx.fillStyle=hexToRgba(col,0.5);
+    s.lv.forEach(function(v){ var j=(Math.random()-0.5)*bW*0.55; ctx.beginPath(); ctx.arc(cx+j,yS(v),2.2,0,Math.PI*2); ctx.fill(); });
+    s.outliers.forEach(function(v){ ctx.strokeStyle=col; ctx.lineWidth=1.2; ctx.beginPath(); ctx.arc(cx,yS(v),4,0,Math.PI*2); ctx.stroke(); });
+    ctx.fillStyle='#6b6055'; ctx.font='bold 11px Calibri, Arial, sans-serif'; ctx.textAlign='center'; ctx.textBaseline='top';
+    ctx.fillText(s.label.length>16?s.label.slice(0,14)+'…':s.label, cx, H-PAD.bottom+8);
+    ctx.fillStyle='#999'; ctx.font='9px Calibri, Arial, sans-serif'; ctx.fillText('n='+s.n, cx, H-PAD.bottom+23);
+  });
+
+  /* Legend */
+  var lh='<div style="display:flex;gap:1rem;flex-wrap:wrap;font-size:0.72rem;padding:0.5rem 0;">';
+  logStats.forEach(function(s){ lh+='<div style="display:flex;align-items:center;gap:0.35rem;"><div style="width:10px;height:10px;border-radius:2px;background:'+s.col+';flex-shrink:0;"></div><span style="color:var(--text-mid);font-weight:500;">'+s.label+'</span><span style="color:var(--text-dim);">(n='+s.n+', med='+Math.round(s.medReal)+')</span></div>'; });
+  lh+='</div>'; legendEl.innerHTML=lh;
+
+  var dlBtn = document.getElementById('downloadBoxplotBtn');
+  dlBtn.style.display = 'inline-flex';
+  dlBtn.onclick = function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!boxplotCanvas) return;
+    // Composite onto a white background so the download is always clean
+    var offscreen = document.createElement('canvas');
+    offscreen.width = boxplotCanvas.width;
+    offscreen.height = boxplotCanvas.height;
+    var ctx2 = offscreen.getContext('2d');
+    ctx2.fillStyle = '#ffffff';
+    ctx2.fillRect(0, 0, offscreen.width, offscreen.height);
+    ctx2.drawImage(boxplotCanvas, 0, 0);
+    var lnk=document.createElement('a'); lnk.download=titreLabel+'_boxplot.png';
+    lnk.href=offscreen.toDataURL('image/png'); lnk.click();
+  };
+}
+
+/* ═══════════════════════════════════════════════════════
+   DATA SUMMARY
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Data Summary: fetch metrics from API ── */
+(function loadDataSummary() {
+  var metricsEl = document.getElementById('dataSummaryMetrics');
+
+  fetch("{{ url_for('linear_summary_data', file_id=excel_file_id) }}")
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.status !== 'success') throw new Error(data.message || 'Failed');
+
+      var labelText = '';
+      var labelColor = '#888';
+      if (data.label_status === 'labelled') {
+        labelText = 'Labelled';
+        labelColor = '#28a745';
+      } else if (data.label_status === 'partial') {
+        labelText = (data.num_labelled || '?') + '/' + data.num_samples + ' Labelled';
+        labelColor = '#f39c12';
+      } else if (data.label_status === 'unlabelled') {
+        labelText = 'Unlabelled';
+        labelColor = '#e74c3c';
+      }
+
+      var hasErrors = data.error_flagging_enabled;
+      var colClass = hasErrors ? 'col-md-3' : 'col-md-4';
+
+      var html =
+        '<div class="' + colClass + ' text-center">' +
+          '<div style="font-size:2.5rem;color:#2196F3;font-weight:700;line-height:1;">' + data.num_plates + '</div>' +
+          '<div style="color:var(--text-mid,#666);font-size:0.85rem;font-weight:600;margin-top:0.5rem;">Plates</div>' +
+        '</div>' +
+        '<div class="' + colClass + ' text-center">' +
+          '<div style="font-size:2.5rem;color:#9C27B0;font-weight:700;line-height:1;">' + data.num_pseudotypes + '</div>' +
+          '<div style="color:var(--text-mid,#666);font-size:0.85rem;font-weight:600;margin-top:0.5rem;">Pseudotypes</div>' +
+        '</div>' +
+        '<div class="' + colClass + ' text-center">' +
+          '<div style="font-size:2.5rem;color:#FF9800;font-weight:700;line-height:1;">' + data.num_samples + '</div>' +
+          '<div style="color:var(--text-mid,#666);font-size:0.85rem;font-weight:600;margin-top:0.5rem;">Samples</div>' +
+          (labelText ? '<div style="color:' + labelColor + ';font-size:0.75rem;font-weight:600;margin-top:0.25rem;">' + labelText + '</div>' : '') +
+        '</div>';
+
+      if (hasErrors) {
+        var errCount = data.error_count || 0;
+        var errColor = errCount > 0 ? '#e74c3c' : '#28a745';
+        var errLabel = errCount > 0 ? (errCount + ' Flagged') : 'None';
+        var errIcon = errCount > 0 ? '⚠️' : '✓';
+
+        html +=
+          '<div class="' + colClass + ' text-center">' +
+            '<div style="font-size:2.5rem;color:' + errColor + ';font-weight:700;line-height:1;">' + errIcon + '</div>' +
+            '<div style="color:var(--text-mid,#666);font-size:0.85rem;font-weight:600;margin-top:0.5rem;">Errors</div>' +
+            '<div style="color:' + errColor + ';font-size:0.75rem;font-weight:600;margin-top:0.25rem;">' + errLabel + '</div>' +
+          '</div>';
+      }
+
+      metricsEl.innerHTML = html;
+    })
+    .catch(function() {
+      metricsEl.innerHTML =
+        '<div class="col-12 text-center"><span class="text-muted" style="font-size:0.85rem;">Summary data unavailable</span></div>';
+    });
+})();
+
+</script>
+
+{% endblock %}

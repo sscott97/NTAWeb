@@ -1,0 +1,123 @@
+/* NTA Web App — Original Green Theme */
+
+/* ── Base ───────────────────────────────────────────── */
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background: linear-gradient(45deg, #b6d9b7, #a9cbb7, #7ea69a, #c8d8c8);
+  background-size: 400% 400%;
+  animation: backgroundGradient 20s ease infinite;
+}
+
+/* Animated gradient-filled text */
+h2.text-success, h3.text-success {
+  background: linear-gradient(135deg, #f0f4ef, #c9d8d0, #6a8471, #3e5f51);
+  background-size: 400% 400%;
+  animation: textGradient 20s ease infinite;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+}
+
+@keyframes backgroundGradient {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes textGradient {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ── Forms ──────────────────────────────────────────── */
+label.form-label {
+  font-weight: 500;
+}
+
+input[type="text"],
+input[type="file"],
+select.form-select {
+  border-radius: 0.5rem;
+}
+
+/* ── Buttons ────────────────────────────────────────── */
+.btn,
+.btn-success,
+.btn-primary,
+.btn-danger,
+.btn-outline-primary,
+.btn-outline-success,
+.btn-outline-secondary,
+.btn-outline-info {
+  font-weight: normal;
+  letter-spacing: normal;
+  font-family: inherit;
+  border-radius: 0.5rem;
+}
+
+.btn-success {
+  background-color: #28a745;
+  border-color: #28a745;
+}
+.btn-success:hover {
+  background-color: #218838;
+  border-color: #1e7e34;
+}
+
+/* ── Layout ─────────────────────────────────────────── */
+.container {
+  max-width: 800px;
+}
+
+/* ── Navbar ─────────────────────────────────────────── */
+.navbar {
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  background-color: #fff !important;
+}
+
+.nav-link {
+  font-weight: 500;
+}
+
+.navbar-brand.text-success {
+  color: #3e5f51 !important;
+}
+
+/* Force Plate Mapper link colour */
+.navbar .plate-link {
+  color: #388bfd !important;
+}
+
+.navbar .plate-link:hover,
+.navbar .plate-link:focus {
+  color: #388bfd !important;
+  opacity: 0.85;
+}
+
+
+/* ── Image preview ──────────────────────────────────── */
+img.img-fluid {
+  border: 2px solid #ccc;
+  border-radius: 0.5rem;
+  margin-top: 1rem;
+}
+
+/* ── Cards ──────────────────────────────────────────── */
+.card {
+  border-radius: 0.5rem;
+}
+
+.card-header.bg-success {
+  background-color: #28a745 !important;
+}
+
+.card-header.bg-primary {
+  background-color: #0d6efd !important;
+}

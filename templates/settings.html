@@ -1,167 +1,374 @@
 {% extends 'layout.html' %}
 {% block title %}Settings - NTA{% endblock %}
 
+{% block nav_left %}
+<a href="{{ url_for('index') }}" class="nav-back-btn">← Home</a>
+{% endblock %}
+
 {% block content %}
-<div class="container mt-4" style="max-width: 900px;">
 
-  <h2 class="text-center text-success mb-4">Settings</h2>
+<div style="max-width: 900px; margin: 0 auto;">
 
-  <!-- Template Settings Card -->
-  <div class="card shadow-sm mb-4">
-    <div class="card-header bg-success text-white">
-      <h5 class="mb-0">📄 File Configuration</h5>
+  <!-- Page header -->
+  <div class="mb-4">
+    <h2 class="text-success mb-1" style="font-size: 1.75rem;">Settings</h2>
+    <p style="color: var(--text-dim, #888); font-size: 0.85rem; margin: 0;">Configure file output and graph appearance</p>
+  </div>
+
+
+  <!-- ── File Configuration ─────────────────────────── -->
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center gap-2">
+      <span style="font-size: 1rem;">📄</span>
+      <span>File Configuration</span>
     </div>
     <div class="card-body">
       <form method="post" enctype="multipart/form-data">
+
         <!-- Timestamp Toggle -->
-        <div class="form-check form-switch mb-3">
-          <input
-            class="form-check-input"
-            type="checkbox"
-            id="timestamp_in_filename"
-            name="timestamp_in_filename"
-            {% if settings.get('timestamp_in_filename') %}checked{% endif %}
-          >
-          <label class="form-check-label" for="timestamp_in_filename">
-            <strong>Include timestamp in Excel filename</strong>
-            <small class="text-muted d-block">Adds date to output files</small>
-          </label>
+        <div class="d-flex align-items-start gap-3 mb-4" style="padding: 1rem; background: var(--bg-raised, #f8f9fa); border: 1px solid var(--border, #dee2e6); border-radius: 4px;">
+          <div class="form-check form-switch mb-0" style="margin-top: 2px;">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              id="timestamp_in_filename"
+              name="timestamp_in_filename"
+              {% if settings.get('timestamp_in_filename') %}checked{% endif %}
+              style="width: 2.5em; height: 1.25em; cursor: pointer;"
+            >
+          </div>
+          <div>
+            <label for="timestamp_in_filename" style="font-weight: 500; cursor: pointer; display: block; margin-bottom: 2px;">
+              Include timestamp in filenames
+            </label>
+            <small style="color: var(--text-mid, #888);">Adds date to output files</small>
+          </div>
+        </div>
+
+        <!-- Error Flagging Toggle -->
+        <div class="d-flex align-items-start gap-3 mb-4" style="padding: 1rem; background: var(--bg-raised, #f8f9fa); border: 1px solid var(--border, #dee2e6); border-radius: 4px;">
+          <div class="form-check form-switch mb-0" style="margin-top: 2px;">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              id="error_flagging"
+              name="error_flagging"
+              {% if settings.get('error_flagging') %}checked{% endif %}
+              style="width: 2.5em; height: 1.25em; cursor: pointer;"
+            >
+          </div>
+          <div>
+            <label for="error_flagging" style="font-weight: 500; cursor: pointer; display: block; margin-bottom: 2px;">
+              Enable error flagging
+            </label>
+            <small style="color: var(--text-mid, #888);">
+              Flags triplicate outliers (>2-fold log₂ difference) and NT50/NT90 replicate discrepancies.
+              Adds an "Errors" sheet to the output Excel file.
+            </small>
+          </div>
         </div>
 
         <hr>
 
         <!-- Default Template Selector -->
-        <div class="mb-3">
-          <label for="default_template_select" class="form-label fw-bold">Choose Default Template</label>
+        <div class="mb-4">
+          <label for="default_template_select" class="form-label">Choose Default Template</label>
           <select name="default_template_select" id="default_template_select" class="form-select">
             <option value="">-- Select Template --</option>
             {% for name, path in default_templates.items() %}
-              <option value="{{ name }}" {% if settings.get('template_path') == path %}selected{% endif %}>
-                {{ name }}
-              </option>
+            <option value="{{ name }}" {% if settings.get('template_path') == path %}selected{% endif %}>
+              {{ name }}
+            </option>
             {% endfor %}
           </select>
-          <small class="text-muted">Current: {{ settings.template_path.split('/')[-1] if settings.template_path else 'None' }}</small>
+          <small style="color: var(--text-mid, #888); margin-top: 0.35rem; display: block;">
+            Current: {{ settings.template_path.split('/')[-1] if settings.template_path else 'None' }}
+          </small>
         </div>
 
         <!-- Upload Custom Template -->
-        <div class="mb-3">
-          <label for="template_file" class="form-label fw-bold">Or Upload Custom Template</label>
+        <div class="mb-4">
+          <label for="template_file" class="form-label">Or Upload Custom Template</label>
           <input type="file" name="template_file" id="template_file" accept=".xlsx" class="form-control">
-          <small class="text-muted">Upload a new .xlsx template file</small>
+          <small style="color: var(--text-mid, #888); margin-top: 0.35rem; display: block;">Upload a new .xlsx template file</small>
         </div>
 
         <div class="text-end">
-          <button type="submit" class="btn btn-success">
-            <i class="bi bi-save"></i> Save Template Settings
-          </button>
+          <button type="submit" class="btn btn-success">Save Template Settings</button>
         </div>
+
       </form>
     </div>
   </div>
 
-  <!-- Graph Settings Card -->
-  <div class="card shadow-sm mb-4">
-    <div class="card-header bg-primary text-white">
-      <h5 class="mb-0">🎨 Graph Appearance</h5>
+  <hr class="my-4">
+
+  <!-- ── Graph Appearance ───────────────────────────── -->
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center gap-2">
+      <span style="font-size: 1rem;">🎨</span>
+      <span>Graph Appearance</span>
     </div>
     <div class="card-body">
+
       <!-- Preset Selector -->
       <div class="mb-4">
-        <label for="presetSelect" class="form-label fw-bold">Colour Preset</label>
+        <label for="presetSelect" class="form-label">Colour Preset</label>
         <select id="presetSelect" class="form-select"></select>
-        <small class="text-muted">Select a saved colour scheme</small>
+        <small style="color: var(--text-mid, #888); margin-top: 0.35rem; display: block;">Select a saved colour scheme</small>
       </div>
 
       <!-- Color Pickers -->
-      <div class="row g-3 mb-4">
-        <div class="col-6 col-md-3">
-          <label for="q1Colour" class="form-label">Q1 Colour</label>
-          <input type="color" id="q1Colour" class="form-control form-control-color w-100" title="Q1 Color">
-        </div>
-        <div class="col-6 col-md-3">
-          <label for="q2Colour" class="form-label">Q2 Colour</label>
-          <input type="color" id="q2Colour" class="form-control form-control-color w-100" title="Q2 Color">
-        </div>
-        <div class="col-6 col-md-3">
-          <label for="q3Colour" class="form-label">Q3 Colour</label>
-          <input type="color" id="q3Colour" class="form-control form-control-color w-100" title="Q3 Color">
-        </div>
-        <div class="col-6 col-md-3">
-          <label for="q4Colour" class="form-label">Q4 Colour</label>
-          <input type="color" id="q4Colour" class="form-control form-control-color w-100" title="Q4 Color">
+      <div class="mb-4">
+        <label class="form-label">Quadrant Colours</label>
+        <div class="row g-3">
+          {% for q in ['Q1','Q2','Q3','Q4'] %}
+          <div class="col-6 col-md-3">
+            <div style="background: var(--bg-raised, #f8f9fa); border: 1px solid var(--border, #dee2e6); border-radius: 4px; padding: 0.75rem; text-align: center;">
+              <label for="{{ q|lower }}Colour" style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 0.5rem;">{{ q }}</label>
+              <input type="color" id="{{ q|lower }}Colour" class="form-control form-control-color mx-auto" title="{{ q }} Color"
+                style="width: 48px; height: 48px; border-radius: 50%; border: 2px solid var(--border, #dee2e6); padding: 2px; background: transparent; cursor: pointer;">
+            </div>
+          </div>
+          {% endfor %}
         </div>
       </div>
 
       <!-- Preset Name Input -->
-      <div class="mb-3">
+      <div class="mb-4">
         <label for="newPresetName" class="form-label">Save As New Preset</label>
         <input
           type="text"
           id="newPresetName"
           class="form-control"
-          placeholder="Enter preset name (leave blank to update current preset)"
+          placeholder="Enter preset name (leave blank to update current)"
         >
       </div>
 
       <!-- Preset Actions -->
       <div class="d-flex flex-wrap gap-2 mb-4">
-        <button type="button" class="btn btn-success" onclick="applyPreset()">
-          ✅ Apply Preset
-        </button>
-        <button type="button" class="btn btn-primary" onclick="savePreset()">
-          💾 Save Preset
-        </button>
-        <button type="button" class="btn btn-danger" onclick="deletePreset()">
-          🗑️ Delete Preset
-        </button>
+        <button type="button" class="btn btn-success" onclick="applyPreset()">Apply Preset</button>
+        <button type="button" class="btn btn-outline-success" onclick="savePreset()">Save Preset</button>
+        <button type="button" class="btn btn-danger" onclick="deletePreset()">Delete Preset</button>
       </div>
 
       <hr>
 
       <!-- Quadrant Visibility -->
-      <div class="mb-3">
-        <label class="form-label fw-bold">Quadrants to Include in Graphs</label>
-        <small class="text-muted d-block mb-2">Select which quadrants appear in generated plots</small>
-        
-        <div class="row">
-          <div class="col-6 col-md-3">
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" id="includeQ1">
-              <label class="form-check-label" for="includeQ1">Q1</label>
+      <div class="mb-4">
+        <label class="form-label">Quadrants to Include in Graphs</label>
+        <small style="display: block; margin-bottom: 0.75rem; color: var(--text-mid, #888);">Select which quadrants appear in generated plots</small>
+        <div style="background: var(--bg-raised, #f8f9fa); border: 1px solid var(--border, #dee2e6); border-radius: 4px; padding: 1rem;">
+          <div class="row g-2">
+            {% for q in ['Q1','Q2','Q3','Q4'] %}
+            <div class="col-6 col-md-3">
+              <div class="form-check" style="padding: 0.5rem 0.5rem 0.5rem 2rem;">
+                <input class="form-check-input" type="checkbox" id="include{{ q }}">
+                <label class="form-check-label" for="include{{ q }}" style="cursor: pointer;">{{ q }}</label>
+              </div>
             </div>
-          </div>
-          <div class="col-6 col-md-3">
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" id="includeQ2">
-              <label class="form-check-label" for="includeQ2">Q2</label>
-            </div>
-          </div>
-          <div class="col-6 col-md-3">
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" id="includeQ3">
-              <label class="form-check-label" for="includeQ3">Q3</label>
-            </div>
-          </div>
-          <div class="col-6 col-md-3">
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" id="includeQ4">
-              <label class="form-check-label" for="includeQ4">Q4</label>
-            </div>
+            {% endfor %}
           </div>
         </div>
       </div>
 
       <div class="text-end">
-        <button type="button" class="btn btn-success" onclick="saveAllGraphSettings()">
-          <i class="bi bi-save"></i> Save Graph Settings
-        </button>
+        <button type="button" class="btn btn-success" onclick="saveAllGraphSettings()">Save Graph Settings</button>
+      </div>
+
+    </div>
+  </div>
+
+  <hr class="my-4">
+
+
+    <!-- ── Appearance ─────────────────────────────────── -->
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center gap-2">
+      <span style="font-size: 1rem;">🖥️</span>
+      <span>Themes</span>
+    </div>
+    <div class="card-body">
+      <label class="form-label" style="display: block; margin-bottom: 0.75rem;">Theme Selection</label>
+      <div class="d-flex gap-3 flex-wrap" id="theme-options">
+
+<!-- CARD 1 STANDARD -->
+        <div
+          class="theme-card"
+          id="theme-green"
+          onclick="setTheme('green')"
+          style="flex:1; min-width:140px; cursor:pointer; border-radius:7px; border:2px solid transparent; overflow:hidden; transition:border-color .2s, box-shadow .2s;"
+        >
+          <div style="background: #f0f2f5; padding: 1rem 1rem 0.75rem; border-bottom: 1px solid rgba(0,0,0,0.13);">
+            <div style="background: #ffffff; border: 1px solid rgba(0,0,0,0.13); border-radius: 4px; padding: 0.6rem 0.75rem; margin-bottom: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+              <div style="width: 50%; height: 8px; background: #4a7a9b; border-radius: 2px; margin-bottom: 7px;"></div>
+              <div style="width: 80%; height: 5px; background: #e8ebef; border-radius: 2px; margin-bottom: 4px;"></div>
+              <div style="width: 60%; height: 5px; background: #f0f2f5; border-radius: 2px;"></div>
+            </div>
+            <div style="display: flex; gap: 6px;">
+              <div style="flex:1; height: 22px; background: #4a7a9b; border-radius: 3px;"></div>
+              <div style="flex:1; height: 22px; background: #ffffff; border: 1px solid rgba(0,0,0,0.13); border-radius: 3px;"></div>
+            </div>
+          </div>
+          <div style="background: #ffffff; padding: 0.6rem 1rem; display: flex; align-items: center; gap: 0.5rem; border-top: 1px solid rgba(0,0,0,0.07);">
+            <span style="color: #1c2b3a; font-size: 0.85rem; font-weight: 500;">Standard</span>
+            <span id="light-tick" style="margin-left: auto; color: #4a7a9b; font-size: 1rem; display: none;">✓</span>
+          </div>
+        </div>
+
+        <!-- GREEN OG -->
+        <div
+          class="theme-card"
+          id="theme-light"
+          onclick="setTheme('light')"
+          style="
+            flex: 1;
+            cursor: pointer;
+            border-radius: 8px;
+            border: 2px solid transparent;
+            overflow: hidden;
+            transition: border-color .2s, box-shadow .2s;
+          "
+        >
+          <!-- Preview swatch -->
+          <div style="background: #b6d9b7; padding: 1rem 1rem 0.75rem; border-bottom: 1px solid #a9cbb7;">
+            <div style="background: #fff; border-radius: 4px; padding: 0.6rem 0.75rem; margin-bottom: 0.5rem; box-shadow: 0 1px 4px rgba(0,0,0,.08);">
+              <div style="width: 60%; height: 8px; background: #3e5f51; border-radius: 3px; margin-bottom: 6px;"></div>
+              <div style="width: 80%; height: 6px; background: #d0d0d0; border-radius: 3px; margin-bottom: 4px;"></div>
+              <div style="width: 50%; height: 6px; background: #d0d0d0; border-radius: 3px;"></div>
+            </div>
+            <div style="display: flex; gap: 6px;">
+              <div style="flex:1; height: 24px; background: #28a745; border-radius: 3px;"></div>
+              <div style="flex:1; height: 24px; background: #fff; border: 1px solid #ccc; border-radius: 3px;"></div>
+            </div>
+          </div>
+          <div style="background: #f5fdf6; padding: 0.6rem 1rem; display: flex; align-items: center; gap: 0.5rem; border-top: 1px solid #d0e8d4;">
+            <span style="color: #3e5f51; font-size: 0.85rem; font-weight: 500;">Green (Original)</span>
+            <span id="light-tick" style="margin-left: auto; color: #28a745; font-size: 1rem; display: none;">✓</span>
+          </div>
+        </div>
+
+        <!-- Theme 3 / Paper -->
+        <div
+          class="theme-card"
+          id="theme-theme3"
+          onclick="setTheme('theme3')"
+          style="flex:1; min-width:140px; cursor:pointer; border-radius:8px; border:2px solid transparent; overflow:hidden; transition:border-color .2s, box-shadow .2s;"
+        >
+          <!-- Preview: warm parchment with faint graph-paper grid -->
+          <div style="
+            background:
+              linear-gradient(rgba(46,107,123,0.06) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(46,107,123,0.06) 1px, transparent 1px),
+              #ede4d3;
+            background-size: 10px 10px;
+            padding: 1rem 1rem 0.75rem;
+            border-bottom: 1px solid #d5c9ad;
+            position: relative;
+          ">
+            <!-- Faux margin line -->
+            <div style="position:absolute; left:10px; top:0; bottom:0; width:1.5px; background:rgba(178,82,72,0.15);"></div>
+            <!-- Card preview -->
+            <div style="background:rgba(248,241,227,0.95); border:1px solid rgba(120,100,65,0.20); border-radius:4px; padding:0.6rem 0.75rem; margin-bottom:0.5rem; box-shadow:2px 3px 0 -1px #ede4d3, 3px 4px 0 -1px rgba(120,100,65,0.15);">
+              <div style="width:60%; height:8px; background:#2e6b7b; border-radius:3px; margin-bottom:6px;"></div>
+              <div style="width:80%; height:6px; background:#e6dac2; border-radius:3px; margin-bottom:4px;"></div>
+              <div style="width:50%; height:6px; background:#e6dac2; border-radius:3px;"></div>
+            </div>
+            <div style="display:flex; gap:6px;">
+              <div style="flex:1; height:24px; background:#2e6b7b; border-radius:3px;"></div>
+              <div style="flex:1; height:24px; background:rgba(248,241,227,0.95); border:1px solid rgba(120,100,65,0.20); border-radius:3px;"></div>
+            </div>
+          </div>
+          <div style="background:#f4ece0; padding:0.6rem 1rem; display:flex; align-items:center; gap:0.5rem; border-top:1px solid #d5c9ad;">
+            <span style="color:#2b261e; font-size:0.85rem; font-weight:500;">Paper</span>
+            <span id="theme3-tick" style="margin-left:auto; color:#2e6b7b; font-size:1rem; display:none;">✓</span>
+          </div>
+        </div>
+
+        <!-- Theme 4 / Dark Paper card -->
+
+        <div
+          class="theme-card"
+          id="theme-theme4"
+          onclick="setTheme('theme4')"
+          style="flex:1; min-width:140px; cursor:pointer; border-radius:8px; border:2px solid transparent; overflow:hidden; transition:border-color .2s, box-shadow .2s;"
+        >
+          <div style="
+            background:
+              linear-gradient(rgba(106,170,114,0.055) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(106,170,114,0.055) 1px, transparent 1px),
+              #1b1e1a;
+            background-size: 10px 10px;
+            padding:1rem 1rem 0.75rem;
+            border-bottom:1px solid rgba(106,170,114,0.12);
+            position:relative;
+          ">
+            <div style="background:#232620; border:1px solid rgba(106,170,114,0.12); border-radius:4px; padding:0.6rem 0.75rem; margin-bottom:0.5rem; box-shadow:2px 3px 0 -1px #1b1e1a, 3px 4px 0 -1px rgba(106,170,114,0.08);">
+              <div style="width:60%; height:8px; background:#6aaa72; border-radius:3px; margin-bottom:6px;"></div>
+              <div style="width:80%; height:6px; background:rgba(213,205,192,0.12); border-radius:3px; margin-bottom:4px;"></div>
+              <div style="width:50%; height:6px; background:rgba(213,205,192,0.08); border-radius:3px;"></div>
+            </div>
+            <div style="display:flex; gap:6px;">
+              <div style="flex:1; height:24px; background:#6aaa72; border-radius:3px;"></div>
+              <div style="flex:1; height:24px; background:#232620; border:1px solid rgba(106,170,114,0.12); border-radius:3px;"></div>
+            </div>
+          </div>
+          <div style="background:#1b1e1a; padding:0.6rem 1rem; display:flex; align-items:center; gap:0.5rem; border-top:1px solid rgba(106,170,114,0.10);">
+            <span style="color:#d5cdc0; font-size:0.85rem; font-weight:500;">Dark Paper</span>
+            <span id="theme4-tick" style="margin-left:auto; color:#6aaa72; font-size:1rem; display:none;">✓</span>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
+
+
 </div>
 
 <script>
+// ── Theme switcher ──────────────────────────────────────
+var themeConfig = {
+  'green':   { css: 'styles.css',        accent: '#4a7a9b', glow: 'rgba(74,122,155,0.20)', tick: 'light-tick'  },
+  'light':  { css: 'styles-light.css',  accent: '#28a745', glow: 'rgba(40,167,69,0.15)',   tick: 'light-tick'  },
+  'theme3': { css: 'styles-theme3.css', accent: '#2e6b7b', glow: 'rgba(46,107,123,0.18)', tick: 'theme3-tick' },
+  'theme4': { css: 'styles-theme4.css', accent: '#6aaa72', glow: 'rgba(106,170,114,0.18)', tick: 'theme4-tick' }
+};
+
+function setTheme(theme) {
+  localStorage.setItem('nta-theme', theme);
+  var link = document.getElementById('theme-stylesheet');
+  var base = link.href.replace(/styles[^/]*\.css/, '');
+  link.href = base + themeConfig[theme].css;
+  highlightActiveTheme(theme);
+}
+
+function highlightActiveTheme(theme) {
+  // Reset all cards
+  Object.keys(themeConfig).forEach(function (t) {
+    var card = document.getElementById('theme-' + t);
+    var tick = document.getElementById(themeConfig[t].tick);
+    if (card) { card.style.borderColor = 'transparent'; card.style.boxShadow = 'none'; }
+    if (tick) { tick.style.display = 'none'; }
+  });
+
+  // Highlight active
+  var cfg  = themeConfig[theme];
+  var card = document.getElementById('theme-' + theme);
+  var tick = document.getElementById(cfg.tick);
+  if (card) {
+    card.style.borderColor = cfg.accent;
+    card.style.boxShadow   = '0 0 0 1px ' + cfg.accent + ', 0 0 12px ' + cfg.glow;
+  }
+  if (tick) { tick.style.display = 'inline'; }
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  var current = localStorage.getItem('nta-theme') || 'dark';
+  highlightActiveTheme(current);
+});
+
+// ── Graph settings ──────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
   fetch("/get_settings")
     .then(res => res.json())
@@ -175,7 +382,6 @@ document.addEventListener("DOMContentLoaded", () => {
 function populatePresetDropdown() {
   const select = document.getElementById("presetSelect");
   select.innerHTML = "";
-
   for (const name in settings.presets) {
     const option = document.createElement("option");
     option.value = name;
@@ -183,7 +389,6 @@ function populatePresetDropdown() {
     if (name === settings.selected_preset) option.selected = true;
     select.appendChild(option);
   }
-
   updateColourInputs(settings.presets[select.value]);
 }
 
@@ -204,19 +409,14 @@ function savePreset() {
   let name = document.getElementById("newPresetName").value.trim();
   if (!name) {
     name = document.getElementById("presetSelect").value;
-    if (!name) {
-      alert("Please enter a new preset name.");
-      return;
-    }
+    if (!name) { alert("Please enter a new preset name."); return; }
   }
-
   const newPreset = {
     Q1: document.getElementById("q1Colour").value,
     Q2: document.getElementById("q2Colour").value,
     Q3: document.getElementById("q3Colour").value,
     Q4: document.getElementById("q4Colour").value
   };
-
   fetch("/save_preset", {
     method: "POST",
     headers: { 'Content-Type': 'application/json' },
@@ -226,21 +426,14 @@ function savePreset() {
     if (!response.ok) throw new Error("Failed to save preset");
     return response.text();
   })
-  .then(() => {
-    alert(`Preset "${name}" saved successfully!`);
-    location.reload();
-  })
+  .then(() => { alert(`Preset "${name}" saved successfully!`); location.reload(); })
   .catch(err => alert(err));
 }
 
 function deletePreset() {
   const name = document.getElementById("presetSelect").value;
-  if (!name) {
-    alert("No preset selected.");
-    return;
-  }
+  if (!name) { alert("No preset selected."); return; }
   if (!confirm(`Are you sure you want to delete the preset "${name}"?`)) return;
-
   fetch("/delete_preset", {
     method: "POST",
     headers: { 'Content-Type': 'application/json' },
@@ -250,20 +443,13 @@ function deletePreset() {
     if (!response.ok) throw new Error("Failed to delete preset");
     return response.text();
   })
-  .then(() => {
-    alert(`Preset "${name}" deleted successfully!`);
-    location.reload();
-  })
+  .then(() => { alert(`Preset "${name}" deleted successfully!`); location.reload(); })
   .catch(err => alert(err));
 }
 
 function applyPreset() {
   const name = document.getElementById("presetSelect").value;
-  if (!name) {
-    alert("No preset selected.");
-    return;
-  }
-
+  if (!name) { alert("No preset selected."); return; }
   fetch("/set_active_preset", {
     method: "POST",
     headers: { 'Content-Type': 'application/json' },
@@ -291,7 +477,6 @@ function saveAllGraphSettings() {
     Q3: document.getElementById("includeQ3").checked,
     Q4: document.getElementById("includeQ4").checked
   };
-
   fetch("/save_quadrants", {
     method: "POST",
     headers: { 'Content-Type': 'application/json' },

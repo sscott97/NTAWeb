@@ -1,0 +1,462 @@
+{% extends 'layout.html' %}
+{% block title %}Curve Fitting Results - NTA{% endblock %}
+
+{% block nav_left %}
+<a href="{{ url_for('analysis_hub', file_id=excel_file_id) }}" class="nav-back-btn">← Data Analysis</a>
+{% endblock %}
+
+{% block content %}
+
+<div style="max-width: 900px; margin: 0 auto;">
+
+  <!-- Page header -->
+  <div class="mb-4">
+    <h2 class="text-success mb-1" style="font-size: 1.75rem;">Curve Fitting Results</h2>
+    <p style="color: var(--text-dim, #888); font-size: 0.85rem; margin: 0;">Placeholder text</p>
+  </div>
+
+  <!-- Quality Metrics Summary -->
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center gap-2">
+      <span style="font-size: 1rem;">📈</span>
+      <span style="font-weight: 600;">Quality Metrics Summary</span>
+    </div>
+    <div class="card-body">
+      <div class="row g-3" id="qualityMetrics">
+        <div class="col-12 text-center">
+          <div class="spinner-border text-success" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          <p class="text-muted mt-2 mb-0">Loading quality metrics...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fitted Curve Plots — combined interactive card -->
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2" style="padding: 0.65rem 1.25rem; cursor: pointer;" onclick="toggleCard('sigmoid-graph-body')">
+      <div class="d-flex align-items-center gap-2">
+        <span class="card-chevron" id="chevron-sigmoid-graph-body">▾</span>
+        <span style="font-size: 1rem;">📊</span>
+        <span style="font-weight: 600;">Fitted Sigmoid Curves</span>
+      </div>
+      <div class="d-flex align-items-center gap-2 flex-wrap" onclick="event.stopPropagation();">
+        <!-- Quality filter pills -->
+        <div id="pill-Good"     class="q-pill on q-pill--blue" onclick="toggleQuality('Good')"    >Good</div>
+        <div id="pill-Unstable" class="q-pill on q-pill--red"  onclick="toggleQuality('Unstable')">Unstable</div>
+        <!-- Download -->
+        <a href="#" id="downloadSigmoidBtn" class="graph-dl-btn" style="display:none;" download="sigmoid_curves.png">↓ PNG</a>
+      </div>
+    </div>
+
+    <div id="sigmoid-graph-body" class="card-collapsible">
+      <!-- Graph display area -->
+      <div id="sigmoidGraphArea" style="
+        min-height: 260px;
+        background: var(--bg-inset, #f5f0e4);
+        border-bottom: 1px solid var(--border, #dee2e6);
+        display: flex; align-items: center; justify-content: center;
+        overflow: hidden;
+      ">
+        <div style="padding:2rem; text-align:center;">
+          <div class="spinner-border spinner-border-sm text-success" role="status"></div>
+          <span style="font-size:0.82rem; color:var(--text-dim); margin-left:0.5rem;">Generating…</span>
+        </div>
+      </div>
+
+      <!-- Legend hint -->
+      <div style="padding: 0.4rem 1.25rem 0.6rem; font-size: 0.70rem; color: var(--text-faint, #aaa); font-style: italic; border-top: 1px solid var(--border, #eee);">
+        <span style="color:#3498db; font-weight:600;">●</span> Good &nbsp;·&nbsp;
+        <span style="color:#e74c3c; font-weight:600;">●</span> Unstable &nbsp;·&nbsp;
+        Outside LOD samples are excluded.
+      </div>
+    </div>
+  </div>
+
+  <!-- IC50 Results -->
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center gap-2">
+      <span style="font-size: 1rem;">📋</span>
+      <span style="font-weight: 600;">IC50 Values</span>
+    </div>
+    <div class="card-body">
+      <p style="color: var(--text-mid, #666); font-size: 0.9rem; margin-bottom: 1.25rem;">
+        The IC50s csv file contains sigmoid parameters including IC50 values, upper/lower bounds, slope, R² values and flags for quality and limit of detection.
+      </p>
+      <a href="{{ url_for('download_sigmoid', fitting_id=fitting_id, filename=ic50_filename) }}"
+         class="btn btn-success">
+        <span style="margin-right: 0.35rem;">📥</span>Download {{ ic50_filename }}
+      </a>
+    </div>
+  </div>
+
+  <!-- Working Files -->
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center gap-2">
+      <span style="font-size: 1rem;">🔧</span>
+      <span style="font-weight: 600;">Working Files</span>
+    </div>
+    <div class="card-body">
+      <p style="color: var(--text-mid, #666); font-size: 0.9rem; margin-bottom: 1.25rem;">
+        <strong>sigmoidData.csv</strong> — working file containing neutralisation data (batch, virus, sample, log₂ dilution, % neutralisation) extracted before curve fitting. These are drawn from the original processed excel file and neutralisation is calulcated per triplicate mean and dilution is converted to a base log₂ scale.
+      </p>
+      {% if 'sigmoidData.csv' in output_files %}
+        <a href="{{ url_for('download_sigmoid', fitting_id=fitting_id, filename='sigmoidData.csv') }}" 
+           class="btn btn-success">
+          <span style="margin-right: 0.35rem;">📥</span>Download sigmoidData.csv
+        </a>
+      {% else %}
+        <div class="alert alert-warning mb-0" role="alert" style="font-size: 0.9rem;">
+          ⚠️ Working file not available
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Methods -->
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center gap-2">
+      <span style="font-size: 1rem;">📝</span>
+      <span style="font-weight: 600;">Methods</span>
+    </div>
+    <div class="card-body" style="font-size: 0.9rem; color: var(--text-mid, #444); line-height: 1.75;">
+
+      <h6 style="color: var(--text-primary, #222); font-weight: 700; margin-bottom: 0.5rem; margin-top: 0;">
+        1. Data Extraction and Normalisation
+      </h6>
+      <p style="margin-bottom: 0.75rem;">
+        Data was extracted from the processed excel file and the mean was calculated for each triplicate.  
+      </p>
+      <p style="margin-bottom: 1.25rem;">
+        Percentage neutralisation at each dilution step was then calculated as:
+      </p>
+      <div style="
+        background: var(--bg-raised, #f8f9fa);
+        border: 1px solid var(--border, #dee2e6);
+        border-left: 4px solid #28a745;
+        border-radius: 4px;
+        padding: 0.85rem 1.25rem;
+        margin-bottom: 1.25rem;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 0.88rem;
+        text-align: center;
+        letter-spacing: 0.2px;
+      ">
+        % Neutralisation = 100 × (1 − <em>x̄</em><sub>dilution</sub> / <em>x̄</em><sub>NSC</sub>)
+      </div>
+      <p style="margin-bottom: 1.5rem;">
+        where <em>x̄</em><sub>dilution</sub> is the mean triplicate value at a given dilution and <em>x̄</em><sub>NSC</sub> is the mean luminescence of the corresponding no-serum control wells. Dilution factors were converted to a log₂ scale (−log₂ of the dilution fraction) for model fitting.
+      </p>
+
+      <h6 style="color: var(--text-primary, #222); font-weight: 700; margin-bottom: 0.5rem;">
+        2. Four-Parameter Sigmoid Model
+      </h6>
+      <p style="margin-bottom: 0.75rem;">
+        A four-parameter logistic (4PL) sigmoid function was fitted to the neutralisation data for each sample–virus combination:
+      </p>
+      <div style="
+        background: var(--bg-raised, #f8f9fa);
+        border: 1px solid var(--border, #dee2e6);
+        border-left: 4px solid #28a745;
+        border-radius: 4px;
+        padding: 0.85rem 1.25rem;
+        margin-bottom: 1.25rem;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 0.88rem;
+        text-align: center;
+        letter-spacing: 0.2px;
+      ">
+        f(x) = Lower + (Upper − Lower) / (1 + exp(−Slope × (x − IC50)))
+      </div>
+      <p style="margin-bottom: 0.5rem;">
+        The four estimated parameters are:
+      </p>
+      <div style="margin-bottom: 1.5rem; padding-left: 1rem;">
+        <table style="font-size: 0.88rem; border-collapse: collapse; width: 100%;">
+          <tr style="border-bottom: 1px solid var(--border, #e9ecef);">
+            <td style="padding: 0.4rem 0.75rem 0.4rem 0; font-weight: 600; white-space: nowrap; color: var(--text-primary, #222);">Lower</td>
+            <td style="padding: 0.4rem 0;">Minimum asymptote (% neutralisation at low antibody concentration), bounded [−50, 80]</td>
+          </tr>
+          <tr style="border-bottom: 1px solid var(--border, #e9ecef);">
+            <td style="padding: 0.4rem 0.75rem 0.4rem 0; font-weight: 600; white-space: nowrap; color: var(--text-primary, #222);">Upper</td>
+            <td style="padding: 0.4rem 0;">Maximum asymptote (% neutralisation at high antibody concentration), bounded [0, 100]</td>
+          </tr>
+          <tr style="border-bottom: 1px solid var(--border, #e9ecef);">
+            <td style="padding: 0.4rem 0.75rem 0.4rem 0; font-weight: 600; white-space: nowrap; color: var(--text-primary, #222);">Slope</td>
+            <td style="padding: 0.4rem 0;"> Slope of the transition, bounded [0.001, 10]</td>
+          </tr>
+          <tr>
+            <td style="padding: 0.4rem 0.75rem 0.4rem 0; font-weight: 600; white-space: nowrap; color: var(--text-primary, #222);">IC50</td>
+            <td style="padding: 0.4rem 0;">Inflection point — the log₂ dilution at the sigmoid midpoint, bounded [−20, 0]</td>
+          </tr>
+        </table>
+      </div>
+
+      <h6 style="color: var(--text-primary, #222); font-weight: 700; margin-bottom: 0.5rem;">
+        3. Parameter Estimation
+      </h6>
+      <p style="margin-bottom: 1.5rem;">
+        Parameters were estimated by non-linear least squares regression using the Levenberg–Marquardt algorithm (<code style="font-size: 0.85em; background: var(--bg-raised, #f0f0f0); padding: 1px 5px; border-radius: 3px;">nlsLM</code> function, <em>minpack.lm</em> R package), with a maximum of 200 iterations. Starting values were set to Lower = 0, Upper = 100, Slope = 1, and IC50 = −8. Parameter bounds were enforced to constrain solutions within biologically plausible ranges (see table above).
+      </p>
+
+      <h6 style="color: var(--text-primary, #222); font-weight: 700; margin-bottom: 0.5rem;">
+        4. Titre Calculation
+      </h6>
+      <p style="margin-bottom: 0.75rem;">
+        The neutralising antibody titre was derived from the fitted IC50 by converting from log₂ dilution back to a reciprocal dilution factor:
+      </p>
+      <div style="
+        background: var(--bg-raised, #f8f9fa);
+        border: 1px solid var(--border, #dee2e6);
+        border-left: 4px solid #28a745;
+        border-radius: 4px;
+        padding: 0.85rem 1.25rem;
+        margin-bottom: 1.5rem;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 0.88rem;
+        text-align: center;
+        letter-spacing: 0.2px;
+      ">
+        Titre = 2<sup>−IC50</sup>
+      </div>
+
+      <h6 style="color: var(--text-primary, #222); font-weight: 700; margin-bottom: 0.5rem;">
+        5. Goodness of Fit and Quality Assessment
+      </h6>
+      <p style="margin-bottom: 0.75rem;">
+        Goodness of fit was assessed using a pseudo-R² statistic:
+      </p>
+      <div style="
+        background: var(--bg-raised, #f8f9fa);
+        border: 1px solid var(--border, #dee2e6);
+        border-left: 4px solid #28a745;
+        border-radius: 4px;
+        padding: 0.85rem 1.25rem;
+        margin-bottom: 1.25rem;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 0.88rem;
+        text-align: center;
+        letter-spacing: 0.2px;
+      ">
+        R² = max(0, 1 − RSS / TSS)
+      </div>
+      <p style="margin-bottom: 0.75rem;">
+        where RSS is the residual sum of squares between observed and predicted neutralisation values, and TSS is the total sum of squares about the mean.
+      </p>
+      <p style="margin-bottom: 0.75rem;">
+        Samples that resulted in an R² &lt; 0.5 were reported as <strong>Outside Limit of Detection (LOD)</strong> and given NA vaues and exluded from generated graphs. 
+      </p>
+      <p style="margin-bottom: 0;">
+        A quality flag of <strong style="color: #e74c3c;">"Unstable"</strong> was assigned when any fitted parameter reached its upper or lower bound constraint, indicating that the optimiser could not find a well-defined solution within the bounded parameter space. All other successful fits were flagged as <strong style="color: #3498db;">"Good"</strong>. Unstable fits should be interpreted with caution, as the resulting IC50 and titre values may not reliably represent the true neutralising activity of the sample.
+      </p>
+
+    </div>
+  </div>
+
+
+</div>
+
+<style>
+/* ── Quality pills ── */
+.q-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.48rem;
+  border-radius: 3px;
+  border: 1.5px solid var(--border-sharp, rgba(120,100,65,0.26));
+  background: var(--bg-surface);
+  color: var(--text-dim, #928774);
+  cursor: pointer;
+  font-size: 0.67rem;
+  font-weight: 600;
+  user-select: none;
+  letter-spacing: 0.3px;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.q-pill--blue.on  { background: #3498db; color: #fff; border-color: #1d78c1; }
+.q-pill--blue:not(.on):hover { border-color: #3498db; color: #3498db; background: rgba(52,152,219,0.08); }
+.q-pill--red.on   { background: #e74c3c; color: #fff; border-color: #c0392b; }
+.q-pill--red:not(.on):hover  { border-color: #e74c3c; color: #e74c3c; background: rgba(231,76,60,0.08); }
+
+/* graph-dl-btn — matches linear_results style */
+.graph-dl-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.28rem 0.65rem;
+  border-radius: 4px;
+  border: 1.5px solid var(--teal, #2e6b7b);
+  color: var(--teal, #2e6b7b);
+  background: transparent;
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+}
+.graph-dl-btn:hover {
+  background: var(--teal-pale, rgba(46,107,123,0.07));
+  color: var(--teal, #2e6b7b);
+}
+/* ── Card collapse ── */
+.card-collapsible {
+  overflow: hidden;
+  max-height: 4000px;
+  transition: max-height 0.28s ease;
+}
+.card-collapsible.collapsed {
+  max-height: 0;
+}
+.card-chevron {
+  font-size: 0.65rem;
+  color: var(--text-dim, #888);
+  display: inline-block;
+  width: 10px;
+  transition: transform 0.22s ease;
+  flex-shrink: 0;
+}
+.card-chevron.collapsed {
+  transform: rotate(-90deg);
+}
+</style>
+
+<script>
+// ── Card collapse toggle ─────────────────────────────────────
+function toggleCard(id) {
+  var body    = document.getElementById(id);
+  var chevron = document.getElementById('chevron-' + id);
+  if (!body) return;
+  var collapsing = !body.classList.contains('collapsed');
+  body.classList.toggle('collapsed', collapsing);
+  if (chevron) chevron.classList.toggle('collapsed', collapsing);
+}
+
+// ── Quality pill state ───────────────────────────────────────
+var qualityState = { Good: true, Unstable: true };
+
+function toggleQuality(q) {
+  qualityState[q] = !qualityState[q];
+  renderQualityPills();
+  generateSigmoidGraph();
+}
+
+function renderQualityPills() {
+  ['Good', 'Unstable'].forEach(function(q) {
+    var pill = document.getElementById('pill-' + q);
+    if (!pill) return;
+    if (qualityState[q]) {
+      pill.classList.add('on');
+    } else {
+      pill.classList.remove('on');
+    }
+  });
+}
+
+// ── Graph generation ────────────────────────────────────────
+function generateSigmoidGraph() {
+  var area  = document.getElementById('sigmoidGraphArea');
+  var dlBtn = document.getElementById('downloadSigmoidBtn');
+  dlBtn.style.display = 'none';
+
+  area.style.cssText = 'min-height:260px;background:var(--bg-inset,#f5f0e4);border-bottom:1px solid var(--border,#dee2e6);display:flex;align-items:center;justify-content:center;overflow:hidden;';
+  area.innerHTML = '<div style="padding:2rem;text-align:center;"><div class="spinner-border spinner-border-sm text-success" role="status"></div><span style="font-size:0.82rem;color:var(--text-dim);margin-left:0.5rem;">Generating…</span></div>';
+
+  var params = new URLSearchParams({
+    good:     qualityState.Good,
+    unstable: qualityState.Unstable
+  });
+
+  fetch('/generate_sigmoid_graph/{{ fitting_id }}?' + params)
+    .then(function(r) {
+      if (!r.ok) throw new Error('Generation failed');
+      return r.blob();
+    })
+    .then(function(blob) {
+      var url = URL.createObjectURL(blob);
+      area.style.cssText = 'background:var(--bg-inset,#f5f0e4);border-bottom:1px solid var(--border,#dee2e6);overflow:hidden;';
+      area.innerHTML = '<img src="' + url + '" style="width:100%;height:auto;display:block;" />';
+      dlBtn.href = url;
+      dlBtn.style.display = 'inline-flex';
+    })
+    .catch(function() {
+      area.style.cssText = 'min-height:120px;background:var(--bg-inset,#f5f0e4);display:flex;align-items:center;justify-content:center;';
+      area.innerHTML = '<div style="padding:1.5rem;color:var(--text-dim);font-size:0.82rem;">Graph generation failed.</div>';
+    });
+}
+
+// ── Init ─────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  generateSigmoidGraph();
+});
+
+// Toast notification on load (only once per fitting)
+document.addEventListener('DOMContentLoaded', function() {
+  var toastKey = 'toast_shown_curve_{{ fitting_id }}';
+  if (!sessionStorage.getItem(toastKey)) {
+    ntaToast('<strong>Sigmoid curve fitting complete!</strong> Download available below.', 'success');
+    sessionStorage.setItem(toastKey, '1');
+  }
+});
+
+// Store fitting_id in sessionStorage for titre comparison
+sessionStorage.setItem('last_fitting_id', '{{ fitting_id }}');
+
+// Fetch and parse IC50s CSV to show summary stats
+fetch("{{ url_for('download_sigmoid', fitting_id=fitting_id, filename=ic50_filename) }}")
+  .then(r => r.text())
+  .then(csv => {
+    const lines = csv.trim().split('\n');
+    const dataLines = lines.slice(1).filter(line => line.trim().length > 0);
+    
+    if (dataLines.length === 0) {
+      document.getElementById('qualityMetrics').innerHTML = '<div class="col-12 text-center"><p class="text-muted mb-0">No fitting data available</p></div>';
+      return;
+    }
+    
+    let good = 0, unstable = 0, outsideLod = 0, r2Values = [];
+    
+    function parseCSVLine(line) {
+      var result = [], cur = '', inQuote = false;
+      for (var i = 0; i < line.length; i++) {
+        var c = line[i];
+        if (c === '"') { inQuote = !inQuote; }
+        else if (c === ',' && !inQuote) { result.push(cur.trim()); cur = ''; }
+        else { cur += c; }
+      }
+      result.push(cur.trim());
+      return result;
+    }
+
+    dataLines.forEach(line => {
+      const parts = parseCSVLine(line);
+      const quality = parts[8] ? parts[8].trim() : '';
+      const r2Str = parts[7] ? parts[7].trim() : '';
+      
+      if (quality === 'Good') good++;
+      else if (quality === 'Unstable') unstable++;
+      else if (quality === 'Outside LOD') outsideLod++;
+      
+      const r2 = parseFloat(r2Str);
+      if (!isNaN(r2)) r2Values.push(r2);
+    });
+    
+    const avgR2 = r2Values.length > 0 ? (r2Values.reduce((a,b) => a+b, 0) / r2Values.length) : 0;
+    const total = good + unstable + outsideLod;
+    const goodPct = total > 0 ? ((good/total)*100).toFixed(0) : 0;
+    const unstPct = total > 0 ? ((unstable/total)*100).toFixed(0) : 0;
+    const lodPct = total > 0 ? ((outsideLod/total)*100).toFixed(0) : 0;
+    
+    let html = 
+      '<div class="col-md-3 text-center"><div style="font-size:2.5rem;color:#3498db;font-weight:700;line-height:1;">' + good + '</div><div style="color:var(--text-mid,#666);font-size:0.85rem;font-weight:600;margin-top:0.5rem;">Good Fits</div><div style="color:var(--text-dim,#888);font-size:0.75rem;margin-top:0.25rem;">' + goodPct + '% of total</div></div>' +
+      '<div class="col-md-3 text-center"><div style="font-size:2.5rem;color:#e74c3c;font-weight:700;line-height:1;">' + unstable + '</div><div style="color:var(--text-mid,#666);font-size:0.85rem;font-weight:600;margin-top:0.5rem;">Unstable Fits</div><div style="color:var(--text-dim,#888);font-size:0.75rem;margin-top:0.25rem;">' + unstPct + '% of total</div></div>' +
+      '<div class="col-md-3 text-center"><div style="font-size:2.5rem;color:#f39c12;font-weight:700;line-height:1;">' + outsideLod + '</div><div style="color:var(--text-mid,#666);font-size:0.85rem;font-weight:600;margin-top:0.5rem;">Outside LOD</div><div style="color:var(--text-dim,#888);font-size:0.75rem;margin-top:0.25rem;">' + lodPct + '% of total</div></div>' +
+      '<div class="col-md-3 text-center"><div style="font-size:2.5rem;color:' + (avgR2 >= 0.7 ? '#28a745' : avgR2 >= 0.5 ? '#ffc107' : '#e74c3c') + ';font-weight:700;line-height:1;">' + (r2Values.length > 0 ? avgR2.toFixed(3) : 'N/A') + '</div><div style="color:var(--text-mid,#666);font-size:0.85rem;font-weight:600;margin-top:0.5rem;">Average R²</div><div style="color:var(--text-dim,#888);font-size:0.75rem;margin-top:0.25rem;">' + (avgR2 >= 0.7 ? 'Excellent' : avgR2 >= 0.5 ? 'Good' : 'Poor') + ' fit quality</div></div>';
+    
+    document.getElementById('qualityMetrics').innerHTML = html;
+  })
+  .catch(err => {
+    document.getElementById('qualityMetrics').innerHTML = '<div class="col-12 text-center"><p class="text-muted mb-0">Unable to load quality metrics</p></div>';
+  });
+</script>
+
+{% endblock %}

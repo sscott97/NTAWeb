@@ -3,67 +3,428 @@
 
 {% block content %}
 
-<div class="container mt-4">
-<div class="mb-3">
-<h3 class="text-center text-success mb-4">Help</h3>
+<div style="max-width: 1000px; margin: 0 auto;">
 
-
-
-  <div class="bg-light p-4 rounded border">
-
-    <div class="alert alert-success" role="alert">
-      <strong>Welcome to the Neutralising Titre Automator information section!</strong>
-    </div>
-
-    <p>This application takes the raw comma-separated value (CSV) data produced by the Kaleido software on the Perkin-Elmer Luminometer and processes it using an Excel template to automatically calculate neutralising antibody titres. The data can be further processed to generate graphs.</p>
-
-    <h5 class="mt-4">How to Use This Application</h5>
-    <ol>
-      <li><strong>Input CSV File:</strong> Upload raw data in CSV format (must be 8x12 blocks, Data Only mode).</li>
-      <li><strong>Template File:</strong> A default Excel template will be loaded automatically, but can be replaced with a new one via the settings page.</li>
-      <li><strong>Output File:</strong> The processed output file will be saved and downloadable after processing.</li>
-      <li><strong>Optional Assay Data:</strong> The assay title, pseudotype IDs and sample IDs can be entered, separated by commas, to label results.</li>
-      <li><strong>Process File:</strong> Processes your CSV and produces an Excel file with processed results.</li>
-      <li><strong>Create Graphs:</strong> After processing, the assays data can be graphed. Colours can be chosen in settings page. The graph will update the dilutions based on the selected template.</li>
-    </ol>
-
-    <h5 class="mt-4">Number of Pseudotypes Logic</h5>
-    <p>The number of pseudotypes selected affects how the plate layouts are labeled and organised in the generated Excel sheets:</p>
-
-    <ul class="list-group mb-4">
-      <li class="list-group-item d-flex justify-content-between align-items-start">
-        <div>
-          <span class="badge bg-primary rounded-pill me-2">1</span>
-          <strong>1 Pseudotype:</strong> The same pseudotype ID is repeated across all four quadrants (cells <code>B3:D3</code>, <code>E3:G3</code>, <code>H3:J3</code>, <code>K3:M3</code>). Sample IDs fill each quadrant uniquely.
-        </div>
-      </li>
-      <li class="list-group-item d-flex justify-content-between align-items-start">
-        <div>
-          <span class="badge bg-primary rounded-pill me-2">2</span>
-          <strong>2 Pseudotypes:</strong> The first pseudotype ID is applied to the first two quadrants (<code>B3:D3</code>, <code>E3:G3</code>), and the second pseudotype to the last two quadrants (<code>H3:J3</code>, <code>K3:M3</code>). The first sample ID is pasted to the first and third quadrant.
-        </div>
-      </li>
-      <li class="list-group-item d-flex justify-content-between align-items-start">
-        <div>
-          <span class="badge bg-primary rounded-pill me-2">3</span>
-          <strong>3 Pseudotypes:</strong> The first three quadrants have one pseudotype ID each (<code>B3:D3</code>, <code>E3:G3</code>, <code>H3:J3</code>), while the fourth quadrant (<code>K3:M3</code>) is left blank. A single sample ID is repeated across the first three quadrants, the fourth is left blank.
-        </div>
-      </li>
-      <li class="list-group-item d-flex justify-content-between align-items-start">
-        <div>
-          <span class="badge bg-primary rounded-pill me-2">4</span>
-          <strong>4 Pseudotypes:</strong> Each quadrant has a different pseudotype ID (<code>B3:D3</code>, <code>E3:G3</code>, <code>H3:J3</code>, <code>K3:M3</code>). A single sample ID is repeated across all four quadrants.
-        </div>
-      </li>
-    </ul>
-
-    <h5 class="mt-4">Additional Notes</h5>
-    <ul>
-      <li>CSV files must be saved in Data Only mode. Files in Standard mode will not be processed. The input file should be an 8x12 block of results, with 2 blank lines separating each 8x12 block.</li>
-      <li>Template files should be stored in the application folder under the <code>Excel_Templates/</code> subfolder.</li>
-      <li>Settings, colour presets and templates can be saved via the <a href="{{ url_for('settings') }}">Settings</a> page.</li>
-    </ul>
-
+  <!-- Page header -->
+  <div class="mb-4">
+    <h2 class="text-success mb-1" style="font-size: 1.75rem;">Neutralising Titre Automator - User Guide</h2>
+    <p style="color: var(--text-mid, #666); margin: 0; font-size: 0.95rem;">Complete documentation for processing neutralisation assay data</p>
   </div>
+
+  <!-- Quick Start -->
+  <div class="card mb-4" style="border-left: 4px solid #28a745;">
+    <div class="card-header d-flex align-items-center gap-2" style="background: #f0f9f4;">
+      <span style="font-size: 1rem;">🚀</span>
+      <span style="font-weight: 600;">Quick Start Guide</span>
+    </div>
+    <div class="card-body">
+      <p style="margin-bottom: 1rem; color: var(--text-mid, #555);">Follow these steps to process your neutralisation assay data:</p>
+      
+      {% set steps = [
+        ('Upload CSV File', 'Select your raw luminometer CSV file (8×12 plate format, Data Only mode from Kaleido software).'),
+        ('Enter Assay Information', 'Add an assay title, select number of pseudotypes (1-4), and enter pseudotype names. Sample IDs are optional.'),
+        ('Preview Plate Layout', 'Check the live preview to ensure your plate layout is correct before processing.'),
+        ('Process File', 'Click "Process File" to generate an Excel workbook with calculated NT50/NT90 values and summary data.'),
+        ('Generate Graphs (Optional)', 'Create graphs of your data with customizable colours and quadrants.'),
+        ('Perform Curve Fitting (Optional)', 'Run sigmoid curve fitting to obtain IC50 values, R² statistics, and fitted curve plots.')
+      ] %}
+
+      {% for title, desc in steps %}
+      <div class="d-flex gap-3 mb-3" style="padding-bottom: {% if not loop.last %}0.75rem{% else %}0{% endif %}; {% if not loop.last %}border-bottom: 1px solid var(--border, #e9ecef);{% endif %}">
+        <div style="
+          flex-shrink: 0;
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+          color: white;
+          font-size: 0.85rem;
+          font-weight: 700;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-top: 2px;
+          box-shadow: 0 2px 4px rgba(40, 167, 69, 0.2);
+        ">{{ loop.index }}</div>
+        <div style="flex: 1;">
+          <div style="font-weight: 600; margin-bottom: 3px; color: var(--text-primary, #212529); font-size: 0.95rem;">{{ title }}</div>
+          <div style="color: var(--text-mid, #666); font-size: 0.88rem; line-height: 1.5;">{{ desc }}</div>
+        </div>
+      </div>
+      {% endfor %}
+
+    </div>
+  </div>
+
+  <!-- File Requirements -->
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center gap-2">
+      <span style="font-size: 1rem;">📄</span>
+      <span style="font-weight: 600;">CSV File Requirements</span>
+    </div>
+    <div class="card-body" style="padding-bottom: 0.5rem;">
+      <p style="color: var(--text-mid, #666); margin-bottom: 1.25rem; font-size: 0.9rem;">
+        Your input CSV file must meet the following requirements:
+      </p>
+
+      {% set requirements = [
+        ('Data Only Mode', 'CSV must be exported from Kaleido software in <strong>Data Only</strong> mode (not Standard mode). Standard mode files will fail to process.'),
+        ('Plate Format', 'Each plate should be an <strong>8 rows × 12 columns</strong> block of numerical data representing luminescence readings.'),
+        ('Multiple Plates', 'For multiple plates, separate each 8×12 block with <strong>2 blank lines</strong>. The application will automatically detect and process all plates.'),
+        ('Triplicates', 'Assays should have samples tested in triplicate.')
+      ] %}
+
+      {% for title, desc in requirements %}
+      <div class="d-flex gap-3 mb-3" style="padding-bottom: 0.75rem; {% if not loop.last %}border-bottom: 1px solid var(--border, #e9ecef);{% endif %}">
+        <div style="flex-shrink: 0; color: #28a745; margin-top: 2px; font-size: 1.1rem; font-weight: 700;">✓</div>
+        <div style="flex: 1;">
+          <div style="font-weight: 600; color: var(--text-primary, #222); font-size: 0.9rem; margin-bottom: 2px;">{{ title }}</div>
+          <div style="font-size: 0.88rem; color: var(--text-mid, #555); line-height: 1.55;">{{ desc | safe }}</div>
+        </div>
+      </div>
+      {% endfor %}
+
+    </div>
+  </div>
+
+  <!-- Pseudotype Configuration -->
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center gap-2">
+      <span style="font-size: 1rem;">🔢</span>
+      <span style="font-weight: 600;">Pseudotype Configuration Logic</span>
+    </div>
+    <div class="card-body">
+      <p style="color: var(--text-mid, #666); margin-bottom: 1.25rem; font-size: 0.9rem;">
+        Each plate is divided into four quadrants (3 columns each). The number of pseudotypes determines how these quadrants are labeled:
+      </p>
+
+      {% set pseudotypes = [
+        ('1', '1 Pseudotype, 4 Samples', 'The same pseudotype is applied to all four quadrants. Each quadrant receives a different sample ID.'),
+        ('2', '2 Pseudotypes, 2 Samples', 'First pseudotype in quadrants 1 & 2, second pseudotype in quadrants 3 & 4. Sample 1 in quadrants 1 & 3, Sample 2 in quadrants 2 & 4.'),
+        ('3', '3 Pseudotypes, 1 Sample', 'Each of the first three quadrants gets a different pseudotype, fourth quadrant is blank. The same sample ID is repeated across the first three quadrants.'),
+        ('4', '4 Pseudotypes, 1 Sample', 'Each quadrant gets a unique pseudotype. The same sample ID is repeated across all four quadrants.')
+      ] %}
+
+      {% for num, title, desc in pseudotypes %}
+      <div style="
+        display: flex;
+        gap: 1rem;
+        align-items: flex-start;
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        background: linear-gradient(to right, #f8f9fa 0%, #ffffff 100%);
+        border: 1px solid #dee2e6;
+        border-left: 4px solid #28a745;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+      " onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.08)'" onmouseout="this.style.boxShadow='none'">
+        <div style="
+          flex-shrink: 0;
+          width: 40px;
+          height: 40px;
+          border-radius: 8px;
+          background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+          color: white;
+          font-size: 1.2rem;
+          font-weight: 700;
+          font-family: 'IBM Plex Mono', monospace;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
+        ">{{ num }}</div>
+        <div style="flex: 1;">
+          <div style="font-weight: 600; color: #212529; margin-bottom: 4px; font-size: 0.95rem;">{{ title }}</div>
+          <div style="font-size: 0.88rem; color: #555; line-height: 1.6;">{{ desc | safe }}</div>
+        </div>
+      </div>
+      {% endfor %}
+
+      <div class="alert alert-info mt-3 mb-0" style="font-size: 0.88rem;">
+        <strong>💡 Tip:</strong> Use the <strong>Plate Layout Preview</strong> on the home page to visualize how your configuration will look before processing.
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Sample IDs -->
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center gap-2">
+      <span style="font-size: 1rem;">🏷️</span>
+      <span style="font-weight: 600;">Sample ID Handling</span>
+    </div>
+    <div class="card-body">
+      <p style="color: var(--text-mid, #666); margin-bottom: 1.25rem; font-size: 0.9rem;">
+        Sample IDs are <strong>optional</strong>. The application handles missing sample IDs intelligently:
+      </p>
+
+      <div style="background: #f8f9fa; padding: 1rem; border-radius: 6px; border: 1px solid #dee2e6; margin-bottom: 1rem;">
+        <div style="font-weight: 600; color: #212529; margin-bottom: 8px; font-size: 0.9rem;">✅ With Sample IDs Provided</div>
+        <div style="font-size: 0.88rem; color: #555; line-height: 1.6;">
+          Quadrants are labeled with the sample IDs you enter (comma-separated). Example: <code style="background: white; padding: 2px 6px; border-radius: 3px; font-size: 0.85em;">Sample1, Sample2, Sample3</code>
+        </div>
+      </div>
+
+      <div style="background: #fff3cd; padding: 1rem; border-radius: 6px; border: 1px solid #ffc107; margin-bottom: 1rem;">
+        <div style="font-weight: 600; color: #856404; margin-bottom: 8px; font-size: 0.9rem;">⚠️ Without Sample IDs (Left Blank)</div>
+        <div style="font-size: 0.88rem; color: #856404; line-height: 1.6;">
+          <strong>Linear interpolation</strong> (NT50/NT90): Quadrants are left blank in the Excel file. Appear as Unlabelled on the Summary Sheet.<br>
+          <strong>Curve fitting</strong> (IC50): Samples are automatically labeled as <code style="background: white; padding: 2px 6px; border-radius: 3px; font-size: 0.85em;">Unlabelled1</code>, <code style="background: white; padding: 2px 6px; border-radius: 3px; font-size: 0.85em;">Unlabelled2</code>, etc. This ensures all quadrants are processed and identifiable.
+        </div>
+      </div>
+
+
+    </div>
+  </div>
+
+  <!-- Understanding Outputs -->
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center gap-2">
+      <span style="font-size: 1rem;">📊</span>
+      <span style="font-weight: 600;">Understanding Your Outputs</span>
+    </div>
+    <div class="card-body" style="padding-bottom: 0.5rem;">
+
+      <h6 style="color: #28a745; font-weight: 600; margin-bottom: 1rem;">Excel Workbook Output</h6>
+      
+      {% set excel_outputs = [
+        ('Data Summary Sheet', 'First sheet containing NT50 and NT90 values for all samples across all plates. Includes triplicate measurements and averages. Values below detection limit show ≤ symbol, values above show ≥ symbol.'),
+        ('Plate Sheets (Plate1, Plate2, etc.)', 'Individual sheets for each processed plate showing raw luminescence data, calculated means, and NT50% and NT90%. Includes a mini plot of the neutralisation curve for that plate.'),
+        ('Summary Plots Sheet', 'Contains plots showing NT50/NT90 values for all plates. Graphs are customizable via colour presets in settings.'),
+      ] %}
+
+      {% for title, desc in excel_outputs %}
+      <div class="d-flex gap-3 mb-3" style="padding-bottom: 0.75rem; {% if not loop.last %}border-bottom: 1px solid var(--border, #e9ecef);{% endif %}">
+        <div style="flex-shrink: 0; color: #28a745; margin-top: 2px; font-size: 1rem; font-weight: 700;">▸</div>
+        <div style="flex: 1;">
+          <div style="font-weight: 600; color: var(--text-primary, #222); font-size: 0.9rem; margin-bottom: 3px;">{{ title }}</div>
+          <div style="font-size: 0.88rem; color: var(--text-mid, #555); line-height: 1.55;">{{ desc }}</div>
+        </div>
+      </div>
+      {% endfor %}
+
+      <h6 style="color: #28a745; font-weight: 600; margin-top: 1.5rem; margin-bottom: 1rem;">Curve Fitting Output</h6>
+      
+      <p style="font-size: 0.88rem; color: var(--text-mid, #666); margin-bottom: 1rem;">
+        After processing your Excel file, you can perform <strong>sigmoid curve fitting</strong> for more detailed analysis:
+      </p>
+
+      {% set curve_outputs = [
+        ('IC50s CSV File', 'Contains fitted sigmoid parameters: <strong>IC50</strong> (inflection point in log₂ dilution), <strong>Titre</strong> (2<sup>−IC50</sup>), <strong>Upper/Lower</strong> bounds, <strong>Slope</strong>, <strong>R²</strong> (goodness of fit), and <strong>Quality</strong> flags (Good/Unstable).'),
+        ('Sigmoid Fit Plots (PNG)', 'One plot per virus showing all samples with fitted sigmoid curves overlaid on actual data points. Curves are color-coded: <span style="color: #3498db; font-weight: 600;">Blue = Good fits</span>, <span style="color: #e74c3c; font-weight: 600;">Red = Unstable fits</span>.'),
+        ('Quality Assessment', '<strong>Good:</strong> Parameters within normal ranges, reliable fit. <strong>Unstable:</strong> Parameters at boundary limits, interpret with caution. Flat curves (R² < 0.5) are displayed as horizontal lines.')
+      ] %}
+
+      {% for title, desc in curve_outputs %}
+      <div class="d-flex gap-3 mb-3" style="padding-bottom: 0.75rem; {% if not loop.last %}border-bottom: 1px solid var(--border, #e9ecef);{% endif %}">
+        <div style="flex-shrink: 0; color: #28a745; margin-top: 2px; font-size: 1rem; font-weight: 700;">▸</div>
+        <div style="flex: 1;">
+          <div style="font-weight: 600; color: var(--text-primary, #222); font-size: 0.9rem; margin-bottom: 3px;">{{ title }}</div>
+          <div style="font-size: 0.88rem; color: var(--text-mid, #555); line-height: 1.55;">{{ desc | safe }}</div>
+        </div>
+      </div>
+      {% endfor %}
+
+    </div>
+  </div>
+
+  <!-- Analysis Methods -->
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center gap-2">
+      <span style="font-size: 1rem;">🔬</span>
+      <span style="font-weight: 600;">Analysis Methods</span>
+    </div>
+    <div class="card-body" style="font-size: 0.9rem; color: var(--text-mid, #444); line-height: 1.75;">
+
+      <!-- Linear Interpolation -->
+      <div style="background: #e7f3ff; padding: 1.25rem; border-radius: 8px; border-left: 4px solid #2196F3; margin-bottom: 1.25rem;">
+        <div style="font-weight: 700; color: #1565C0; margin-bottom: 8px; font-size: 1rem;">📐 Linear Interpolation (Default Method)</div>
+        <div style="font-size: 0.88rem; color: #1565C0; line-height: 1.7; margin-bottom: 8px;">
+          <strong>Overview:</strong> Calculates NT50 and NT90 titres by finding the dilution at which the luminescence signal crosses 50% or 90% of the no-serum control (NSC) value.
+        </div>
+        <div style="font-size: 0.88rem; color: #1565C0; line-height: 1.7; margin-bottom: 8px;">
+          <strong>Procedure:</strong> For each of the three replicate columns within a quadrant, the target luminescence (50% or 90% of the NSC value for that replicate) is identified. The two dilution points flanking this target are located, and the corresponding dilution is estimated by linear interpolation between them. The three per-replicate titres are then averaged to produce a single NT50 or NT90 value per quadrant.
+        </div>
+        <div style="font-size: 0.88rem; color: #1565C0; line-height: 1.7; margin-bottom: 8px;">
+          <strong>Boundary handling:</strong> If all measured luminescence values lie below the target threshold (strong neutralisation across the entire range), the titre is reported as ≤ the lowest dilution tested. If all values exceed the threshold (no detectable neutralisation), the titre is reported as ≥ the highest dilution tested.
+        </div>
+        <div style="font-size: 0.88rem; color: #1565C0; line-height: 1.7;">
+          <strong>Output:</strong> NT50 and NT90 titres for each quadrant, reported as triplicate values and averages in the Excel "Data Summary" sheet.
+        </div>
+      </div>
+
+      <!-- Sigmoid Curve Fitting -->
+      <div style="background: #f3e5f5; padding: 1.25rem; border-radius: 8px; border-left: 4px solid #9C27B0; margin-bottom: 1.25rem;">
+        <div style="font-weight: 700; color: #6A1B9A; margin-bottom: 8px; font-size: 1rem;">📈 Sigmoid Curve Fitting</div>
+        <div style="font-size: 0.88rem; color: #6A1B9A; line-height: 1.7; margin-bottom: 8px;">
+          <strong>Overview:</strong> Fits a four-parameter logistic (4PL) sigmoid function to percentage neutralisation data, yielding an IC50 value and associated quality metrics for each sample–virus combination.
+        </div>
+        <div style="font-size: 0.88rem; color: #6A1B9A; line-height: 1.7; margin-bottom: 8px;">
+          <strong>Normalisation:</strong> Raw luminescence values are first converted to percentage neutralisation using the formula: % Neutralisation = 100 × (1 − <em>x̄</em><sub>dilution</sub> / <em>x̄</em><sub>NSC</sub>), where <em>x̄</em><sub>dilution</sub> is the triplicate mean at a given dilution and <em>x̄</em><sub>NSC</sub> is the no-serum control mean. Dilution factors are transformed to −log₂ scale.
+        </div>
+        <div style="font-size: 0.88rem; color: #6A1B9A; line-height: 1.7; margin-bottom: 8px;">
+          <strong>Model fitting:</strong> The sigmoid f(x) = Lower + (Upper − Lower) / (1 + exp(−Slope × (x − IC50))) is fitted using the Levenberg–Marquardt algorithm (<em>minpack.lm</em> R package), with bounded parameter constraints to ensure biologically plausible solutions. Goodness of fit is assessed by pseudo-R². Samples with R² &lt; 0.5 or failed convergence are classified as flat titrations and represented by a horizontal line at the mean neutralisation.
+        </div>
+        <div style="font-size: 0.88rem; color: #6A1B9A; line-height: 1.7;">
+          <strong>Output:</strong> IC50 values (log₂ dilution at 50% neutralisation), reciprocal dilution titres (2<sup>−IC50</sup>), R² statistics, quality flags, and fitted curve plots for each virus. Full methodological detail is provided on the Curve Fitting Results page.
+        </div>
+      </div>
+
+      <!-- Titre Comparison -->
+      <div style="background: #e8f5e9; padding: 1.25rem; border-radius: 8px; border-left: 4px solid #4CAF50; margin-bottom: 0;">
+        <div style="font-weight: 700; color: #2E7D32; margin-bottom: 8px; font-size: 1rem;">🔬 Titre Comparison Analysis</div>
+        <div style="font-size: 0.88rem; color: #2E7D32; line-height: 1.7; margin-bottom: 8px;">
+          <strong>Overview:</strong> Compares NT50 titres from linear interpolation with IC50-derived titres from sigmoid curve fitting to assess agreement between the two methods.
+        </div>
+        <div style="font-size: 0.88rem; color: #2E7D32; line-height: 1.7; margin-bottom: 8px;">
+          <strong>Procedure:</strong> Titre values from both methods are matched by pseudotype and sample identifier. Both sets of titres are log₁₀-transformed, and Pearson's correlation coefficient (<em>r</em>) and R² are computed via linear regression. Percentage disagreement is calculated for each matched pair as |NT50 − IC50 Titre| / NT50 × 100.
+        </div>
+        <div style="font-size: 0.88rem; color: #2E7D32; line-height: 1.7;">
+          <strong>Output:</strong> Scatter plot of NT50 vs IC50 titres (with identity line and regression fit), summary statistics (correlation, R², disagreement rate), and a table of the top 5 mismatches ranked by percentage disagreement. Full methodological detail is provided on the Titre Comparison Results page.
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Settings & Customization -->
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center gap-2">
+      <span style="font-size: 1rem;">⚙️</span>
+      <span style="font-weight: 600;">Settings & Customization</span>
+    </div>
+    <div class="card-body" style="padding-bottom: 0.5rem;">
+      <p style="color: var(--text-mid, #666); margin-bottom: 1.25rem; font-size: 0.9rem;">
+        Access the <a href="{{ url_for('settings') }}" style="color: #28a745; text-decoration: none; font-weight: 600;">Settings page</a> to configure:
+      </p>
+
+      {% set settings = [
+        ('Template Selection', 'Choose from default templates (NTA, Measles, Backup) or upload your own custom Excel template. Templates define dilution series and plate layout.'),
+        ('Filename Timestamps', 'Toggle whether output files include timestamps (e.g., <code>MyAssay_2025-02-27.xlsx</code> vs <code>MyAssay.xlsx</code>). Applies to both Excel and IC50 CSV files.'),
+        ('Graph Colour Presets', 'Create and save custom colour schemes for quadrants (Q1-Q4) in graphs. Choose preset colours or enter custom hex codes.'),
+        ('Quadrant Visibility', 'Select which quadrants (Q1-Q4) to include in generated graphs. Useful when only some quadrants contain data.')
+      ] %}
+
+      {% for title, desc in settings %}
+      <div class="d-flex gap-3 mb-3" style="padding-bottom: 0.75rem; {% if not loop.last %}border-bottom: 1px solid var(--border, #e9ecef);{% endif %}">
+        <div style="flex-shrink: 0; color: #28a745; margin-top: 2px; font-size: 1rem; font-weight: 700;">▸</div>
+        <div style="flex: 1;">
+          <div style="font-weight: 600; color: var(--text-primary, #222); font-size: 0.9rem; margin-bottom: 3px;">{{ title }}</div>
+          <div style="font-size: 0.88rem; color: var(--text-mid, #555); line-height: 1.55;">{{ desc | safe }}</div>
+        </div>
+      </div>
+      {% endfor %}
+
+    </div>
+  </div>
+
+  <!-- Troubleshooting -->
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center gap-2">
+      <span style="font-size: 1rem;">🔧</span>
+      <span style="font-weight: 600;">Troubleshooting Common Issues</span>
+    </div>
+    <div class="card-body" style="padding-bottom: 0.5rem;">
+
+      {% set issues = [
+        ('CSV file not processing', 'Ensure the file is exported in <strong>Data Only mode</strong> from Kaleido. Check that each plate is an 8×12 block with 2 blank lines between plates. Open the CSV in a text editor to verify format.'),
+        ('Curve fitting returns "No valid data"', 'This occurs when all quadrants are empty or NSC values are zero/missing. Check that your Excel file contains actual numerical data in the plate quadrants.'),
+        ('Graphs show wrong colours', 'Check your selected colour preset in Settings. Ensure hex colour codes are valid (e.g., #ff7e79). Try switching to the "default" preset.'),
+        ('"Unlabelled" samples in curve fitting', 'This is normal if you didn\'t enter sample IDs. Each quadrant is automatically labeled as Unlabelled1, Unlabelled2, etc. To fix, enter sample IDs on the home page before processing.'),
+        ('Template file path error', 'Go to Settings and select a valid template from the dropdown or upload a new one. Default templates are in the <code>Excel_Templates/</code> folder.'),
+        ('IC50 file not found', 'The IC50 filename includes your assay title and timestamp (if enabled). Check the actual filename shown on the download button — it may be different than expected.')
+      ] %}
+
+      {% for title, solution in issues %}
+      <div style="
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        background: #fff8e1;
+        border: 1px solid #ffeb3b;
+        border-left: 4px solid #ffc107;
+        border-radius: 6px;
+      ">
+        <div style="font-weight: 600; color: #f57c00; margin-bottom: 6px; font-size: 0.9rem;">⚠️ {{ title }}</div>
+        <div style="font-size: 0.88rem; color: #e65100; line-height: 1.55;">{{ solution | safe }}</div>
+      </div>
+      {% endfor %}
+
+    </div>
+  </div>
+
+  <!-- Technical Details -->
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center gap-2">
+      <span style="font-size: 1rem;">🔬</span>
+      <span style="font-weight: 600;">Technical Details</span>
+    </div>
+    <div class="card-body" style="padding-bottom: 0.75rem;">
+      <p style="color: var(--text-mid, #666); margin-bottom: 1.25rem; font-size: 0.9rem;">
+        For those interested in the technical implementation:
+      </p>
+
+      <div style="background: #f8f9fa; padding: 1rem; border-radius: 6px; border: 1px solid #dee2e6; margin-bottom: 1rem;">
+        <div style="font-weight: 600; color: #212529; margin-bottom: 8px; font-size: 0.9rem;">Neutralisation Calculation (for sigmoid fitting)</div>
+        <div style="font-size: 0.88rem; color: #555; line-height: 1.6; font-family: 'Courier New', monospace;">
+          % Neutralisation = 100 × (1 − x̄<sub>dilution</sub> / x̄<sub>NSC</sub>)
+        </div>
+      </div>
+
+      <div style="background: #f8f9fa; padding: 1rem; border-radius: 6px; border: 1px solid #dee2e6; margin-bottom: 1rem;">
+        <div style="font-weight: 600; color: #212529; margin-bottom: 8px; font-size: 0.9rem;">Sigmoid Function (4-Parameter Logistic)</div>
+        <div style="font-size: 0.88rem; color: #555; line-height: 1.6; font-family: 'Courier New', monospace;">
+          f(x) = Lower + (Upper − Lower) / (1 + exp(−Slope × (x − IC50)))
+        </div>
+      </div>
+
+      <div style="background: #f8f9fa; padding: 1rem; border-radius: 6px; border: 1px solid #dee2e6; margin-bottom: 1rem;">
+        <div style="font-weight: 600; color: #212529; margin-bottom: 8px; font-size: 0.9rem;">Titre Derivation from IC50</div>
+        <div style="font-size: 0.88rem; color: #555; line-height: 1.6; font-family: 'Courier New', monospace;">
+          Titre = 2<sup>−IC50</sup>
+        </div>
+        <div style="font-size: 0.85rem; color: #666; margin-top: 6px; font-style: italic;">
+          Example: IC50 = −8 (log₂) → Titre = 2⁸ = 256
+        </div>
+      </div>
+
+      <div style="background: #f8f9fa; padding: 1rem; border-radius: 6px; border: 1px solid #dee2e6; margin-bottom: 1rem;">
+        <div style="font-weight: 600; color: #212529; margin-bottom: 8px; font-size: 0.9rem;">Dilution to Log₂ Conversion</div>
+        <div style="font-size: 0.88rem; color: #555; line-height: 1.6; font-family: 'Courier New', monospace;">
+          DilutionLog2 = −log₂(Dilution Factor)
+        </div>
+        <div style="font-size: 0.85rem; color: #666; margin-top: 6px; font-style: italic;">
+          Example: Dilution factor of 1/256 → −log₂(1/256) = 8
+        </div>
+      </div>
+
+      <div style="background: #f8f9fa; padding: 1rem; border-radius: 6px; border: 1px solid #dee2e6; margin-bottom: 1rem;">
+        <div style="font-weight: 600; color: #212529; margin-bottom: 8px; font-size: 0.9rem;">Goodness of Fit (Pseudo-R²)</div>
+        <div style="font-size: 0.88rem; color: #555; line-height: 1.6; font-family: 'Courier New', monospace;">
+          R² = max(0, 1 − RSS / TSS)
+        </div>
+        <div style="font-size: 0.85rem; color: #666; margin-top: 6px; font-style: italic;">
+          RSS = residual sum of squares; TSS = total sum of squares about the mean
+        </div>
+      </div>
+
+      <div style="background: #f8f9fa; padding: 1rem; border-radius: 6px; border: 1px solid #dee2e6; margin-bottom: 0;">
+        <div style="font-weight: 600; color: #212529; margin-bottom: 8px; font-size: 0.9rem;">Software Stack</div>
+        <div style="font-size: 0.88rem; color: #555; line-height: 1.6;">
+          <strong>Backend:</strong> Python (Flask), openpyxl<br>
+          <strong>Curve fitting:</strong> R (tidyverse, minpack.lm — Levenberg–Marquardt algorithm)<br>
+          <strong>Visualisation:</strong> R (ggplot2, cowplot, plotly)<br>
+          <strong>Interface:</strong> HTML5, Bootstrap 5, JavaScript
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div style="text-align: center; padding: 2rem 0; color: var(--text-dim, #999); font-size: 0.85rem;">
+    <p style="margin: 0;">Neutralising Titre Automator</p>
+  </div>
+
 </div>
+
 {% endblock %}

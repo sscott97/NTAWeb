@@ -1,0 +1,275 @@
+{% extends 'layout.html' %}
+{% block title %}Data Analysis - NTA{% endblock %}
+
+{% block nav_left %}
+<a href="{{ url_for('index') }}" class="nav-back-btn">← Home</a>
+{% endblock %}
+
+{% block content %}
+
+<div style="max-width: 960px; margin: 0 auto;">
+
+  <!-- Page header -->
+  <div class="mb-4">
+    <h2 class="text-success mb-1" style="font-size: 1.75rem;">Data Analysis</h2>
+    <p style="color: var(--text-dim, #888); font-size: 0.85rem; margin: 0;">
+      The data has been processed — choose an analysis method below
+    </p>
+  </div>
+
+  <!-- Analysis cards — 2×2 grid: linear spans full top row -->
+  <div class="analysis-grid mb-4">
+
+    <!-- ── 1. Linear Interpolation (hero — full top row) ── -->
+    <a href="{{ url_for('linear_results', file_id=excel_file_id) }}" class="text-decoration-none analysis-grid__hero">
+      <div class="card analysis-card analysis-linear h-100" style="border: 2px solid var(--border, #dee2e6); cursor: pointer;">
+        <div class="card-body d-flex align-items-center gap-4" style="padding: 2rem 2.25rem;">
+
+          <!-- Icon -->
+          <div style="
+            flex-shrink: 0;
+            width: 88px; height: 88px; border-radius: 20px;
+            background: linear-gradient(135deg, #2196F3 0%, #64B5F6 100%);
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 8px 24px rgba(33, 150, 243, 0.28);
+          ">
+            <span style="font-size: 2.5rem; line-height: 1;">📐</span>
+          </div>
+
+          <!-- Text -->
+          <div style="flex: 1; min-width: 0;">
+            <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.4rem; flex-wrap: wrap;">
+              <h5 style="font-weight: 700; color: var(--text-primary, #222); margin: 0; font-size: 1.25rem;">
+                Linear Interpolation
+              </h5>
+              <span style="
+                font-size: 0.68rem; font-weight: 700; letter-spacing: 0.8px;
+                text-transform: uppercase; padding: 0.2em 0.6em;
+                background: rgba(33,150,243,0.12); color: #2196F3;
+                border: 1px solid rgba(33,150,243,0.28); border-radius: 4px;
+              ">Default</span>
+            </div>
+            <p style="color: var(--text-mid, #666); font-size: 0.9rem; line-height: 1.6; margin-bottom: 1.1rem; max-width: 580px;">
+              NT50 and NT90 titres calculated by interpolation between measured dilution points. Download Excel results, summary graphs, and per-plate plots.
+            </p>
+            <span class="btn btn-primary btn-sm" style="pointer-events: none;">
+              View Results →
+            </span>
+          </div>
+
+        </div>
+      </div>
+    </a>
+
+    <!-- ── 2. Sigmoid Curve Fitting (bottom-left) ─────── -->
+    <div class="analysis-grid__secondary">
+      <div class="card analysis-card analysis-sigmoid h-100" style="border: 2px solid var(--border, #dee2e6); cursor: pointer;"
+           onclick="submitCurveFitting()">
+        <div class="card-body d-flex flex-column align-items-center text-center" style="padding: 1.75rem 1.5rem;">
+          <div style="
+            width: 64px; height: 64px; border-radius: 14px;
+            background: linear-gradient(135deg, #9C27B0 0%, #CE93D8 100%);
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 1rem;
+            box-shadow: 0 6px 18px rgba(156, 39, 176, 0.25);
+          ">
+            <span style="font-size: 1.75rem; line-height: 1;">📈</span>
+          </div>
+          <h5 style="font-weight: 700; color: var(--text-primary, #222); margin-bottom: 0.4rem; font-size: 1rem;">
+            Sigmoid Curve Fitting
+          </h5>
+          <p style="color: var(--text-mid, #666); font-size: 0.82rem; line-height: 1.55; margin-bottom: 1rem; flex: 1;">
+            Fit four-parameter logistic sigmoids. Obtain IC50 values, R² statistics, and quality-flagged curve plots.
+          </p>
+          <span class="btn btn-outline-primary btn-sm" style="pointer-events: none;" id="curveFitBtnLabel">
+            Run Curve Fitting →
+          </span>
+          <div id="curveFitSpinner" style="display: none; margin-top: 0.5rem;">
+            <div class="spinner-border spinner-border-sm text-success" role="status"></div>
+            <span style="font-size: 0.8rem; color: var(--text-dim, #888); margin-left: 0.35rem;">Processing…</span>
+          </div>
+        </div>
+      </div>
+      <form id="curveFitForm" action="{{ url_for('perform_curve_fitting') }}" method="post" style="display:none;">
+        <input type="hidden" name="file_id" value="{{ excel_file_id }}">
+      </form>
+    </div>
+
+    <!-- ── 3. Titre Comparison (bottom-right) ─────────── -->
+    <div class="analysis-grid__secondary">
+      <div class="card analysis-card analysis-compare h-100" id="compareCard" style="border: 2px solid var(--border, #dee2e6); cursor: pointer; position: relative;"
+           onclick="navigateToComparison()">
+        <div class="card-body d-flex flex-column align-items-center text-center" style="padding: 1.75rem 1.5rem;">
+          <div style="
+            width: 64px; height: 64px; border-radius: 14px;
+            background: linear-gradient(135deg, #4CAF50 0%, #81C784 100%);
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 1rem;
+            box-shadow: 0 6px 18px rgba(76, 175, 80, 0.25);
+          ">
+            <span style="font-size: 1.75rem; line-height: 1;">🔬</span>
+          </div>
+          <h5 style="font-weight: 700; color: var(--text-primary, #222); margin-bottom: 0.4rem; font-size: 1rem;">
+            Titre Comparison
+          </h5>
+          <p style="color: var(--text-mid, #666); font-size: 0.82rem; line-height: 1.55; margin-bottom: 1rem; flex: 1;">
+            Compare NT50 (linear) with IC50 (curve fitting) to assess inter-method agreement. Requires curve fitting first.
+          </p>
+          <span class="btn btn-outline-primary btn-sm" style="pointer-events: none;" id="compareBtnLabel">
+            Compare Titres →
+          </span>
+        </div>
+        <!-- Prerequisite overlay -->
+        <div id="compareOverlay" style="
+          display: none;
+          position: absolute; inset: 0;
+          background: rgba(255,255,255,0.85);
+          border-radius: inherit;
+          align-items: center; justify-content: center;
+          flex-direction: column; gap: 0.5rem;
+          z-index: 5;
+        ">
+          <span style="font-size: 1.5rem;">🔒</span>
+          <span style="font-size: 0.85rem; color: var(--text-mid, #666); font-weight: 500; text-align: center; padding: 0 1rem;">
+            Run Curve Fitting first before Titre Comparison to generate required data
+          </span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Quick download -->
+  <div class="card mb-4">
+    <div class="card-body d-flex align-items-center justify-content-between flex-wrap gap-2" style="padding: 1rem 1.25rem;">
+      <div>
+        <span style="font-weight: 600; color: var(--text-primary, #333); font-size: 0.9rem;">📊 Processed Excel File</span>
+        <span style="color: var(--text-dim, #888); font-size: 0.85rem; margin-left: 0.5rem;">{{ filename }}</span>
+      </div>
+      <a href="{{ url_for('download_memory', file_id=excel_file_id) }}" class="btn btn-success btn-sm">
+        <span style="margin-right: 0.25rem;">📥</span>Download
+      </a>
+    </div>
+  </div>
+
+
+</div>
+
+<style>
+
+/* ── 2×2 analysis grid ─────────────────────────────────
+   Hero (linear) spans full top row; two secondary cards
+   sit side-by-side in the bottom row.                   */
+.analysis-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto;
+  gap: 1.25rem;
+}
+
+.analysis-grid__hero {
+  grid-column: 1 / -1;   /* span both columns */
+  display: block;
+}
+
+.analysis-grid__secondary {
+  min-width: 0;
+}
+
+/* Stack to single column on small screens */
+@media (max-width: 600px) {
+  .analysis-grid { grid-template-columns: 1fr; }
+  .analysis-grid__hero { grid-column: 1; }
+}
+
+/* Base hover behaviour */
+.analysis-card {
+  transition: border-color .2s, box-shadow .2s, transform .15s;
+}
+
+/* Linear Interpolation (Blue) — hero */
+.analysis-linear:hover {
+  border-color: #2196F3 !important;
+  box-shadow: 0 12px 36px rgba(33,150,243,0.28);
+  transform: translateY(-3px);
+}
+
+/* Sigmoid Curve Fitting (Purple) */
+.analysis-sigmoid:hover {
+  border-color: #9C27B0 !important;
+  box-shadow: 0 8px 22px rgba(156,39,176,0.22);
+  transform: translateY(-2px);
+}
+
+/* Titre Comparison (Green) */
+.analysis-compare:hover {
+  border-color: #4CAF50 !important;
+  box-shadow: 0 8px 22px rgba(76,175,80,0.22);
+  transform: translateY(-2px);
+}
+
+</style>
+
+<script>
+// Toast on page load (only once per file)
+document.addEventListener('DOMContentLoaded', function() {
+  var toastKey = 'toast_shown_hub_{{ excel_file_id }}';
+  if (!sessionStorage.getItem(toastKey)) {
+    ntaToast('<strong>{{ filename }}</strong> — processed successfully. Select an analysis to continue.', 'success');
+    sessionStorage.setItem(toastKey, '1');
+  }
+});
+
+// Store the excel_file_id for downstream use
+sessionStorage.setItem('excel_file_id', '{{ excel_file_id }}');
+
+function submitCurveFitting() {
+  // Show spinner, hide button label
+  document.getElementById('curveFitBtnLabel').style.display = 'none';
+  document.getElementById('curveFitSpinner').style.display = 'inline-flex';
+  // Submit the hidden form
+  document.getElementById('curveFitForm').submit();
+}
+
+function navigateToComparison() {
+  var fittingId = sessionStorage.getItem('last_fitting_id');
+  if (!fittingId) {
+    ntaToast('Please run Sigmoid Curve Fitting first. The titre comparison requires IC50 values.', 'warning', {icon: '🔒'});
+    return;
+  }
+  window.location.href = '/compare_titres_page/{{ excel_file_id }}?fitting_id=' + fittingId;
+}
+
+// Check if curve fitting has been done and update the comparison card
+document.addEventListener('DOMContentLoaded', function() {
+  var fittingId = sessionStorage.getItem('last_fitting_id');
+  var overlay = document.getElementById('compareOverlay');
+  if (!fittingId) {
+    overlay.style.display = 'flex';
+  } else {
+    overlay.style.display = 'none';
+  }
+});
+
+
+(function() {
+  // Save this result to recent results in sessionStorage
+  const fileId = "{{ excel_file_id }}";
+  const filename = "{{ filename }}";
+  if (fileId && filename) {
+    let results = [];
+    try {
+      const raw = sessionStorage.getItem('recentResults');
+      if (raw) results = JSON.parse(raw);
+    } catch(e) {}
+    // Remove duplicate
+    results = results.filter(r => r.id !== fileId);
+    results.unshift({ id: fileId, name: filename, time: new Date().toLocaleString() });
+    if (results.length > 5) results = results.slice(0, 5);
+    sessionStorage.setItem('recentResults', JSON.stringify(results));
+  }
+})();
+
+</script>
+
+{% endblock %}

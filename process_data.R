@@ -131,12 +131,12 @@ color_map <- c(Q1 = q1_colour, Q2 = q2_colour, Q3 = q3_colour, Q4 = q4_colour)
 color_map <- color_map[active_quadrants]
 
 ####### UTILITY TO BUILD PLOT + LEGEND SIDE BY SIDE #######
-make_fixed_plot <- function(base_plot, legend_width = 0.35, total_width = 8, height = 4) {
+# bg: outer background fill — use "transparent" for web display, "white" for Excel embedding
+make_fixed_plot <- function(base_plot, legend_width = 0.35, total_width = 8, height = 4, bg = "white") {
   legend <- cowplot::get_legend(base_plot)
-  # Create white background containers
-  legend_bg <- ggdraw() + theme(plot.background = element_rect(fill = "white", color = NA)) +
+  legend_bg <- ggdraw() + theme(plot.background = element_rect(fill = bg, color = NA)) +
     draw_plot(legend, 0, 0, 1, 1)
-  plot_bg <- ggdraw() + theme(plot.background = element_rect(fill = "white", color = NA)) +
+  plot_bg <- ggdraw() + theme(plot.background = element_rect(fill = bg, color = NA)) +
     draw_plot(base_plot + theme(legend.position = "none"), 0, 0, 1, 1)
   cowplot::plot_grid(plot_bg, legend_bg, ncol = 2, rel_widths = c(1, legend_width))
 }
@@ -156,7 +156,7 @@ summary_base <- ggplot(all_data, aes(x = Dilution, y = Mean, color = Titration, 
     panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(),
     panel.border = element_rect(color = "black", fill = NA),
-    plot.background = element_rect(fill = "white"),
+    plot.background = element_rect(fill = "white", color = NA),
     panel.background = element_rect(fill = "white"),
     text = element_text(color = "black"),
     axis.text.y = element_text(color = "black"),
@@ -165,10 +165,12 @@ summary_base <- ggplot(all_data, aes(x = Dilution, y = Mean, color = Titration, 
     strip.text = element_text(color = "black"),
     plot.title = element_text(hjust = 0.5),
     legend.position = "right",
-    legend.justification = "top"
+    legend.justification = "top",
+    legend.background = element_rect(fill = "white", color = NA),
+    legend.key = element_rect(fill = "white", color = NA)
   )
 
-summary_combined <- make_fixed_plot(summary_base, legend_width = 0.35, total_width = 12, height = 9)
+summary_combined <- make_fixed_plot(summary_base, legend_width = 0.35, total_width = 12, height = 9, bg = "white")
 ggsave(output_plot, summary_combined, width = 12, height = 9, dpi = 96, limitsize = FALSE, bg = "white")
 
 ####### PER-PLATE PLOTS #######
