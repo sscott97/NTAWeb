@@ -116,12 +116,13 @@
       <!-- ── Pseudotypes per plate — pill selector ───── -->
       <div class="mb-3">
         <label class="form-label d-block mb-2">Pseudotypes per Plate</label>
-        <input type="hidden" name="num_pseudotypes" id="num_pseudotypes" value="1">
+        <input type="hidden" name="num_pseudotypes" id="num_pseudotypes" value="{{ settings.get('default_num_pseudotypes', 1) }}">
         <div class="d-flex gap-2" id="pseudotypePills">
-          <button type="button" class="pt-pill pt-pill--active" data-n="1" onclick="setPseudotypes(1)">1</button>
-          <button type="button" class="pt-pill" data-n="2" onclick="setPseudotypes(2)">2</button>
-          <button type="button" class="pt-pill" data-n="3" onclick="setPseudotypes(3)">3</button>
-          <button type="button" class="pt-pill" data-n="4" onclick="setPseudotypes(4)">4</button>
+          {% set _defn = settings.get('default_num_pseudotypes', 1) %}
+          <button type="button" class="pt-pill{% if _defn == 1 %} pt-pill--active{% endif %}" data-n="1" onclick="setPseudotypes(1)">1</button>
+          <button type="button" class="pt-pill{% if _defn == 2 %} pt-pill--active{% endif %}" data-n="2" onclick="setPseudotypes(2)">2</button>
+          <button type="button" class="pt-pill{% if _defn == 3 %} pt-pill--active{% endif %}" data-n="3" onclick="setPseudotypes(3)">3</button>
+          <button type="button" class="pt-pill{% if _defn == 4 %} pt-pill--active{% endif %}" data-n="4" onclick="setPseudotypes(4)">4</button>
         </div>
       </div>
 
@@ -378,7 +379,7 @@
       } else {
         badge.style.display = 'none';
         navEl.style.display = 'none';
-        hint.textContent = 'Updates live as you type';
+        hint.textContent = 'Updates as you type';
         noteEl.style.display = 'none';
       }
 
@@ -817,9 +818,10 @@ document.addEventListener('DOMContentLoaded', function() {
       const file = this.files[0];
       updateDropzoneUI(file);
 
-      // Show mode picker
-      dataModeInput.value = 'standard';
-      highlightModeBtn('standard');
+      // Show mode picker — default from settings
+      var defaultMode = '{{ settings.get("default_data_mode", "standard") }}';
+      dataModeInput.value = defaultMode;
+      highlightModeBtn(defaultMode);
       dataModePickerRow.style.display = 'block';
 
       // Parse CSV and feed data into the plate preview

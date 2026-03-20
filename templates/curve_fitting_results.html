@@ -12,7 +12,7 @@
   <!-- Page header -->
   <div class="mb-4">
     <h2 class="text-success mb-1" style="font-size: 1.75rem;">Curve Fitting Results</h2>
-    <p style="color: var(--text-dim, #888); font-size: 0.85rem; margin: 0;">Placeholder text</p>
+    <p style="color: var(--text-dim, #888); font-size: 0.85rem; margin: 0;">4PL Sigmoid Fitting and Titre Calculation</p>
   </div>
 
   <!-- Quality Metrics Summary -->
@@ -42,9 +42,10 @@
         <span style="font-weight: 600;">Fitted Sigmoid Curves</span>
       </div>
       <div class="d-flex align-items-center gap-2 flex-wrap" onclick="event.stopPropagation();">
-        <!-- Quality filter pills -->
-        <div id="pill-Good"     class="q-pill on q-pill--blue" onclick="toggleQuality('Good')"    >Good</div>
-        <div id="pill-Unstable" class="q-pill on q-pill--red"  onclick="toggleQuality('Unstable')">Unstable</div>
+        <!-- Quality filter pills (radio-style: Both / Good / Unstable) -->
+        <div id="pill-Both"     class="q-pill on q-pill--teal" onclick="setQuality('Both')"    >Both</div>
+        <div id="pill-Good"     class="q-pill q-pill--blue"    onclick="setQuality('Good')"    >Good</div>
+        <div id="pill-Unstable" class="q-pill q-pill--red"     onclick="setQuality('Unstable')">Unstable</div>
         <!-- Download -->
         <a href="#" id="downloadSigmoidBtn" class="graph-dl-btn" style="display:none;" download="sigmoid_curves.png">↓ PNG</a>
       </div>
@@ -126,7 +127,7 @@
         1. Data Extraction and Normalisation
       </h6>
       <p style="margin-bottom: 0.75rem;">
-        Data was extracted from the processed excel file and the mean was calculated for each triplicate.  
+        Assay data was extracted from the processed excel file and the mean was calculated for each triplicate.  
       </p>
       <p style="margin-bottom: 1.25rem;">
         Percentage neutralisation at each dilution step was then calculated as:
@@ -146,14 +147,14 @@
         % Neutralisation = 100 × (1 − <em>x̄</em><sub>dilution</sub> / <em>x̄</em><sub>NSC</sub>)
       </div>
       <p style="margin-bottom: 1.5rem;">
-        where <em>x̄</em><sub>dilution</sub> is the mean triplicate value at a given dilution and <em>x̄</em><sub>NSC</sub> is the mean luminescence of the corresponding no-serum control wells. Dilution factors were converted to a log₂ scale (−log₂ of the dilution fraction) for model fitting.
+        where <em>x̄</em><sub>dilution</sub> is the mean triplicate value at a given dilution and <em>x̄</em><sub>NSC</sub> is the mean luminescence of the corresponding NSC. Dilution factors were converted to a log₂ scale (−log₂ of the dilution fraction) for model fitting.
       </p>
 
       <h6 style="color: var(--text-primary, #222); font-weight: 700; margin-bottom: 0.5rem;">
         2. Four-Parameter Sigmoid Model
       </h6>
       <p style="margin-bottom: 0.75rem;">
-        A four-parameter logistic (4PL) sigmoid function was fitted to the neutralisation data for each sample–virus combination:
+        A four-parameter logistic (4PL) sigmoid function was fitted to the neutralisation data for each triplicate set, modelling the relationship between log₂ dilution and % neutralisation:
       </p>
       <div style="
         background: var(--bg-raised, #f8f9fa);
@@ -176,11 +177,11 @@
         <table style="font-size: 0.88rem; border-collapse: collapse; width: 100%;">
           <tr style="border-bottom: 1px solid var(--border, #e9ecef);">
             <td style="padding: 0.4rem 0.75rem 0.4rem 0; font-weight: 600; white-space: nowrap; color: var(--text-primary, #222);">Lower</td>
-            <td style="padding: 0.4rem 0;">Minimum asymptote (% neutralisation at low antibody concentration), bounded [−50, 80]</td>
+            <td style="padding: 0.4rem 0;">Minimum asymptote (% neutralisation at low serum concentration), bounded [−50, 80]</td>
           </tr>
           <tr style="border-bottom: 1px solid var(--border, #e9ecef);">
             <td style="padding: 0.4rem 0.75rem 0.4rem 0; font-weight: 600; white-space: nowrap; color: var(--text-primary, #222);">Upper</td>
-            <td style="padding: 0.4rem 0;">Maximum asymptote (% neutralisation at high antibody concentration), bounded [0, 100]</td>
+            <td style="padding: 0.4rem 0;">Maximum asymptote (% neutralisation at high serum concentration), bounded [0, 100]</td>
           </tr>
           <tr style="border-bottom: 1px solid var(--border, #e9ecef);">
             <td style="padding: 0.4rem 0.75rem 0.4rem 0; font-weight: 600; white-space: nowrap; color: var(--text-primary, #222);">Slope</td>
@@ -197,14 +198,14 @@
         3. Parameter Estimation
       </h6>
       <p style="margin-bottom: 1.5rem;">
-        Parameters were estimated by non-linear least squares regression using the Levenberg–Marquardt algorithm (<code style="font-size: 0.85em; background: var(--bg-raised, #f0f0f0); padding: 1px 5px; border-radius: 3px;">nlsLM</code> function, <em>minpack.lm</em> R package), with a maximum of 200 iterations. Starting values were set to Lower = 0, Upper = 100, Slope = 1, and IC50 = −8. Parameter bounds were enforced to constrain solutions within biologically plausible ranges (see table above).
+        Parameters were estimated by non-linear least squares regression using the Levenberg–Marquardt algorithm (<code style="font-size: 0.85em; background: var(--bg-raised, #f0f0f0); padding: 1px 5px; border-radius: 3px;">nlsLM</code> function, <em>minpack.lm</em> R package), with a maximum of 200 iterations. Starting values were set to Lower = 0, Upper = 100, Slope = 1, and IC50 = −8. Parameter bounds were used to prevent poor fits. 
       </p>
 
       <h6 style="color: var(--text-primary, #222); font-weight: 700; margin-bottom: 0.5rem;">
         4. Titre Calculation
       </h6>
       <p style="margin-bottom: 0.75rem;">
-        The neutralising antibody titre was derived from the fitted IC50 by converting from log₂ dilution back to a reciprocal dilution factor:
+        The neutralising antibody titre was derived from the fitted IC50 by converting from log₂ dilution back to a dilution factor:
       </p>
       <div style="
         background: var(--bg-raised, #f8f9fa);
@@ -245,10 +246,10 @@
         where RSS is the residual sum of squares between observed and predicted neutralisation values, and TSS is the total sum of squares about the mean.
       </p>
       <p style="margin-bottom: 0.75rem;">
-        Samples that resulted in an R² &lt; 0.5 were reported as <strong>Outside Limit of Detection (LOD)</strong> and given NA vaues and exluded from generated graphs. 
+        Samples that resulted in an R² &lt; 0.5 were reported as <strong>Outside Limit of Detection (LOD)</strong>, given NA vaues and exluded from generated graphs. 
       </p>
       <p style="margin-bottom: 0;">
-        A quality flag of <strong style="color: #e74c3c;">"Unstable"</strong> was assigned when any fitted parameter reached its upper or lower bound constraint, indicating that the optimiser could not find a well-defined solution within the bounded parameter space. All other successful fits were flagged as <strong style="color: #3498db;">"Good"</strong>. Unstable fits should be interpreted with caution, as the resulting IC50 and titre values may not reliably represent the true neutralising activity of the sample.
+        A quality flag of <strong style="color: #e74c3c;">"Unstable"</strong> was assigned when any fitted parameter reached its upper or lower bound constraint, indicating the code couldnt not find a well-defined solution within the bounded parameter space. All other successful fits were flagged as <strong style="color: #3498db;">"Good"</strong>. Unstable fits should be interpreted with caution, as the resulting IC50 and titre values may not reliably represent the true neutralising activity of the sample.
       </p>
 
     </div>
@@ -274,6 +275,8 @@
   letter-spacing: 0.3px;
   transition: border-color 0.15s, color 0.15s, background 0.15s;
 }
+.q-pill--teal.on  { background: #28a745; color: #fff; border-color: #1e7e34; }
+.q-pill--teal:not(.on):hover { border-color: #28a745; color: #28a745; background: rgba(40,167,69,0.08); }
 .q-pill--blue.on  { background: #3498db; color: #fff; border-color: #1d78c1; }
 .q-pill--blue:not(.on):hover { border-color: #3498db; color: #3498db; background: rgba(52,152,219,0.08); }
 .q-pill--red.on   { background: #e74c3c; color: #fff; border-color: #c0392b; }
@@ -331,24 +334,21 @@ function toggleCard(id) {
   if (chevron) chevron.classList.toggle('collapsed', collapsing);
 }
 
-// ── Quality pill state ───────────────────────────────────────
-var qualityState = { Good: true, Unstable: true };
+// ── Quality pill state (radio: Both / Good / Unstable) ───────
+var qualityMode = 'Both';
 
-function toggleQuality(q) {
-  qualityState[q] = !qualityState[q];
+function setQuality(mode) {
+  qualityMode = mode;
   renderQualityPills();
   generateSigmoidGraph();
 }
 
 function renderQualityPills() {
-  ['Good', 'Unstable'].forEach(function(q) {
-    var pill = document.getElementById('pill-' + q);
+  ['Both', 'Good', 'Unstable'].forEach(function(m) {
+    var pill = document.getElementById('pill-' + m);
     if (!pill) return;
-    if (qualityState[q]) {
-      pill.classList.add('on');
-    } else {
-      pill.classList.remove('on');
-    }
+    if (qualityMode === m) pill.classList.add('on');
+    else pill.classList.remove('on');
   });
 }
 
@@ -362,8 +362,8 @@ function generateSigmoidGraph() {
   area.innerHTML = '<div style="padding:2rem;text-align:center;"><div class="spinner-border spinner-border-sm text-success" role="status"></div><span style="font-size:0.82rem;color:var(--text-dim);margin-left:0.5rem;">Generating…</span></div>';
 
   var params = new URLSearchParams({
-    good:     qualityState.Good,
-    unstable: qualityState.Unstable
+    good:     qualityMode === 'Both' || qualityMode === 'Good',
+    unstable: qualityMode === 'Both' || qualityMode === 'Unstable'
   });
 
   fetch('/generate_sigmoid_graph/{{ fitting_id }}?' + params)

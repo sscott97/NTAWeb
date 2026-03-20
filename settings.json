@@ -26,12 +26,20 @@
             "Q4": "#00fdff"
         }
     },
-    "selected_preset": "Sam Alt",
+    "selected_preset": "Default",
     "quadrants": {
         "Q1": true,
         "Q2": true,
         "Q3": true,
         "Q4": true
     },
-    "error_flagging": true
+    "error_flagging": true,
+    "default_data_mode": "standard",
+    "default_num_pseudotypes": 1,
+    "outlier_threshold_log2": 1.0,
+    "sigmoid_r2_threshold": 0.5,
+    "comparison_disagreement_threshold": 1.0,
+    "custom_templates": {
+        "test2": "excel_templates/test2.xlsx"
+    }
 }

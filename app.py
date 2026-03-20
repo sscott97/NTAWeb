@@ -5,6 +5,7 @@ import json
 import subprocess
 from datetime import datetime
 from io import BytesIO
+import re
 import tempfile
 from openpyxl import load_workbook
 from openpyxl.drawing.image import Image as XLImage 
@@ -59,6 +60,10 @@ def settings():
         "Measles Template (dil 32-65536)": "excel_templates/Measles_NTA_Template.xlsx",
         "Backup NTA Template": "excel_templates/Backup_NTA_Template.xlsx",
     }
+    # Append user-created templates (only if the file still exists)
+    for name, path in current_settings.get("custom_templates", {}).items():
+        if os.path.exists(path):
+            default_templates[name] = path
 
     try:
         current_template_path = load_template_path()
@@ -70,7 +75,6 @@ def settings():
         if selected_template_key in default_templates:
             selected_template_path = default_templates[selected_template_key]
             save_template_path(selected_template_path)
-            flash(f"Template set to {selected_template_key}.", "success")
         else:
             file = request.files.get("template_file")
             if file and file.filename.endswith(".xlsx"):
@@ -79,13 +83,29 @@ def settings():
                 os.makedirs("excel_templates", exist_ok=True)
                 file.save(filepath)
                 save_template_path(filepath)
-                flash("New template uploaded and path updated.", "success")
 
         timestamp_flag = request.form.get("timestamp_in_filename") == "on"
         error_flagging_flag = request.form.get("error_flagging") == "on"
         new_settings = current_settings.copy()
         new_settings["timestamp_in_filename"] = timestamp_flag
         new_settings["error_flagging"] = error_flagging_flag
+        new_settings["default_data_mode"] = request.form.get("default_data_mode", "standard")
+        try:
+            new_settings["default_num_pseudotypes"] = int(request.form.get("default_num_pseudotypes", 1))
+        except ValueError:
+            new_settings["default_num_pseudotypes"] = 1
+        try:
+            new_settings["outlier_threshold_log2"] = float(request.form.get("outlier_threshold_log2", 1.0))
+        except ValueError:
+            new_settings["outlier_threshold_log2"] = 1.0
+        try:
+            new_settings["sigmoid_r2_threshold"] = float(request.form.get("sigmoid_r2_threshold", 0.5))
+        except ValueError:
+            new_settings["sigmoid_r2_threshold"] = 0.5
+        try:
+            new_settings["comparison_disagreement_threshold"] = float(request.form.get("comparison_disagreement_threshold", 1.0))
+        except ValueError:
+            new_settings["comparison_disagreement_threshold"] = 1.0
         save_settings(new_settings)
         flash("Settings saved.", "success")
         return redirect(url_for("settings"))
@@ -93,6 +113,35 @@ def settings():
     current_settings["template_path"] = current_template_path
 
     return render_template("settings.html", settings=current_settings, default_templates=default_templates)
+
+
+@app.route("/save_template_selection", methods=["POST"])
+def save_template_selection():
+    """Lightweight endpoint for the template selector + upload only."""
+    current_settings = load_settings()
+    default_templates = {
+        "NTA Template (dil 50-36450)": "excel_templates/NTA_Template.xlsx",
+        "Measles Template (dil 32-65536)": "excel_templates/Measles_NTA_Template.xlsx",
+        "Backup NTA Template": "excel_templates/Backup_NTA_Template.xlsx",
+    }
+    for name, path in current_settings.get("custom_templates", {}).items():
+        if os.path.exists(path):
+            default_templates[name] = path
+
+    selected_key = request.form.get("default_template_select")
+    if selected_key in default_templates:
+        save_template_path(default_templates[selected_key])
+    else:
+        file = request.files.get("template_file")
+        if file and file.filename.endswith(".xlsx"):
+            filename = f"template_{uuid.uuid4().hex}.xlsx"
+            filepath = os.path.join("excel_templates", filename)
+            os.makedirs("excel_templates", exist_ok=True)
+            file.save(filepath)
+            save_template_path(filepath)
+
+    flash("Template saved.", "success")
+    return redirect(url_for("settings"))
 
 
 @app.route("/process", methods=["POST"])
@@ -155,7 +204,7 @@ def process():
 
     # ── Error flagging (if enabled in settings) ──
     if settings.get("error_flagging", False):
-        flag_triplicate_errors(output_bytes)
+        flag_triplicate_errors(output_bytes, threshold_log2=settings.get("outlier_threshold_log2", 1.0))
 
     with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp_excel:
         tmp_excel.write(output_bytes.getvalue())
@@ -605,7 +654,7 @@ def get_template_dilutions():
                 if num_val == 0:
                     dilutions.append("0")
                 elif num_val >= 1000:
-                    dilutions.append(f"{int(num_val):,}")
+                    dilutions.append(str(int(num_val)))
                 elif num_val == int(num_val):
                     dilutions.append(str(int(num_val)))
                 else:
@@ -619,6 +668,87 @@ def get_template_dilutions():
         return jsonify({"dilutions": [], "status": "error", "message": "No template selected"})
     except Exception as e:
         return jsonify({"dilutions": [], "status": "error", "message": str(e)})
+
+
+@app.route("/create_template_variant", methods=["POST"])
+def create_template_variant():
+    """
+    Duplicate the current template, replace A5:A12 with a new dilution series,
+    and save the result as a new named template. The source is never modified.
+    """
+    data = request.get_json()
+    template_name = (data.get("template_name") or "").strip()
+    dilutions_raw = data.get("dilutions", [])
+
+    if not template_name:
+        return jsonify({"status": "error", "message": "Template name is required."}), 400
+    if len(dilutions_raw) != 8:
+        return jsonify({"status": "error", "message": "Exactly 8 dilution values are required (one per row A5:A12)."}), 400
+
+    try:
+        dilutions = [float(str(d).replace(",", "")) for d in dilutions_raw]
+    except (ValueError, TypeError):
+        return jsonify({"status": "error", "message": "All dilution values must be numbers."}), 400
+
+    try:
+        source_path = load_template_path()
+    except FileNotFoundError:
+        return jsonify({"status": "error", "message": "No source template is currently selected."}), 400
+
+    safe_name = re.sub(r"[^\w\s-]", "", template_name).strip().replace(" ", "_")
+    if not safe_name:
+        return jsonify({"status": "error", "message": "Template name contains no valid characters."}), 400
+
+    os.makedirs("excel_templates", exist_ok=True)
+    output_path = os.path.join("excel_templates", f"{safe_name}.xlsx")
+
+    if os.path.exists(output_path):
+        return jsonify({"status": "error", "message": f"A file named '{safe_name}.xlsx' already exists. Choose a different name."}), 400
+
+    try:
+        import openpyxl as _xl
+        wb = _xl.load_workbook(source_path)
+        ws = wb.active
+        for i, val in enumerate(dilutions):
+            ws[f"A{5 + i}"] = val
+        wb.save(output_path)
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"Failed to write template: {e}"}), 500
+
+    # Register in settings so it appears in the dropdown
+    settings = load_settings()
+    if "custom_templates" not in settings:
+        settings["custom_templates"] = {}
+    settings["custom_templates"][template_name] = output_path
+    save_settings(settings)
+
+    return jsonify({"status": "success", "name": template_name, "path": output_path})
+
+
+@app.route("/delete_custom_template", methods=["POST"])
+def delete_custom_template():
+    """Remove a user-created template from settings (optionally deletes the file too)."""
+    data = request.get_json()
+    name = (data.get("name") or "").strip()
+    if not name:
+        return jsonify({"status": "error", "message": "No name provided."}), 400
+
+    settings = load_settings()
+    custom = settings.get("custom_templates", {})
+    if name not in custom:
+        return jsonify({"status": "error", "message": "Template not found."}), 404
+
+    path = custom.pop(name)
+    save_settings(settings)
+
+    # Delete the file if it's in excel_templates/ and still exists
+    if path.startswith("excel_templates/") and os.path.exists(path):
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+
+    return jsonify({"status": "success"})
 
 
 @app.route("/validate_csv_mode", methods=["POST"])
@@ -704,7 +834,6 @@ def perform_curve_fitting():
         include_timestamp = settings.get("timestamp_in_filename", True)
         
         assay_title = os.path.splitext(filename)[0]
-        import re
         assay_title = re.sub(r'_\d{4}-\d{2}-\d{2}$', '', assay_title)
         
         if include_timestamp:
@@ -713,9 +842,10 @@ def perform_curve_fitting():
             timestamp = ""
 
         r_script = os.path.join(os.getcwd(), "fit_sigmoids.R")
-        
+        r2_threshold = str(settings.get("sigmoid_r2_threshold", 0.5))
+
         result = subprocess.run(
-            ["Rscript", r_script, sigmoid_csv_path, output_dir, assay_title, timestamp],
+            ["Rscript", r_script, sigmoid_csv_path, output_dir, assay_title, timestamp, r2_threshold],
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -807,11 +937,10 @@ def download_sigmoid(fitting_id, filename):
     download_name = filename
     settings = load_settings()
     if settings.get("timestamp_in_filename", False):
-        import re as _re
         ts = datetime.now().strftime("%Y-%m-%d")
         base, ext = os.path.splitext(filename)
         # Skip if filename already contains a date stamp (e.g. IC50 files)
-        if not _re.search(r'\d{4}-\d{2}-\d{2}', base):
+        if not re.search(r'\d{4}-\d{2}-\d{2}', base):
             download_name = f"{base}_{ts}{ext}"
 
     return send_file(
@@ -942,14 +1071,20 @@ def _run_comparison(excel_file_id, fitting_id):
 
         # R now receives the Excel file directly (not a pre-computed NT50 CSV)
         r_script = os.path.join(os.getcwd(), "compare_titres.R")
+        cmp_settings = load_settings()
+        disagreement_threshold = str(cmp_settings.get("comparison_disagreement_threshold", 1.0))
 
         result = subprocess.run(
-            ["Rscript", r_script, excel_path, ic50_path, output_dir],
+            ["Rscript", r_script, excel_path, ic50_path, output_dir, disagreement_threshold],
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
+            timeout=180,
         )
+
+        if result.stderr:
+            print(f"[compare_titres.R stderr]:\n{result.stderr}", flush=True)
 
         # Collect output files
         output_files = {}
@@ -1001,10 +1136,15 @@ def _run_comparison(excel_file_id, fitting_id):
             settings=load_settings()
         )
 
+    except subprocess.TimeoutExpired:
+        flash("Comparison timed out (>3 min). Check your terminal for R output.", "danger")
+        return redirect(url_for("analysis_hub", file_id=excel_file_id))
     except subprocess.CalledProcessError as e:
-        flash(f"R script failed: {e.stderr}", "danger")
+        print(f"[compare_titres.R FAILED]\nSTDOUT: {e.stdout}\nSTDERR: {e.stderr}", flush=True)
+        flash(f"R script failed — see terminal for details. Error: {(e.stderr or e.stdout or '').strip()[:300]}", "danger")
         return redirect(url_for("analysis_hub", file_id=excel_file_id))
     except Exception as e:
+        print(f"[_run_comparison Exception]: {e}", flush=True)
         flash(f"Comparison error: {str(e)}", "danger")
         return redirect(url_for("analysis_hub", file_id=excel_file_id))
 

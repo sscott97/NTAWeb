@@ -12,120 +12,313 @@
   <!-- Page header -->
   <div class="mb-4">
     <h2 class="text-success mb-1" style="font-size: 1.75rem;">Settings</h2>
-    <p style="color: var(--text-dim, #888); font-size: 0.85rem; margin: 0;">Configure file output and graph appearance</p>
+    <p style="color: var(--text-dim, #888); font-size: 0.85rem; margin: 0;">Configure processing defaults, analysis thresholds, output options, and appearance</p>
   </div>
 
+  <!-- ══════════════════════════════════════════════════════
+       Main settings form (Data Processing + Analysis)
+       ══════════════════════════════════════════════════════ -->
+  <form method="post" enctype="multipart/form-data" id="mainSettingsForm">
 
-  <!-- ── File Configuration ─────────────────────────── -->
-  <div class="card mb-4">
-    <div class="card-header d-flex align-items-center gap-2">
-      <span style="font-size: 1rem;">📄</span>
-      <span>File Configuration</span>
-    </div>
-    <div class="card-body">
-      <form method="post" enctype="multipart/form-data">
+    <!-- ── 1. Data Processing ──────────────────────────── -->
+    <div class="card mb-4">
+      <div class="card-header d-flex align-items-center gap-2">
+        <span style="font-size: 1rem;">⚙️</span>
+        <span style="font-weight: 600;">Data Processing</span>
+      </div>
+      <div class="card-body">
 
-        <!-- Timestamp Toggle -->
-        <div class="d-flex align-items-start gap-3 mb-4" style="padding: 1rem; background: var(--bg-raised, #f8f9fa); border: 1px solid var(--border, #dee2e6); border-radius: 4px;">
-          <div class="form-check form-switch mb-0" style="margin-top: 2px;">
-            <input
-              class="form-check-input"
-              type="checkbox"
-              id="timestamp_in_filename"
-              name="timestamp_in_filename"
-              {% if settings.get('timestamp_in_filename') %}checked{% endif %}
-              style="width: 2.5em; height: 1.25em; cursor: pointer;"
-            >
-          </div>
-          <div>
-            <label for="timestamp_in_filename" style="font-weight: 500; cursor: pointer; display: block; margin-bottom: 2px;">
-              Include timestamp in filenames
+        <!-- Default CSV Mode -->
+        <div class="mb-4">
+          <label class="form-label" style="font-weight: 500;">Default CSV Mode</label>
+          <small style="display: block; color: var(--text-mid, #888); margin-bottom: 0.6rem;">
+            Pre-selects the data mode when you drop a CSV file on the home page
+          </small>
+          <div class="d-flex gap-2">
+            <label class="mode-opt{% if settings.get('default_data_mode', 'standard') == 'standard' %} selected{% endif %}" id="modeOptStandard">
+              <input type="radio" name="default_data_mode" value="standard"
+                     {% if settings.get('default_data_mode', 'standard') == 'standard' %}checked{% endif %}
+                     onchange="highlightModeOpt(this)">
+              <span>Standard</span>
             </label>
-            <small style="color: var(--text-mid, #888);">Adds date to output files</small>
+            <label class="mode-opt{% if settings.get('default_data_mode', 'standard') == 'data_only' %} selected{% endif %}" id="modeOptDataOnly">
+              <input type="radio" name="default_data_mode" value="data_only"
+                     {% if settings.get('default_data_mode', 'standard') == 'data_only' %}checked{% endif %}
+                     onchange="highlightModeOpt(this)">
+              <span>Data Only</span>
+            </label>
           </div>
         </div>
 
-        <!-- Error Flagging Toggle -->
-        <div class="d-flex align-items-start gap-3 mb-4" style="padding: 1rem; background: var(--bg-raised, #f8f9fa); border: 1px solid var(--border, #dee2e6); border-radius: 4px;">
-          <div class="form-check form-switch mb-0" style="margin-top: 2px;">
-            <input
-              class="form-check-input"
-              type="checkbox"
-              id="error_flagging"
-              name="error_flagging"
-              {% if settings.get('error_flagging') %}checked{% endif %}
-              style="width: 2.5em; height: 1.25em; cursor: pointer;"
-            >
-          </div>
-          <div>
-            <label for="error_flagging" style="font-weight: 500; cursor: pointer; display: block; margin-bottom: 2px;">
-              Enable error flagging
-            </label>
-            <small style="color: var(--text-mid, #888);">
-              Flags triplicate outliers (>2-fold log₂ difference) and NT50/NT90 replicate discrepancies.
-              Adds an "Errors" sheet to the output Excel file.
-            </small>
+        <!-- Default Pseudotypes per Plate -->
+        <div class="mb-4">
+          <label class="form-label" style="font-weight: 500;">Default Pseudotypes per Plate</label>
+          <small style="display: block; color: var(--text-mid, #888); margin-bottom: 0.6rem;">
+            Pre-selects the pseudotype count on the home page
+          </small>
+          <input type="hidden" name="default_num_pseudotypes" id="defaultNumPseudo" value="{{ settings.get('default_num_pseudotypes', 1) }}">
+          <div class="d-flex gap-2" id="defaultPseudoPills">
+            {% for n in [1, 2, 3, 4] %}
+            <button type="button"
+                    class="pt-pill{% if settings.get('default_num_pseudotypes', 1) == n %} pt-pill--active{% endif %}"
+                    data-n="{{ n }}"
+                    onclick="setDefaultPseudo({{ n }})">{{ n }}</button>
+            {% endfor %}
           </div>
         </div>
 
         <hr>
 
-        <!-- Default Template Selector -->
+        <!-- Timestamp Toggle -->
+        <div class="d-flex align-items-start gap-3 mb-4" style="padding: 1rem; background: var(--bg-raised, #f8f9fa); border: 1px solid var(--border, #dee2e6); border-radius: 4px;">
+          <div class="form-check form-switch mb-0" style="margin-top: 2px;">
+            <input class="form-check-input" type="checkbox" id="timestamp_in_filename"
+                   name="timestamp_in_filename"
+                   {% if settings.get('timestamp_in_filename') %}checked{% endif %}
+                   style="width: 2.5em; height: 1.25em; cursor: pointer;">
+          </div>
+          <div>
+            <label for="timestamp_in_filename" style="font-weight: 500; cursor: pointer; display: block; margin-bottom: 2px;">
+              Include timestamp in filenames
+            </label>
+            <small style="color: var(--text-mid, #888);">Appends the current date to all output file names</small>
+          </div>
+        </div>
+
+        <!-- Error Flagging Toggle -->
+        <div class="d-flex align-items-start gap-3 mb-3" style="padding: 1rem; background: var(--bg-raised, #f8f9fa); border: 1px solid var(--border, #dee2e6); border-radius: 4px;">
+          <div class="form-check form-switch mb-0" style="margin-top: 2px;">
+            <input class="form-check-input" type="checkbox" id="error_flagging"
+                   name="error_flagging"
+                   {% if settings.get('error_flagging') %}checked{% endif %}
+                   style="width: 2.5em; height: 1.25em; cursor: pointer;"
+                   onchange="toggleOutlierField(this.checked)">
+          </div>
+          <div style="flex: 1;">
+            <label for="error_flagging" style="font-weight: 500; cursor: pointer; display: block; margin-bottom: 2px;">
+              Enable error flagging
+            </label>
+            <small style="color: var(--text-mid, #888);">
+              Flags triplicate outliers (raw luminescence, NT50, NT90) and adds an <em>Errors</em> sheet to the output Excel file.
+            </small>
+
+            <!-- Outlier threshold — visible only when error flagging is on -->
+            <div id="outlierThresholdRow" style="margin-top: 0.85rem; {% if not settings.get('error_flagging') %}display: none;{% endif %}">
+              <label for="outlier_threshold_log2" style="font-size: 0.85rem; font-weight: 500; display: block; margin-bottom: 0.4rem;">
+                Outlier detection threshold
+              </label>
+              <div class="d-flex align-items-center gap-3">
+                <select name="outlier_threshold_log2" id="outlier_threshold_log2" class="form-select form-select-sm" style="max-width: 200px;">
+                  {% set thresholds = [(0.585, '>1.5× fold', 'Strict'), (1.0, '>2× fold', 'Default'), (1.585, '>3× fold', 'Lenient'), (2.0, '>4× fold', 'Very lenient')] %}
+                  {% for val, label, hint in thresholds %}
+                  <option value="{{ val }}" {% if (settings.get('outlier_threshold_log2', 1.0)|float - val|float)|abs < 0.01 %}selected{% endif %}>
+                    {{ label }} — {{ hint }}
+                  </option>
+                  {% endfor %}
+                </select>
+                <small style="color: var(--text-mid, #888);">Replicates differing by more than this are flagged</small>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── 2. Analysis Thresholds ──────────────────────── -->
+    <div class="card mb-4">
+      <div class="card-header d-flex align-items-center gap-2">
+        <span style="font-size: 1rem;">📐</span>
+        <span style="font-weight: 600;">Analysis Thresholds</span>
+      </div>
+      <div class="card-body">
+
+        <!-- Sigmoid R² threshold -->
         <div class="mb-4">
-          <label for="default_template_select" class="form-label">Choose Default Template</label>
-          <select name="default_template_select" id="default_template_select" class="form-select">
-            <option value="">-- Select Template --</option>
-            {% for name, path in default_templates.items() %}
-            <option value="{{ name }}" {% if settings.get('template_path') == path %}selected{% endif %}>
-              {{ name }}
-            </option>
-            {% endfor %}
-          </select>
-          <small style="color: var(--text-mid, #888); margin-top: 0.35rem; display: block;">
-            Current: {{ settings.template_path.split('/')[-1] if settings.template_path else 'None' }}
+          <label for="sigmoid_r2_threshold" class="form-label" style="font-weight: 500;">
+            Sigmoid R² threshold
+          </label>
+          <small style="display: block; color: var(--text-mid, #888); margin-bottom: 0.6rem;">
+            Fitted curves with R² below this value are classified as <em>Outside LOD</em> and excluded from IC50 calculations
           </small>
+          <div class="d-flex align-items-center gap-3 flex-wrap">
+            <select name="sigmoid_r2_threshold" id="sigmoid_r2_threshold" class="form-select form-select-sm" style="max-width: 220px;">
+              {% set r2_opts = [(0.3, '0.30 — Permissive'), (0.4, '0.40'), (0.5, '0.50 — Default'), (0.6, '0.60'), (0.7, '0.70'), (0.8, '0.80'), (0.9, '0.90 — Strict')] %}
+              {% for val, label in r2_opts %}
+              <option value="{{ val }}" {% if (settings.get('sigmoid_r2_threshold', 0.5)|float - val|float)|abs < 0.01 %}selected{% endif %}>
+                {{ label }}
+              </option>
+              {% endfor %}
+            </select>
+            <small style="color: var(--text-mid, #888);">Higher values are more strict — more curves will be excluded</small>
+          </div>
         </div>
 
-        <!-- Upload Custom Template -->
-        <div class="mb-4">
-          <label for="template_file" class="form-label">Or Upload Custom Template</label>
-          <input type="file" name="template_file" id="template_file" accept=".xlsx" class="form-control">
-          <small style="color: var(--text-mid, #888); margin-top: 0.35rem; display: block;">Upload a new .xlsx template file</small>
+        <!-- Titre comparison disagreement threshold -->
+        <div class="mb-2">
+          <label for="comparison_disagreement_threshold" class="form-label" style="font-weight: 500;">
+            Titre comparison disagreement threshold
+          </label>
+          <small style="display: block; color: var(--text-mid, #888); margin-bottom: 0.6rem;">
+            NT50 / IC50 pairs that differ by more than this are flagged as disagreements in the correlation plot
+          </small>
+          <div class="d-flex align-items-center gap-3 flex-wrap">
+            <select name="comparison_disagreement_threshold" id="comparison_disagreement_threshold" class="form-select form-select-sm" style="max-width: 220px;">
+              {% set cmp_opts = [(0.585, '>1.5-fold difference'), (1.0, '>2-fold difference — Default'), (1.585, '>3-fold difference'), (2.0, '>4-fold difference')] %}
+              {% for val, label in cmp_opts %}
+              <option value="{{ val }}" {% if (settings.get('comparison_disagreement_threshold', 1.0)|float - val|float)|abs < 0.01 %}selected{% endif %}>
+                {{ label }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
         </div>
 
-        <div class="text-end">
-          <button type="submit" class="btn btn-success">Save Template Settings</button>
-        </div>
+      </div>
+    </div>
 
-      </form>
+    <!-- Save button -->
+    <div class="text-end mb-4">
+      <button type="submit" class="btn btn-success px-4">Save Settings</button>
+    </div>
+
+  </form>
+
+  <!-- ── 3. Template Settings (own form) ─────────────── -->
+  <form method="post" action="{{ url_for('save_template_selection') }}" enctype="multipart/form-data">
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center gap-2">
+      <span style="font-size: 1rem;">📄</span>
+      <span style="font-weight: 600;">Template Settings</span>
+    </div>
+    <div class="card-body">
+
+      <!-- Active Template Selector -->
+      <div class="mb-4">
+        <label for="default_template_select" class="form-label" style="font-weight: 500;">Active Template</label>
+        <select name="default_template_select" id="default_template_select" class="form-select">
+          <option value="">— Keep current —</option>
+          {% for name, path in default_templates.items() %}
+          <option value="{{ name }}" {% if settings.get('template_path') == path %}selected{% endif %}>
+            {{ name }}
+          </option>
+          {% endfor %}
+        </select>
+        <small style="color: var(--text-mid, #888); margin-top: 0.35rem; display: block;">
+          Current: <strong>{{ settings.template_path.split('/')[-1] if settings.template_path else 'None set' }}</strong>
+        </small>
+      </div>
+
+      <!-- Upload Custom Template -->
+      <div class="mb-4">
+        <label for="template_file" class="form-label" style="font-weight: 500;">Upload Custom Template</label>
+        <input type="file" name="template_file" id="template_file" accept=".xlsx" class="form-control">
+        <small style="color: var(--text-mid, #888); margin-top: 0.35rem; display: block;">
+          Upload a custom .xlsx template file — it will become the active template
+        </small>
+      </div>
+
+      <div class="text-end mb-2">
+        <button type="submit" class="btn btn-success btn-sm px-4">Set Active Template</button>
+      </div>
+
+      <hr>
+
+      <!-- Create Template Variant -->
+      <div class="mb-3" style="margin-top: 1rem;">
+        <label class="form-label" style="font-weight: 500;">Create Template Variant</label>
+        <p style="color: var(--text-mid, #666); font-size: 0.85rem; margin-bottom: 1rem;">
+          Duplicate the active template with a different dilution series (A5–A12). The source is never modified — the new file is added to the dropdown above.
+        </p>
+      </div>
+
+      <!-- Current dilutions display -->
+      <div class="mb-3">
+        <label class="form-label" style="font-size: 0.85rem; font-weight: 500; color: var(--text-mid, #666);">
+          Current dilutions (A5:A12)
+        </label>
+        <div id="currentDilutionsDisplay" style="
+          font-size: 0.85rem; color: var(--text-mid, #666); font-style: italic;
+          padding: 0.3rem 0; font-family: monospace; letter-spacing: 0.2px;">
+          Loading…
+        </div>
+      </div>
+
+      <!-- New dilution series input -->
+      <div class="mb-3">
+        <label for="newDilutionInput" class="form-label" style="font-weight: 500;">New Dilution Series</label>
+        <input type="text" id="newDilutionInput" class="form-control"
+               placeholder="e.g. 50, 100, 200, 400, 800, 1600, 3200, 6400"
+               style="font-family: monospace; letter-spacing: 0.3px;">
+        <small id="dilutionCountHint" style="color: var(--text-mid, #888); margin-top: 0.35rem; display: block;">
+          Enter exactly 8 comma-separated values — one per row (A5 → A12)
+        </small>
+      </div>
+
+      <!-- New template name -->
+      <div class="mb-4">
+        <label for="newTemplateName" class="form-label" style="font-weight: 500;">New Template Name</label>
+        <input type="text" id="newTemplateName" class="form-control" maxlength="80"
+               placeholder="e.g. NTA Template (dil 50-6400)">
+        <small style="color: var(--text-mid, #888); margin-top: 0.35rem; display: block;">
+          This name will appear in the template dropdown
+        </small>
+      </div>
+
+      <div class="d-flex align-items-center gap-3">
+        <button type="button" class="btn btn-outline-success btn-sm" onclick="createDilutionVariant()">
+          Create Template
+        </button>
+        <div id="createTemplateSpinner" style="display: none; align-items: center; gap: 0.4rem;">
+          <div class="spinner-border spinner-border-sm text-success" role="status"></div>
+          <span style="font-size: 0.82rem; color: var(--text-dim, #888);">Saving…</span>
+        </div>
+      </div>
+
+      <!-- Custom templates list (only if any exist) -->
+      {% if settings.get('custom_templates') %}
+      <hr style="margin-top: 1.5rem;">
+      <div style="margin-top: 1rem;">
+        <label class="form-label" style="font-weight: 500;">Your Custom Templates</label>
+        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+          {% for name in settings.get('custom_templates', {}).keys() %}
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0.75rem; background: var(--bg-raised, #f8f9fa); border: 1px solid var(--border, #dee2e6); border-radius: 4px;">
+            <span style="font-size: 0.88rem;">{{ name }}</span>
+            <button type="button" class="btn btn-outline-danger btn-sm" style="padding: 0.1rem 0.6rem; font-size: 0.78rem;"
+                    onclick="deleteCustomTemplate('{{ name }}')">Remove</button>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
     </div>
   </div>
+  </form>
 
-  <hr class="my-4">
-
-  <!-- ── Graph Appearance ───────────────────────────── -->
+  <!-- ── 4. Graph Appearance ────────────────────────────── -->
   <div class="card mb-4">
     <div class="card-header d-flex align-items-center gap-2">
       <span style="font-size: 1rem;">🎨</span>
-      <span>Graph Appearance</span>
+      <span style="font-weight: 600;">Graph Appearance</span>
     </div>
     <div class="card-body">
 
       <!-- Preset Selector -->
       <div class="mb-4">
-        <label for="presetSelect" class="form-label">Colour Preset</label>
-        <select id="presetSelect" class="form-select"></select>
-        <small style="color: var(--text-mid, #888); margin-top: 0.35rem; display: block;">Select a saved colour scheme</small>
+        <label for="presetSelect" class="form-label" style="font-weight: 500;">Colour Preset</label>
+        <select id="presetSelect" class="form-select" style="max-width: 300px;"></select>
+        <small style="color: var(--text-mid, #888); margin-top: 0.35rem; display: block;">Select a saved colour scheme to view or edit</small>
       </div>
 
       <!-- Color Pickers -->
       <div class="mb-4">
-        <label class="form-label">Quadrant Colours</label>
+        <label class="form-label" style="font-weight: 500;">Quadrant Colours</label>
         <div class="row g-3">
           {% for q in ['Q1','Q2','Q3','Q4'] %}
           <div class="col-6 col-md-3">
             <div style="background: var(--bg-raised, #f8f9fa); border: 1px solid var(--border, #dee2e6); border-radius: 4px; padding: 0.75rem; text-align: center;">
-              <label for="{{ q|lower }}Colour" style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 0.5rem;">{{ q }}</label>
+              <label for="{{ q|lower }}Colour" style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 0.5rem; font-weight: 500;">{{ q }}</label>
               <input type="color" id="{{ q|lower }}Colour" class="form-control form-control-color mx-auto" title="{{ q }} Color"
                 style="width: 48px; height: 48px; border-radius: 50%; border: 2px solid var(--border, #dee2e6); padding: 2px; background: transparent; cursor: pointer;">
             </div>
@@ -135,29 +328,25 @@
       </div>
 
       <!-- Preset Name Input -->
-      <div class="mb-4">
-        <label for="newPresetName" class="form-label">Save As New Preset</label>
-        <input
-          type="text"
-          id="newPresetName"
-          class="form-control"
-          placeholder="Enter preset name (leave blank to update current)"
-        >
+      <div class="mb-4" style="max-width: 360px;">
+        <label for="newPresetName" class="form-label" style="font-weight: 500;">Save As Preset</label>
+        <input type="text" id="newPresetName" class="form-control"
+               placeholder="Enter name, or leave blank to overwrite current">
       </div>
 
       <!-- Preset Actions -->
-      <div class="d-flex flex-wrap gap-2 mb-4">
-        <button type="button" class="btn btn-success" onclick="applyPreset()">Apply Preset</button>
-        <button type="button" class="btn btn-outline-success" onclick="savePreset()">Save Preset</button>
-        <button type="button" class="btn btn-danger" onclick="deletePreset()">Delete Preset</button>
+      <div class="d-flex flex-wrap gap-2 mb-5">
+        <button type="button" class="btn btn-success btn-sm" onclick="applyPreset()">Apply Preset</button>
+        <button type="button" class="btn btn-outline-success btn-sm" onclick="savePreset()">Save Preset</button>
+        <button type="button" class="btn btn-outline-danger btn-sm" onclick="deletePreset()">Delete Preset</button>
       </div>
 
       <hr>
 
       <!-- Quadrant Visibility -->
-      <div class="mb-4">
-        <label class="form-label">Quadrants to Include in Graphs</label>
-        <small style="display: block; margin-bottom: 0.75rem; color: var(--text-mid, #888);">Select which quadrants appear in generated plots</small>
+      <div class="mb-2">
+        <label class="form-label" style="font-weight: 500;">Quadrants to Include in Graphs</label>
+        <small style="display: block; margin-bottom: 0.75rem; color: var(--text-mid, #888);">Deselected quadrants are excluded from all generated plots</small>
         <div style="background: var(--bg-raised, #f8f9fa); border: 1px solid var(--border, #dee2e6); border-radius: 4px; padding: 1rem;">
           <div class="row g-2">
             {% for q in ['Q1','Q2','Q3','Q4'] %}
@@ -170,35 +359,27 @@
             {% endfor %}
           </div>
         </div>
-      </div>
-
-      <div class="text-end">
-        <button type="button" class="btn btn-success" onclick="saveAllGraphSettings()">Save Graph Settings</button>
+        <div class="text-end mt-3">
+          <button type="button" class="btn btn-success btn-sm" onclick="saveAllGraphSettings()">Save Graph Settings</button>
+        </div>
       </div>
 
     </div>
   </div>
 
-  <hr class="my-4">
-
-
-    <!-- ── Appearance ─────────────────────────────────── -->
+  <!-- ── 5. Themes ───────────────────────────────────────── -->
   <div class="card mb-4">
     <div class="card-header d-flex align-items-center gap-2">
       <span style="font-size: 1rem;">🖥️</span>
-      <span>Themes</span>
+      <span style="font-weight: 600;">Themes</span>
     </div>
     <div class="card-body">
-      <label class="form-label" style="display: block; margin-bottom: 0.75rem;">Theme Selection</label>
+      <label class="form-label" style="display: block; margin-bottom: 0.75rem; font-weight: 500;">Theme Selection</label>
       <div class="d-flex gap-3 flex-wrap" id="theme-options">
 
-<!-- CARD 1 STANDARD -->
-        <div
-          class="theme-card"
-          id="theme-green"
-          onclick="setTheme('green')"
-          style="flex:1; min-width:140px; cursor:pointer; border-radius:7px; border:2px solid transparent; overflow:hidden; transition:border-color .2s, box-shadow .2s;"
-        >
+        <!-- Standard -->
+        <div class="theme-card" id="theme-green" onclick="setTheme('green')"
+             style="flex:1; min-width:140px; cursor:pointer; border-radius:7px; border:2px solid transparent; overflow:hidden; transition:border-color .2s, box-shadow .2s;">
           <div style="background: #f0f2f5; padding: 1rem 1rem 0.75rem; border-bottom: 1px solid rgba(0,0,0,0.13);">
             <div style="background: #ffffff; border: 1px solid rgba(0,0,0,0.13); border-radius: 4px; padding: 0.6rem 0.75rem; margin-bottom: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
               <div style="width: 50%; height: 8px; background: #4a7a9b; border-radius: 2px; margin-bottom: 7px;"></div>
@@ -212,25 +393,13 @@
           </div>
           <div style="background: #ffffff; padding: 0.6rem 1rem; display: flex; align-items: center; gap: 0.5rem; border-top: 1px solid rgba(0,0,0,0.07);">
             <span style="color: #1c2b3a; font-size: 0.85rem; font-weight: 500;">Standard</span>
-            <span id="light-tick" style="margin-left: auto; color: #4a7a9b; font-size: 1rem; display: none;">✓</span>
+            <span id="green-tick" style="margin-left: auto; color: #4a7a9b; font-size: 1rem; display: none;">✓</span>
           </div>
         </div>
 
-        <!-- GREEN OG -->
-        <div
-          class="theme-card"
-          id="theme-light"
-          onclick="setTheme('light')"
-          style="
-            flex: 1;
-            cursor: pointer;
-            border-radius: 8px;
-            border: 2px solid transparent;
-            overflow: hidden;
-            transition: border-color .2s, box-shadow .2s;
-          "
-        >
-          <!-- Preview swatch -->
+        <!-- Green (Original) -->
+        <div class="theme-card" id="theme-light" onclick="setTheme('light')"
+             style="flex: 1; cursor: pointer; border-radius: 8px; border: 2px solid transparent; overflow: hidden; transition: border-color .2s, box-shadow .2s;">
           <div style="background: #b6d9b7; padding: 1rem 1rem 0.75rem; border-bottom: 1px solid #a9cbb7;">
             <div style="background: #fff; border-radius: 4px; padding: 0.6rem 0.75rem; margin-bottom: 0.5rem; box-shadow: 0 1px 4px rgba(0,0,0,.08);">
               <div style="width: 60%; height: 8px; background: #3e5f51; border-radius: 3px; margin-bottom: 6px;"></div>
@@ -248,27 +417,11 @@
           </div>
         </div>
 
-        <!-- Theme 3 / Paper -->
-        <div
-          class="theme-card"
-          id="theme-theme3"
-          onclick="setTheme('theme3')"
-          style="flex:1; min-width:140px; cursor:pointer; border-radius:8px; border:2px solid transparent; overflow:hidden; transition:border-color .2s, box-shadow .2s;"
-        >
-          <!-- Preview: warm parchment with faint graph-paper grid -->
-          <div style="
-            background:
-              linear-gradient(rgba(46,107,123,0.06) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(46,107,123,0.06) 1px, transparent 1px),
-              #ede4d3;
-            background-size: 10px 10px;
-            padding: 1rem 1rem 0.75rem;
-            border-bottom: 1px solid #d5c9ad;
-            position: relative;
-          ">
-            <!-- Faux margin line -->
+        <!-- Paper -->
+        <div class="theme-card" id="theme-theme3" onclick="setTheme('theme3')"
+             style="flex:1; min-width:140px; cursor:pointer; border-radius:8px; border:2px solid transparent; overflow:hidden; transition:border-color .2s, box-shadow .2s;">
+          <div style="background: linear-gradient(rgba(46,107,123,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(46,107,123,0.06) 1px, transparent 1px), #ede4d3; background-size: 10px 10px; padding: 1rem 1rem 0.75rem; border-bottom: 1px solid #d5c9ad; position: relative;">
             <div style="position:absolute; left:10px; top:0; bottom:0; width:1.5px; background:rgba(178,82,72,0.15);"></div>
-            <!-- Card preview -->
             <div style="background:rgba(248,241,227,0.95); border:1px solid rgba(120,100,65,0.20); border-radius:4px; padding:0.6rem 0.75rem; margin-bottom:0.5rem; box-shadow:2px 3px 0 -1px #ede4d3, 3px 4px 0 -1px rgba(120,100,65,0.15);">
               <div style="width:60%; height:8px; background:#2e6b7b; border-radius:3px; margin-bottom:6px;"></div>
               <div style="width:80%; height:6px; background:#e6dac2; border-radius:3px; margin-bottom:4px;"></div>
@@ -285,24 +438,10 @@
           </div>
         </div>
 
-        <!-- Theme 4 / Dark Paper card -->
-
-        <div
-          class="theme-card"
-          id="theme-theme4"
-          onclick="setTheme('theme4')"
-          style="flex:1; min-width:140px; cursor:pointer; border-radius:8px; border:2px solid transparent; overflow:hidden; transition:border-color .2s, box-shadow .2s;"
-        >
-          <div style="
-            background:
-              linear-gradient(rgba(106,170,114,0.055) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(106,170,114,0.055) 1px, transparent 1px),
-              #1b1e1a;
-            background-size: 10px 10px;
-            padding:1rem 1rem 0.75rem;
-            border-bottom:1px solid rgba(106,170,114,0.12);
-            position:relative;
-          ">
+        <!-- Dark Paper -->
+        <div class="theme-card" id="theme-theme4" onclick="setTheme('theme4')"
+             style="flex:1; min-width:140px; cursor:pointer; border-radius:8px; border:2px solid transparent; overflow:hidden; transition:border-color .2s, box-shadow .2s;">
+          <div style="background: linear-gradient(rgba(106,170,114,0.055) 1px, transparent 1px), linear-gradient(90deg, rgba(106,170,114,0.055) 1px, transparent 1px), #1b1e1a; background-size: 10px 10px; padding:1rem 1rem 0.75rem; border-bottom:1px solid rgba(106,170,114,0.12); position:relative;">
             <div style="background:#232620; border:1px solid rgba(106,170,114,0.12); border-radius:4px; padding:0.6rem 0.75rem; margin-bottom:0.5rem; box-shadow:2px 3px 0 -1px #1b1e1a, 3px 4px 0 -1px rgba(106,170,114,0.08);">
               <div style="width:60%; height:8px; background:#6aaa72; border-radius:3px; margin-bottom:6px;"></div>
               <div style="width:80%; height:6px; background:rgba(213,205,192,0.12); border-radius:3px; margin-bottom:4px;"></div>
@@ -323,16 +462,94 @@
     </div>
   </div>
 
-
 </div>
 
+<style>
+/* ── Mode option buttons ── */
+.mode-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.85rem;
+  border: 1.5px solid var(--border, #dee2e6);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text-mid, #555);
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  user-select: none;
+}
+.mode-opt input[type="radio"] { display: none; }
+.mode-opt.selected,
+.mode-opt:hover {
+  border-color: #28a745;
+  color: #28a745;
+  background: rgba(40, 167, 69, 0.07);
+}
+
+/* ── Pseudotype pills (reuse index style) ── */
+.pt-pill {
+  padding: 0.3rem 0.9rem;
+  border: 1.5px solid var(--border, #dee2e6);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-mid, #555);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.pt-pill.pt-pill--active,
+.pt-pill:hover {
+  border-color: #28a745;
+  color: #28a745;
+  background: rgba(40, 167, 69, 0.08);
+}
+</style>
+
 <script>
+// ── Pending toast (shown after page reload) ─────────────
+document.addEventListener('DOMContentLoaded', function () {
+  var pending = sessionStorage.getItem('_settingsPendingToast');
+  if (pending) {
+    sessionStorage.removeItem('_settingsPendingToast');
+    try {
+      var t = JSON.parse(pending);
+      ntaToast(t.msg, t.type || 'success');
+    } catch(e) {}
+  }
+});
+
+function _pendingToast(msg, type) {
+  sessionStorage.setItem('_settingsPendingToast', JSON.stringify({ msg: msg, type: type || 'success' }));
+}
+
+// ── Data processing helpers ─────────────────────────────
+function highlightModeOpt(radio) {
+  document.querySelectorAll('.mode-opt').forEach(function(el) {
+    el.classList.remove('selected');
+  });
+  radio.closest('.mode-opt').classList.add('selected');
+}
+
+function setDefaultPseudo(n) {
+  document.getElementById('defaultNumPseudo').value = n;
+  document.querySelectorAll('#defaultPseudoPills .pt-pill').forEach(function(btn) {
+    btn.classList.toggle('pt-pill--active', parseInt(btn.dataset.n) === n);
+  });
+}
+
+function toggleOutlierField(enabled) {
+  document.getElementById('outlierThresholdRow').style.display = enabled ? 'block' : 'none';
+}
+
 // ── Theme switcher ──────────────────────────────────────
 var themeConfig = {
-  'green':   { css: 'styles.css',        accent: '#4a7a9b', glow: 'rgba(74,122,155,0.20)', tick: 'light-tick'  },
-  'light':  { css: 'styles-light.css',  accent: '#28a745', glow: 'rgba(40,167,69,0.15)',   tick: 'light-tick'  },
-  'theme3': { css: 'styles-theme3.css', accent: '#2e6b7b', glow: 'rgba(46,107,123,0.18)', tick: 'theme3-tick' },
-  'theme4': { css: 'styles-theme4.css', accent: '#6aaa72', glow: 'rgba(106,170,114,0.18)', tick: 'theme4-tick' }
+  'green':  { css: 'styles.css',        name: 'Standard',        accent: '#4a7a9b', glow: 'rgba(74,122,155,0.20)',   tick: 'green-tick'  },
+  'light':  { css: 'styles-light.css',  name: 'Green (Original)', accent: '#28a745', glow: 'rgba(40,167,69,0.15)',   tick: 'light-tick'  },
+  'theme3': { css: 'styles-theme3.css', name: 'Paper',            accent: '#2e6b7b', glow: 'rgba(46,107,123,0.18)', tick: 'theme3-tick' },
+  'theme4': { css: 'styles-theme4.css', name: 'Dark Paper',       accent: '#6aaa72', glow: 'rgba(106,170,114,0.18)', tick: 'theme4-tick' }
 };
 
 function setTheme(theme) {
@@ -341,18 +558,16 @@ function setTheme(theme) {
   var base = link.href.replace(/styles[^/]*\.css/, '');
   link.href = base + themeConfig[theme].css;
   highlightActiveTheme(theme);
+  ntaToast('Theme changed to <strong>' + themeConfig[theme].name + '</strong>', 'info');
 }
 
 function highlightActiveTheme(theme) {
-  // Reset all cards
   Object.keys(themeConfig).forEach(function (t) {
     var card = document.getElementById('theme-' + t);
     var tick = document.getElementById(themeConfig[t].tick);
     if (card) { card.style.borderColor = 'transparent'; card.style.boxShadow = 'none'; }
     if (tick) { tick.style.display = 'none'; }
   });
-
-  // Highlight active
   var cfg  = themeConfig[theme];
   var card = document.getElementById('theme-' + theme);
   var tick = document.getElementById(cfg.tick);
@@ -364,7 +579,7 @@ function highlightActiveTheme(theme) {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
-  var current = localStorage.getItem('nta-theme') || 'dark';
+  var current = localStorage.getItem('nta-theme') || 'green';
   highlightActiveTheme(current);
 });
 
@@ -409,7 +624,7 @@ function savePreset() {
   let name = document.getElementById("newPresetName").value.trim();
   if (!name) {
     name = document.getElementById("presetSelect").value;
-    if (!name) { alert("Please enter a new preset name."); return; }
+    if (!name) { ntaToast('Please enter a preset name first.', 'warning'); return; }
   }
   const newPreset = {
     Q1: document.getElementById("q1Colour").value,
@@ -426,14 +641,17 @@ function savePreset() {
     if (!response.ok) throw new Error("Failed to save preset");
     return response.text();
   })
-  .then(() => { alert(`Preset "${name}" saved successfully!`); location.reload(); })
-  .catch(err => alert(err));
+  .then(() => {
+    _pendingToast('Preset <strong>' + name + '</strong> saved.', 'success');
+    location.reload();
+  })
+  .catch(err => ntaToast(err.message || 'Failed to save preset.', 'danger'));
 }
 
 function deletePreset() {
   const name = document.getElementById("presetSelect").value;
-  if (!name) { alert("No preset selected."); return; }
-  if (!confirm(`Are you sure you want to delete the preset "${name}"?`)) return;
+  if (!name) { ntaToast('No preset selected.', 'warning'); return; }
+  if (!confirm('Delete the preset "' + name + '"? This cannot be undone.')) return;
   fetch("/delete_preset", {
     method: "POST",
     headers: { 'Content-Type': 'application/json' },
@@ -443,13 +661,16 @@ function deletePreset() {
     if (!response.ok) throw new Error("Failed to delete preset");
     return response.text();
   })
-  .then(() => { alert(`Preset "${name}" deleted successfully!`); location.reload(); })
-  .catch(err => alert(err));
+  .then(() => {
+    _pendingToast('Preset <strong>' + name + '</strong> deleted.', 'info');
+    location.reload();
+  })
+  .catch(err => ntaToast(err.message || 'Failed to delete preset.', 'danger'));
 }
 
 function applyPreset() {
   const name = document.getElementById("presetSelect").value;
-  if (!name) { alert("No preset selected."); return; }
+  if (!name) { ntaToast('No preset selected.', 'warning'); return; }
   fetch("/set_active_preset", {
     method: "POST",
     headers: { 'Content-Type': 'application/json' },
@@ -459,8 +680,8 @@ function applyPreset() {
     if (!response.ok) throw new Error("Failed to apply preset");
     return response.text();
   })
-  .then(() => alert(`Preset "${name}" applied successfully!`))
-  .catch(err => alert(err));
+  .then(() => ntaToast('Preset <strong>' + name + '</strong> applied.', 'success'))
+  .catch(err => ntaToast(err.message || 'Failed to apply preset.', 'danger'));
 }
 
 function populateQuadrantCheckboxes() {
@@ -468,6 +689,101 @@ function populateQuadrantCheckboxes() {
   document.getElementById("includeQ2").checked = settings.quadrants?.Q2 ?? true;
   document.getElementById("includeQ3").checked = settings.quadrants?.Q3 ?? true;
   document.getElementById("includeQ4").checked = settings.quadrants?.Q4 ?? true;
+}
+
+// ── Dilution variant creator ────────────────────────────
+document.addEventListener('DOMContentLoaded', function () {
+  fetch('/get_template_dilutions')
+    .then(r => r.json())
+    .then(data => {
+      var el = document.getElementById('currentDilutionsDisplay');
+      if (data.status === 'success' && data.dilutions.length) {
+        el.textContent = data.dilutions.join(', ');
+        el.style.fontStyle = 'normal';
+        // Pre-fill the new dilution input with current values
+        var inp = document.getElementById('newDilutionInput');
+        if (!inp.value) inp.value = data.dilutions.join(', ');
+      } else {
+        el.textContent = 'No template selected — choose one above first.';
+      }
+    })
+    .catch(() => {
+      document.getElementById('currentDilutionsDisplay').textContent = 'Could not load dilutions.';
+    });
+});
+
+document.getElementById('newDilutionInput').addEventListener('input', function () {
+  var parts = this.value.split(',').map(s => s.trim()).filter(Boolean);
+  var hint = document.getElementById('dilutionCountHint');
+  if (parts.length === 0) {
+    hint.textContent = 'Enter exactly 8 comma-separated values — one per row (A5 → A12)';
+    hint.style.color = '';
+  } else if (parts.length !== 8) {
+    hint.textContent = parts.length + ' values entered — need exactly 8';
+    hint.style.color = '#e74c3c';
+  } else {
+    hint.textContent = '8 values ✓';
+    hint.style.color = '#28a745';
+  }
+});
+
+function createDilutionVariant() {
+  var rawInput = document.getElementById('newDilutionInput').value;
+  var name = document.getElementById('newTemplateName').value.trim();
+  var parts = rawInput.split(',').map(s => s.trim()).filter(Boolean);
+
+  if (!name) { ntaToast('Please enter a name for the new template.', 'warning'); return; }
+  if (parts.length !== 8) {
+    ntaToast('Exactly 8 dilution values are required. You have ' + parts.length + '.', 'warning');
+    return;
+  }
+
+  var btn = document.querySelector('[onclick="createDilutionVariant()"]');
+  var spinner = document.getElementById('createTemplateSpinner');
+  btn.style.display = 'none';
+  spinner.style.display = 'inline-flex';
+
+  fetch('/create_template_variant', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ template_name: name, dilutions: parts })
+  })
+  .then(r => r.json())
+  .then(data => {
+    btn.style.display = '';
+    spinner.style.display = 'none';
+    if (data.status === 'success') {
+      _pendingToast('Template <strong>' + data.name + '</strong> created and saved.', 'success');
+      location.reload();
+    } else {
+      ntaToast(data.message || 'Failed to create template.', 'danger');
+    }
+  })
+  .catch(() => {
+    btn.style.display = '';
+    spinner.style.display = 'none';
+    ntaToast('Request failed — check your connection.', 'danger');
+  });
+}
+
+function deleteCustomTemplate(name) {
+  if (!name) { ntaToast('No template name provided.', 'warning'); return; }
+  if (!confirm('Remove the template "' + name + '"? The file will be deleted from disk.')) return;
+  fetch('/delete_custom_template', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: name })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.status === 'success') {
+      _pendingToast('Template <strong>' + name + '</strong> deleted.', 'info');
+      location.reload();
+    } else {
+      ntaToast(data.message || 'Failed to delete template.', 'danger');
+    }
+  })
+  .catch(() => ntaToast('Request failed.', 'danger'));
 }
 
 function saveAllGraphSettings() {
@@ -486,8 +802,8 @@ function saveAllGraphSettings() {
     if (!response.ok) throw new Error("Failed to save settings");
     return response.text();
   })
-  .then(() => alert("Graph settings saved successfully!"))
-  .catch(err => alert(err));
+  .then(() => ntaToast('Graph settings saved.', 'success'))
+  .catch(err => ntaToast(err.message || 'Failed to save graph settings.', 'danger'));
 }
 </script>
 

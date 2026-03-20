@@ -78,33 +78,29 @@
   <!-- Correlation Plot -->
   {% if has_plot %}
   <div class="card mb-4">
-    <div class="card-header d-flex align-items-center gap-2">
-      <span style="font-size: 1rem;">📈</span>
-      <span style="font-weight: 600;">Correlation Plot</span>
+    <div class="card-header d-flex align-items-center justify-content-between" style="cursor:pointer;" onclick="toggleCard('comparison-plot-body')">
+      <div class="d-flex align-items-center gap-2">
+        <span class="card-chevron" id="chevron-comparison-plot-body">▾</span>
+        <span style="font-size: 1rem;">📈</span>
+        <span style="font-weight: 600;">Correlation Plot</span>
+      </div>
+      <div class="d-flex align-items-center gap-2" onclick="event.stopPropagation();">
+        <a href="{{ url_for('download_comparison', comparison_id=comparison_id, filename='titre_comparison_interactive.html') }}"
+           class="graph-dl-btn" download="titre_comparison_interactive.html">↓ HTML</a>
+        <a href="{{ url_for('download_comparison', comparison_id=comparison_id, filename='titre_comparison.png') }}"
+           class="graph-dl-btn" download="titre_comparison.png">↓ PNG</a>
+      </div>
     </div>
-    <div class="card-body">
-      <p style="color: var(--text-mid, #666); font-size: 0.9rem; margin-bottom: 1.25rem;">
-        NT50 (linear interpolation) and NT50/IC50 (curve fitting) titres compared. <strong>Hover over points to see sample details.</strong> The dashed line represents perfect agreement (y=x), green line shows linear regression fit.
-      </p>
-      
-      <div style="border: 1px solid var(--border, #dee2e6); border-radius: 4px; overflow: hidden; margin-bottom: 1rem;">
-        <iframe 
-          src="{{ url_for('download_comparison', comparison_id=comparison_id, filename='titre_comparison_interactive.html') }}" 
-          style="width: 100%; height: 650px; border: none;"
+    <div id="comparison-plot-body" class="card-collapsible">
+      <div style="border-bottom: 1px solid var(--border, #dee2e6); overflow: hidden;">
+        <iframe
+          src="{{ url_for('download_comparison', comparison_id=comparison_id, filename='titre_comparison_interactive.html') }}"
+          style="width: 100%; height: 650px; border: none; display: block;"
           title="Interactive Titre Comparison Plot">
         </iframe>
       </div>
-      
-      <div class="d-flex gap-2">
-        <a href="{{ url_for('download_comparison', comparison_id=comparison_id, filename='titre_comparison.png') }}" 
-           class="btn btn-success">
-          <span style="margin-right: 0.35rem;">📥</span>Download PNG
-        </a>
-        <a href="{{ url_for('download_comparison', comparison_id=comparison_id, filename='titre_comparison_interactive.html') }}" 
-           class="btn btn-outline-success"
-           download="titre_comparison_interactive.html">
-          <span style="margin-right: 0.35rem;">📥</span>Download Interactive HTML
-        </a>
+      <div style="padding: 0.4rem 1.25rem 0.65rem; font-size: 0.70rem; color: var(--text-faint, #aaa); font-style: italic; border-top: 1px solid var(--border, #eee);">
+        NT50 (linear interpolation) vs NT50/IC50 (curve fitting). Dashed line = perfect agreement. Green line = linear regression. Hover points for sample details.
       </div>
     </div>
   </div>
@@ -196,20 +192,20 @@
     <div class="card-body" style="font-size: 0.9rem; color: var(--text-mid, #444); line-height: 1.75;">
 
       <h6 style="color: var(--text-primary, #222); font-weight: 700; margin-bottom: 0.5rem; margin-top: 0;">
-        1. Titre Derivation — Two Independent Methods
+        1. Neutralising Titre Calculation — Linear Interpolation vs Curve Fitting
       </h6>
       <p style="margin-bottom: 0.75rem;">
-        Two independent approaches were used to estimate neutralising antibody titres from the same raw luminescence data, and the results compared to assess inter-method agreement:
+        Two independent approaches were used to estimate neutralising antibody titres from the same raw luminescence data, and the results compared:
       </p>
       <div style="margin-bottom: 1.5rem; padding-left: 1rem;">
         <table style="font-size: 0.88rem; border-collapse: collapse; width: 100%;">
           <tr style="border-bottom: 1px solid var(--border, #e9ecef);">
             <td style="padding: 0.5rem 0.75rem 0.5rem 0; font-weight: 600; white-space: nowrap; vertical-align: top; color: var(--text-primary, #222);">NT50 (Linear Interpolation)</td>
-            <td style="padding: 0.5rem 0;">For each replicate column, the luminescence value corresponding to 50% of the no-serum control (NSC) was identified. Linear interpolation between the two flanking dilution points was used to estimate the dilution at which the 50% threshold was crossed. The three per-replicate NT50 values were then averaged to produce a single NT50 per quadrant.</td>
+            <td style="padding: 0.5rem 0;">For each replicate column, a neutralising titre was estimated by 50%/90% reduction of the NSC per replicate. Linear interpolation was performed between the two closest dilution points bounding the estimated dilution point. Titres were calculated per replicate and then the mean was calculated across the triplicate to give the final NT50/NT90%. </td>
           </tr>
           <tr>
             <td style="padding: 0.5rem 0.75rem 0.5rem 0; font-weight: 600; white-space: nowrap; vertical-align: top; color: var(--text-primary, #222);">IC50 Titre (Curve Fitting)</td>
-            <td style="padding: 0.5rem 0;">A four-parameter logistic sigmoid was fitted to the triplicate-mean neutralisation percentages across all dilutions (see Curve Fitting Methods). The IC50 — the log₂ dilution at 50% neutralisation — was converted to a reciprocal dilution titre via 2<sup>−IC50</sup>.</td>
+            <td style="padding: 0.5rem 0;">A four-parameter logistic sigmoid was fitted to the triplicate-mean neutralisation percentages across all dilutions (see Curve Fitting Methods). The IC50 (log₂ dilution at 50% neutralisation) was converted to a neutralisating titre via 2<sup>−IC50</sup>.</td>
           </tr>
         </table>
       </div>
@@ -218,10 +214,10 @@
         2. Sample Matching and Correlation
       </h6>
       <p style="margin-bottom: 0.75rem;">
-        NT50 and IC50 titre values were matched by pseudotype (virus) name and sample identifier. Where no exact match was found, case-insensitive matching with trimmed whitespace was attempted. Both titre values were log₁₀-transformed prior to correlation analysis to account for the log-normal distribution of neutralisation titres.
+        NT50 and IC50 titre values were matched by pseudotype virus name and sample ID. Where no exact match was found, samples were matched in sequential order (the order for curve fitting and linear interpolation is the same). Both titre values were log₁₀-transformed prior to analysis.
       </p>
       <p style="margin-bottom: 1.5rem;">
-        Pearson's correlation coefficient (<em>r</em>) was computed on the log₁₀-transformed values. A linear regression model (log₁₀ IC50 ~ log₁₀ NT50) was fitted to obtain R², representing the proportion of variance in IC50 titres explained by NT50 titres. The strength of association was classified using standard thresholds: <strong>weak</strong> (|r| &lt; 0.4), <strong>moderate</strong> (0.4 ≤ |r| &lt; 0.7), or <strong>strong</strong> (|r| ≥ 0.7). The coefficient of determination was classified as <strong>negligible</strong> (R² &lt; 0.25), <strong>weak</strong> (0.25 ≤ R² &lt; 0.50), <strong>moderate</strong> (0.50 ≤ R² &lt; 0.75), or <strong>substantial</strong> (R² ≥ 0.75).
+        Pearson's correlation coefficient (<em>r</em>) was calculated and a linear regression model was fitted to obtain R², representing the proportion of variance. The strength of association was classified using set thresholds: <strong>weak</strong> (|r| &lt; 0.4), <strong>moderate</strong> (0.4 ≤ |r| &lt; 0.7), or <strong>strong</strong> (|r| ≥ 0.7). The coefficient of determination was classified as <strong>negligible</strong> (R² &lt; 0.25), <strong>weak</strong> (0.25 ≤ R² &lt; 0.50), <strong>moderate</strong> (0.50 ≤ R² &lt; 0.75), or <strong>substantial</strong> (R² ≥ 0.75).
       </p>
 
       <h6 style="color: var(--text-primary, #222); font-weight: 700; margin-bottom: 0.5rem;">
@@ -245,13 +241,13 @@
         Log₂ Fold Difference = log₂(NT50 / IC50 Titre)
       </div>
       <p style="margin-bottom: 0.75rem;">
-        A log₂ fold difference of 0 indicates perfect agreement. Positive values indicate that the linear interpolation method yielded a higher titre, while negative values indicate that curve fitting produced a higher titre. Samples with an absolute log₂ fold difference greater than 1 (i.e. a greater than 2-fold difference) were flagged for review. This threshold is standard in serological titre comparisons and corresponds to a single dilution step discrepancy.
+        A log₂ fold difference of 0 indicates perfect agreement. Positive values indicate that linear interpolation gave a higher titre, while negative values indicate that curve fitting produced a higher titre. Samples with an absolute log₂ fold difference greater than 1, by the default setting, (i.e. a greater than 2-fold difference) were flagged for review.
       </p>
       <p style="margin-bottom: 0.75rem;">
-        Common causes of disagreement include incomplete or atypical dose–response curves, flat titrations where the sigmoid fit is poorly constrained, or edge cases where the 50% neutralisation threshold falls outside the measured dilution range.
+        Common causes of disagreement include incomplete or atypical curves, flat titrations where the sigmoid fit is poorly constrained, or edge cases where the neutralisation threshold falls outside the measured dilution range.
       </p>
       <p style="margin-bottom: 0;">
-        The five samples with the highest absolute log₂ fold difference are reported in the Top Mismatches table above. The curve fitting quality flag ("Good" or "Unstable") is included alongside each mismatch to aid interpretation — an "Unstable" flag indicates that the sigmoid fit for that sample had one or more parameters pressed against its bound constraint, and the IC50 titre should be treated with caution.
+        The five samples with the highest absolute log₂ fold difference are reported in the Top Mismatches table. All data is available for download from the "Download Data Files" section above for further review and analysis.
       </p>
 
     </div>
@@ -260,7 +256,55 @@
 
 </div>
 
+<style>
+.graph-dl-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  padding: 0.18rem 0.55rem;
+  font-size: 0.67rem;
+  font-weight: 600;
+  border: 1.5px solid var(--border-sharp, rgba(120,100,65,0.26));
+  border-radius: var(--radius, 3px);
+  color: var(--text-dim, #928774);
+  background: transparent;
+  text-decoration: none;
+  letter-spacing: 0.3px;
+  transition: all 0.15s;
+}
+.graph-dl-btn:hover {
+  border-color: var(--teal, #2e6b7b);
+  color: var(--teal-dim, #1e4f5e);
+  background: var(--teal-pale, rgba(46,107,123,0.07));
+  text-decoration: none;
+}
+.card-collapsible {
+  overflow: hidden;
+  max-height: 4000px;
+  transition: max-height 0.28s ease;
+}
+.card-collapsible.collapsed { max-height: 0; }
+.card-chevron {
+  font-size: 0.65rem;
+  color: var(--text-dim, #888);
+  display: inline-block;
+  width: 10px;
+  transition: transform 0.22s ease;
+  flex-shrink: 0;
+}
+.card-chevron.collapsed { transform: rotate(-90deg); }
+</style>
+
 <script>
+function toggleCard(id) {
+  var body    = document.getElementById(id);
+  var chevron = document.getElementById('chevron-' + id);
+  if (!body) return;
+  var collapsing = !body.classList.contains('collapsed');
+  body.classList.toggle('collapsed', collapsing);
+  if (chevron) chevron.classList.toggle('collapsed', collapsing);
+}
+
 // Toast notification on load (only once per comparison)
 document.addEventListener('DOMContentLoaded', function() {
   var toastKey = 'toast_shown_compare_{{ comparison_id }}';

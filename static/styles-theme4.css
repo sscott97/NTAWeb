@@ -309,6 +309,7 @@ select:focus,
   border-color: var(--teal);
   box-shadow: var(--shadow-glow);
   background: rgba(30, 34, 28, 0.98);
+  color: var(--text-primary);
   outline: none;
 }
 

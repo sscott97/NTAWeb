@@ -1,122 +1,157 @@
-# NTAWeb
-Neutralising Titre Automator (NTA) Web Application
+# NTAWeb — Neutralising Titre Automator
 
-Automate the processing of raw neutralisation assay data into Excel files and generate customizable graphs.
+A Flask web app that processes raw neutralisation assay CSV data into Excel reports and generates publication-quality graphs, including linear interpolation titres, sigmoid curve fitting, and titre comparison.
 
-## Overview
+---
 
-The Neutralising Titre Automator (NTA) is a Flask-based web application designed to streamline the analysis of raw CSV data exported from the Kaleido software on the Perkin-Elmer Luminometer. It processes this data using customizable Excel templates to automatically calculate neutralising antibody titres, then generates detailed graphs based on the processed results.
+## Prerequisites
 
-## Features
+| Dependency | Minimum version | Notes |
+|---|---|---|
+| Python | 3.8+ | |
+| R | 4.0+ | Must be on your system `PATH` |
+| pip packages | — | see below |
+| R packages | — | see below |
 
-- Upload raw CSV files (8x12 data blocks, Data Only mode).
-- Select or upload Excel template files to customize output.
-- Input assay title, pseudotype IDs, and sample IDs for labeling.
-- Automatically generates Excel reports with organized plate layouts.
-- Supports 1–4 pseudotypes per plate with dynamic plate labeling logic.
-- Create graphs with configurable colour presets.
-- Download processed Excel files and generated graphs directly.
-- Save and manage color presets and app settings.
+**Python packages**
 
-## Requirements
+```bash
+pip install flask openpyxl Pillow
+```
 
-### Python 3.8+
+**R packages** — run once inside an R session:
 
-### R with the following packages installed:
-- readxl
-- cowplot
-- grid
-- ggplot2
-- dplyr
-- tidyr
+```r
+install.packages(c("ggplot2", "dplyr", "tidyr", "readxl", "cowplot", "grid"))
+```
 
-Install required R packages in your R environment:
-
-install.packages(c("readxl", "ggplot2", "dplyr", "tidyr"))
-
-### Flask and Python dependencies
-
-Install via pip:
-
-pip install flask openpyxl
-
+---
 
 ## Setup
 
-Clone this repository:
-
+```bash
 git clone https://github.com/sscott97/NTAWeb
+cd NTAWeb
+pip install flask openpyxl Pillow
+```
 
-cd ntaweb
+No further configuration is needed. `settings.json` is created automatically on first run.
 
-Place your default Excel templates in the excel_templates/ directory. You can add multiple templates and select the active one in the Settings page.
+---
 
-Ensure the process_data.R script is present in the project root.
+## Running the app
 
-Run the Flask app:
+```bash
 python app.py
+```
 
-Open your browser and navigate to http://localhost:5000
+Then open **http://localhost:5000** in your browser.
 
-## Usage
+---
 
-Home Page: Upload your raw CSV file and enter assay information.
+## Workflow
 
-Settings: Select an Excel template or upload a new one, toggle filename timestamp option, and manage graph color presets.
+### 1. Home page — upload and label your data
 
-Process: After uploading, the app processes the CSV, generates an Excel report, and provides a download link.
+- **Input mode**
+  - *Standard* — CSV exported from Kaleido in standard format (includes a header block before the 8×12 data)
+  - *Data Only* — CSV exported with "Data Only" option (raw 8×12 numbers, no header)
+- **Pseudotype count** — 1–4 pseudotypes per plate. Controls how plates are labelled and grouped.
+- **Assay title, Pseudotype IDs, Sample IDs** — used to label the output Excel and graphs.
+- Upload the CSV and click **Process**.
 
-Graphs: Generate graphs based on processed data with the selected color presets. Graphs download as PNG images.
+### 2. Data Analysis
 
+After processing you land on the Data Analysis Hub. Three options:
 
-## How It Works
+| Option | What it does |
+|---|---|
+| **Linear Interpolation** | Calculates NT50 / NT90 by interpolating between measured dilution points. Default method. |
+| **Sigmoid Curve Fitting** | Fits a four-parameter logistic curve to each sample. Calculates IC50. Requires R. |
+| **Titre Comparison** | Compares NT50 (linear) vs IC50 (sigmoid). Requires curve fitting to be run first. |
 
-The app reads CSV data, splits it into 8x12 blocks.
+### 3. Results pages
 
-Each block is pasted into a new Excel sheet copied from the selected template.
+Each analysis page lets you:
+- View per-plate graphs inline (filterable by pseudotype/sample/quality)
+- Download an Excel file of results
+- Download individual or all graphs as PNGs
 
-Plate layouts update pseudotype labels and sample IDs according to the number of pseudotypes chosen.
+---
 
-The processed workbook includes a summary sheet and neutralising titres.
+## Excel templates
 
-An R script generates graphs from the processed Excel file, respecting color presets and including dilution info from the template.
+Templates live in `excel_templates/`. The active template is selected in **Settings**.
 
+- **Data range**: raw plate data is written into cells **B5:M12** of each sheet.
+- **Dilution series**: stored in **A5:A12** — the app reads these to label graphs and calculate titres.
+- You can upload your own `.xlsx` template through the Settings page.
+- **Create Dilution Variant**: duplicate the active template with a different dilution series (A5:A12) without modifying the original.
 
-## Customization
+---
 
-Excel Templates: You can create and upload your own templates matching the required layout.
+## Settings
 
-Color Presets: Save and apply custom graph color presets in settings.
+Navigate to **Settings** (top-right) to configure:
 
-Filename Settings: Toggle timestamp inclusion in output filenames.
+| Setting | Description |
+|---|---|
+| Active template | Which Excel template is used for processing |
+| Include timestamp in filename | Appends `_YYYYMMDD_HHMMSS` to output filenames |
+| Flag triplicate errors | Highlights wells where one replicate deviates > threshold (log₂) |
+| Outlier threshold | Log₂ fold-change cutoff for error flagging |
+| Default CSV mode | Standard or Data Only — pre-selects on the home page |
+| Default pseudotype count | Pre-selects the pseudotype pill on the home page |
+| Sigmoid R² threshold | Fits below this R² are marked "Unstable" |
+| Comparison disagreement threshold | Log₂ fold-change above which NT50 vs IC50 are flagged as disagreeing |
+| Graph colour presets | Save/delete named colour schemes for graphs |
+| Theme | Dark (default), Dark Paper, Light, or Forest |
 
-Pseudotype Counts: Choose between 1 to 4 pseudotypes affecting layout.
+---
 
-## File Structure
+## File structure
 
-<pre>
-/app.py                # Main Flask app
-/nta_utils.py          # Utility functions for processing Excel and CSV
-/process_data.R        # R script for graph generation
-/excel_templates/      # Folder for Excel template files
-/templates/            # HTML templates (index.html, settings.html, help.html, results.html)
-/static/               # Static assets (CSS, JS, images)
-/settings.json         # JSON file to store user settings and presets
-/config.json           # JSON file to store template location
-</pre>
+```
+app.py                        # Flask routes and main logic
+nta_utils.py                  # Data processing utilities and settings helpers
+process_data.R                # Graph generation (per-plate NT50 plots + summary)
+fit_sigmoids.R                # Four-parameter logistic curve fitting
+plot_sigmoids.R               # Sigmoid curve graph generation
+compare_titres.R              # NT50 vs IC50 titre comparison plots
+boxplot_NT50.R                # Boxplot generation for linear results
+
+excel_templates/              # Built-in and user-uploaded Excel templates
+templates/                    # Jinja2 HTML templates
+static/                       # CSS themes, favicon
+
+settings.json                 # Auto-created; stores all user settings and presets
+config.json                   # Stores active template path
+```
+
+---
 
 ## Troubleshooting
 
-Ensure R and required packages are installed and accessible in your system PATH.
+**R not found**
+Ensure `Rscript` is on your `PATH`. Test with `Rscript --version` in a terminal.
 
-Excel templates must match expected formatting and layout (8x12 data starting at B5).
+**Missing R packages**
+Run `install.packages(c("ggplot2", "dplyr", "tidyr", "readxl", "cowplot", "grid"))` in R.
 
-CSV files must be saved in "Data Only" mode from Kaleido software.
+**CSV not processing**
+- Check you selected the correct input mode (Standard vs Data Only).
+- The data block must be exactly 8 rows × 12 columns of numeric values.
 
-Temporary files are cleaned up automatically; if you encounter issues, check file permissions.
+**Template errors**
+- Templates must be `.xlsx` files.
+- Raw data is written to B5:M12; dilution series must be in A5:A12.
 
+**Sigmoid curve fitting fails**
+- Requires at least 4 dilution points with a measurable signal drop.
+- Samples that fail to converge are marked "Unstable" and excluded from plots by default.
+
+---
 
 ## Contact
 
-For questions or issues, contact via email: Sam.Scott.2@glasgow.ac.uk
-
+Sam Scott — Sam.Scott.2@glasgow.ac.uk

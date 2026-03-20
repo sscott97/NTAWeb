@@ -14,12 +14,13 @@ suppressPackageStartupMessages({
 args <- commandArgs(trailingOnly = TRUE)
 
 if (length(args) < 3) {
-  stop("Usage: Rscript compare_titres.R <excel_file> <ic50_csv> <output_dir>")
+  stop("Usage: Rscript compare_titres.R <excel_file> <ic50_csv> <output_dir> [disagreement_threshold]")
 }
 
 excel_file <- args[1]
 ic50_csv   <- args[2]
 output_dir <- args[3]
+disagreement_threshold <- if (length(args) >= 4 && args[4] != "") as.numeric(args[4]) else 1.0
 
 # Create output directory if needed
 if (!dir.exists(output_dir)) {
@@ -179,7 +180,8 @@ cat(sprintf("  Extracted %d NT50 values from %d plate(s)\n",
 ic50_data <- read_csv(ic50_csv, show_col_types = FALSE) %>%
   select(Sample, Virus, IC50_Titre = Titre, Quality,
          Lower, Upper, Slope, IC50, LOD_Flag) %>%
-  filter(!is.na(IC50_Titre))
+  filter(!is.na(IC50_Titre)) %>%
+  mutate(across(c(Sample, Virus), as.character))
 
 
 # ==============================================================================
@@ -187,7 +189,8 @@ ic50_data <- read_csv(ic50_csv, show_col_types = FALSE) %>%
 # ==============================================================================
 
 nt50_data <- nt50_data %>%
-  select(Pseudotype, Sample_ID, NT50_numeric)
+  select(Pseudotype, Sample_ID, NT50_numeric) %>%
+  mutate(across(c(Pseudotype, Sample_ID), as.character))
 
 merged_data <- nt50_data %>%
   inner_join(
@@ -231,7 +234,7 @@ merged_data <- merged_data %>%
     log10_IC50 = log10(IC50_Titre),
     log2_fold_difference     = log2(NT50_numeric / IC50_Titre),
     abs_log2_fold_difference = abs(log2_fold_difference),
-    disagreement = abs_log2_fold_difference > 1
+    disagreement = abs_log2_fold_difference > disagreement_threshold
   )
 
 

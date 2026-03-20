@@ -32,9 +32,10 @@ if (length(args) < 2) {
 input_csv <- args[1]
 output_dir <- args[2]
 
-# Optional: assay title and timestamp
+# Optional: assay title, timestamp, R² threshold
 assay_title <- if (length(args) >= 3 && args[3] != "") args[3] else NULL
 timestamp <- if (length(args) >= 4 && args[4] != "") args[4] else NULL
+r2_threshold <- if (length(args) >= 5 && args[5] != "") as.numeric(args[5]) else 0.5
 
 # Create output directory if it doesn't exist
 if (!dir.exists(output_dir)) {
@@ -144,7 +145,7 @@ for (s in samples) {
 
 for (i in seq_len(nrow(results))) {
   
-  if (is.na(results$R2[i]) || results$R2[i] < 0.5) {
+  if (is.na(results$R2[i]) || results$R2[i] < r2_threshold) {
     
     mean_neut <- results$u_Neutralisation[i]
     

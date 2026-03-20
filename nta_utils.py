@@ -537,7 +537,7 @@ def _is_outlier_in_triple(values, threshold_log2=1.0):
     return None
 
 
-def flag_triplicate_errors(output_path):
+def flag_triplicate_errors(output_path, threshold_log2=1.0):
     """
     Scan all Plate sheets for triplicate outliers in raw luminescence data
     (rows 5-12) and in NT50/NT90 replicate values. Creates an 'Errors' sheet
@@ -643,7 +643,7 @@ def flag_triplicate_errors(output_path):
                 for col in quad['data_cols']:
                     values.append(ws[f'{col}{excel_row}'].value)
                 
-                outliers = _is_outlier_in_triple(values)
+                outliers = _is_outlier_in_triple(values, threshold_log2=threshold_log2)
                 if outliers is not None:
                     # Calculate the max log2 fold diff for display
                     nums = []
@@ -691,7 +691,7 @@ def flag_triplicate_errors(output_path):
             
             # ── Check NT90 replicates ──
             nt90_values = [ws[cell].value for cell in quad['nt90_cells']]
-            nt90_outliers = _is_outlier_in_triple(nt90_values)
+            nt90_outliers = _is_outlier_in_triple(nt90_values, threshold_log2=threshold_log2)
             if nt90_outliers is not None:
                 nums = []
                 for v in nt90_values:
@@ -735,7 +735,7 @@ def flag_triplicate_errors(output_path):
             
             # ── Check NT50 replicates ──
             nt50_values = [ws[cell].value for cell in quad['nt50_cells']]
-            nt50_outliers = _is_outlier_in_triple(nt50_values)
+            nt50_outliers = _is_outlier_in_triple(nt50_values, threshold_log2=threshold_log2)
             if nt50_outliers is not None:
                 nums = []
                 for v in nt50_values:
@@ -845,6 +845,12 @@ def load_template_path(config_file=CONFIG_PATH):
 DEFAULT_SETTINGS = {
     "timestamp_in_filename": False,
     "error_flagging": False,
+    "default_data_mode": "standard",
+    "default_num_pseudotypes": 1,
+    "outlier_threshold_log2": 1.0,
+    "sigmoid_r2_threshold": 0.5,
+    "comparison_disagreement_threshold": 1.0,
+    "custom_templates": {},
     "presets": {
         "default": {
             "Q1": "#ff7e79",
@@ -860,9 +866,10 @@ def load_settings():
     if os.path.exists(SETTINGS_PATH):
         with open(SETTINGS_PATH, "r") as f:
             settings = json.load(f)
-        # Ensure new keys exist with defaults
-        if "error_flagging" not in settings:
-            settings["error_flagging"] = False
+        # Migrate: ensure all default keys are present
+        for key, value in DEFAULT_SETTINGS.items():
+            if key not in settings:
+                settings[key] = value
         return settings
     return DEFAULT_SETTINGS.copy()
 
