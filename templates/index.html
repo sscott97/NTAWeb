@@ -264,17 +264,15 @@
     function updateConfigDilutions() {
       const container = document.getElementById('dilutionSeriesDisplay');
       if (!container) return;
-      let html = '<div class="d-flex gap-2 flex-wrap">';
+      let html = '';
       templateDilutions.forEach((dil, idx) => {
         const isNSC = idx === 7;
-        const labelStyle = isNSC ? 'background: var(--bg-hover, white); border: 1px solid var(--teal, #28a745);' : 'background: var(--bg-hover, white); border: 1px solid var(--border, #dee2e6);';
-        const textStyle = isNSC ? 'color: var(--teal, #28a745); font-weight: 600;' : 'color: var(--text-primary, #333); font-weight: 500;';
-        html += `<div style="padding: 0.35rem 0.6rem; ${labelStyle} border-radius: 4px; min-width: 50px; text-align: center;">`;
-        html += `<span style="font-size: 0.85rem; ${textStyle}">${dil}</span>`;
-        if (isNSC) html += `<div style="font-size: 0.65rem; color: var(--text-dim, #888); margin-top: 2px;">NSC</div>`;
-        html += `</div>`;
+        const bg   = isNSC ? 'rgba(40,167,69,0.1)' : 'var(--bg-raised,#f8f9fa)';
+        const bdr  = isNSC ? '1px solid rgba(40,167,69,0.35)' : '1px solid var(--border,#dee2e6)';
+        const col  = isNSC ? 'var(--teal,#28a745)' : 'var(--text-primary,#333)';
+        const lbl  = isNSC ? `${dil} <span style="font-size:0.65rem;opacity:0.75;">NSC</span>` : dil;
+        html += `<span style="padding:0.18rem 0.45rem;background:${bg};border:${bdr};border-radius:4px;font-size:0.78rem;font-weight:600;color:${col};white-space:nowrap;">${lbl}</span>`;
       });
-      html += '</div>';
       container.innerHTML = html;
     }
 
@@ -497,74 +495,73 @@
 
   <!-- CURRENT CONFIGURATION CARD -->
   <div class="card">
-    <div class="card-header d-flex align-items-center justify-content-between">
+    <div class="card-header d-flex align-items-center justify-content-between" style="padding: 0.6rem 1rem;">
       <div class="d-flex align-items-center gap-2">
-        <span style="font-size: 1rem;">⚙️</span>
-        <span>Current Configuration</span>
+        <span style="font-size: 0.95rem;">⚙️</span>
+        <span style="font-size: 0.9rem; font-weight: 600;">Current Configuration</span>
       </div>
-      <a href="{{ url_for('settings') }}" class="btn btn-sm btn-outline-success" style="font-size: 0.8rem;">Edit Settings</a>
+      <a href="{{ url_for('settings') }}" class="btn btn-sm btn-outline-success" style="font-size: 0.78rem; padding: 0.2rem 0.6rem;">Edit Settings</a>
     </div>
-    <div class="card-body">
-      <div class="row g-3 mb-3">
-        <div class="col-md-8">
-          <div style="padding: 0.75rem; background: var(--bg-raised, #f8f9fa); border-radius: 6px; border: 1px solid var(--border, #dee2e6);">
-            <div style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim, #888); margin-bottom: 0.35rem; font-weight: 600;">Template File</div>
-            <div style="font-size: 0.9rem; font-weight: 500; color: var(--text-primary, #333); margin-bottom: 0.5rem;">
-              {{ settings.template_path.split('/')[-1] if settings.template_path else '⚠️ None Selected' }}
-            </div>
-            <div style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim, #888); margin-bottom: 0.35rem; font-weight: 600;">Dilution Series</div>
-            <div id="dilutionSeriesDisplay">
-              <div class="d-flex gap-2 flex-wrap">
-                <div style="padding: 0.35rem 0.6rem; background: var(--bg-hover, white); border: 1px solid var(--border, #dee2e6); border-radius: 4px; min-width: 50px; text-align: center;">
-                  <span style="font-size: 0.85rem; color: var(--text-dim, #888); font-weight: 500;">Loading...</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="col-md-4">
-          <div style="padding: 0.75rem; background: var(--bg-raised, #f8f9fa); border-radius: 6px; border: 1px solid var(--border, #dee2e6);">
-            <div style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim, #888); margin-bottom: 0.35rem; font-weight: 600;">Filename Timestamp</div>
-            <div style="font-size: 0.9rem; font-weight: 500;">
-              {% if settings.timestamp_in_filename %}
-                <span style="color: var(--teal, #28a745);">✓ Enabled</span>
-              {% else %}
-                <span style="color: var(--danger, #dc3545);">✗ Disabled</span>
-              {% endif %}
-            </div>
-          </div>
+    <div class="card-body" style="padding: 0.85rem 1rem; display: flex; flex-direction: column; gap: 0.75rem;">
+
+      <!-- Row 1: Template + dilutions -->
+      <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+        <span style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim, #888); font-weight: 600; flex-shrink: 0;">Template</span>
+        <span style="font-size: 0.88rem; font-weight: 600; color: var(--text-primary, #333); flex-shrink: 0;">
+          {{ settings.template_path.split('/')[-1] if settings.template_path else '⚠️ None selected' }}
+        </span>
+        <span style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim, #888); font-weight: 600; flex-shrink: 0; padding-left: 0.5rem; border-left: 1px solid var(--border, #dee2e6);">Dilutions</span>
+        <div id="dilutionSeriesDisplay" style="display: inline-flex; gap: 0.3rem; flex-wrap: wrap; align-items: center;">
+          <span style="font-size: 0.82rem; color: var(--text-dim, #888);">Loading…</span>
         </div>
       </div>
 
-      <div style="padding: 0.75rem; background: var(--bg-raised, #f8f9fa); border-radius: 6px; border: 1px solid var(--border, #dee2e6); margin-bottom: 0.75rem;">
-        <div style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim, #888); margin-bottom: 0.5rem; font-weight: 600;">
-          Graph Colours <span style="font-weight: 500; color: var(--text-mid, #666);">({{ settings.selected_preset }})</span>
-        </div>
-        <div class="d-flex gap-2 flex-wrap">
-          {% for q in ['Q1', 'Q2', 'Q3', 'Q4'] %}
-          <div class="d-flex align-items-center gap-2" style="padding: 0.35rem 0.6rem; background: var(--bg-hover, white); border-radius: 4px; border: 1px solid var(--border, #dee2e6);">
-            <div style="width: 16px; height: 16px; border-radius: 3px; background: {{ settings.presets[settings.selected_preset][q] }}; border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 0 8px {{ settings.presets[settings.selected_preset][q] }}88;"></div>
-            <span style="font-size: 0.85rem; font-weight: 500; color: var(--text-primary, #333);">{{ q }}</span>
-            <span style="font-size: 0.75rem; color: var(--text-dim, #888); font-family: monospace;">{{ settings.presets[settings.selected_preset][q] }}</span>
-          </div>
-          {% endfor %}
-        </div>
-      </div>
-
-      <div style="padding: 0.75rem; background: var(--bg-raised, #f8f9fa); border-radius: 6px; border: 1px solid var(--border, #dee2e6);">
-        <div style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim, #888); margin-bottom: 0.5rem; font-weight: 600;">Quadrants in Plots</div>
-        <div class="d-flex gap-2 flex-wrap">
-          {% for q in ['Q1', 'Q2', 'Q3', 'Q4'] %}
-          <div style="padding: 0.35rem 0.6rem; background: var(--bg-hover, white); border-radius: 4px; border: 1px solid var(--border, #dee2e6); min-width: 60px; text-align: center;">
-            <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary, #333);">{{ q }}</span>
-            {% if settings.quadrants and settings.quadrants.get(q) %}
-              <span style="color: var(--teal, #28a745); font-size: 0.85rem; margin-left: 0.25rem;">✓</span>
-            {% else %}
-              <span style="color: var(--danger, #dc3545); font-size: 0.85rem; margin-left: 0.25rem;">✗</span>
+      <!-- Row 2: Graph colours -->
+      <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+        <span style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim, #888); font-weight: 600; flex-shrink: 0;">Colours</span>
+        <span style="font-size: 0.78rem; color: var(--text-mid, #666); flex-shrink: 0;">({{ settings.selected_preset }})</span>
+        {% for q in ['Q1', 'Q2', 'Q3', 'Q4'] %}
+          {% set col = settings.presets[settings.selected_preset][q] %}
+          {% set q_enabled = settings.quadrants and settings.quadrants.get(q, true) %}
+          <div style="display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.25rem 0.55rem;
+            background: var(--bg-raised, #f8f9fa); border: 1px solid var(--border, #dee2e6);
+            border-radius: 6px; opacity: {{ '1' if q_enabled else '0.4' }};">
+            <span style="width: 14px; height: 14px; border-radius: 3px; background: {{ col }};
+              display: inline-block; box-shadow: 0 0 6px {{ col }}99; flex-shrink: 0;"></span>
+            <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-primary, #333);">{{ q }}</span>
+            {% if not q_enabled %}
+              <span style="font-size: 0.7rem; color: var(--text-dim, #999);">off</span>
             {% endif %}
           </div>
-          {% endfor %}
-        </div>
+        {% endfor %}
+      </div>
+
+      <!-- Row 3: status badges -->
+      <div style="display: flex; gap: 0.45rem; flex-wrap: wrap; align-items: center;">
+
+        <!-- Error flagging -->
+        {% if settings.get('error_flagging', false) %}
+          {% set thresh = settings.get('outlier_threshold_log2', 1.0) %}
+          <span style="padding: 0.2rem 0.55rem; border-radius: 20px; font-size: 0.78rem; font-weight: 600;
+            background: rgba(40,167,69,0.1); color: var(--teal, #28a745);
+            border: 1px solid rgba(40,167,69,0.25);">Error flagging on &middot; {{ thresh }} log₂</span>
+        {% else %}
+          <span style="padding: 0.2rem 0.55rem; border-radius: 20px; font-size: 0.78rem;
+            background: var(--bg-raised, #f8f9fa); color: var(--text-dim, #999);
+            border: 1px solid var(--border, #dee2e6);">Error flagging off</span>
+        {% endif %}
+
+        <!-- Timestamp -->
+        {% if settings.timestamp_in_filename %}
+          <span style="padding: 0.2rem 0.55rem; border-radius: 20px; font-size: 0.78rem; font-weight: 600;
+            background: rgba(40,167,69,0.08); color: var(--teal, #28a745);
+            border: 1px solid rgba(40,167,69,0.2);">Timestamps on</span>
+        {% else %}
+          <span style="padding: 0.2rem 0.55rem; border-radius: 20px; font-size: 0.78rem;
+            background: var(--bg-raised, #f8f9fa); color: var(--text-dim, #999);
+            border: 1px solid var(--border, #dee2e6);">Timestamps off</span>
+        {% endif %}
+
       </div>
     </div>
   </div>
