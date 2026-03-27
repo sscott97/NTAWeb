@@ -218,14 +218,14 @@ function ntaToast(message, type, options) {
   options = options || {};
 
   var defaultIcons = {
-    success: '✅',
-    danger: '❌',
-    warning: '⚠️',
-    info: 'ℹ️'
+    success: '✓',
+    danger: '✕',
+    warning: '!',
+    info: 'i'
   };
 
   var duration = options.duration || 8000;
-  var icon = options.icon || defaultIcons[type] || '✅';
+  var icon = options.icon || defaultIcons[type] || '✓';
 
   var container = document.getElementById('nta-toast-container');
   if (!container) return;

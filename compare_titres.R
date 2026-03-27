@@ -82,7 +82,9 @@ for (sheet_name in plate_sheets) {
   # Coerce to numeric matrix
   data_matrix <- as.data.frame(lapply(raw_block, as.numeric))
 
-  for (quad in quad_defs) {
+  for (qi in seq_along(quad_defs)) {
+    quad      <- quad_defs[[qi]]
+    quad_name <- paste0("Q", qi)
 
     pt_val  <- read_cell(sheet_name, quad$pt_cell)
     sid_val <- read_cell(sheet_name, quad$sid_cell)
@@ -152,6 +154,8 @@ for (sheet_name in plate_sheets) {
     if (length(nt50_replicates) > 0) {
       nt50_avg <- mean(nt50_replicates)
       nt50_rows[[length(nt50_rows) + 1]] <- data.frame(
+        Plate      = sheet_name,
+        Quadrant   = quad_name,
         Pseudotype = pseudotype_name,
         Sample_ID  = sample_name,
         NT50       = round(nt50_avg),
@@ -178,7 +182,7 @@ cat(sprintf("  Extracted %d NT50 values from %d plate(s)\n",
 # ==============================================================================
 
 ic50_data <- read_csv(ic50_csv, show_col_types = FALSE) %>%
-  select(Sample, Virus, IC50_Titre = Titre, Quality,
+  select(Plate, Quadrant, Sample, Virus, IC50_Titre = Titre, Quality,
          Lower, Upper, Slope, IC50, LOD_Flag) %>%
   filter(!is.na(IC50_Titre)) %>%
   mutate(across(c(Sample, Virus), as.character))
@@ -189,14 +193,14 @@ ic50_data <- read_csv(ic50_csv, show_col_types = FALSE) %>%
 # ==============================================================================
 
 nt50_data <- nt50_data %>%
-  select(Pseudotype, Sample_ID, NT50_numeric) %>%
+  select(Plate, Quadrant, Pseudotype, Sample_ID, NT50_numeric) %>%
   mutate(across(c(Pseudotype, Sample_ID), as.character))
 
 merged_data <- nt50_data %>%
   inner_join(
     ic50_data,
-    by = c("Pseudotype" = "Virus", "Sample_ID" = "Sample"),
-    relationship = "many-to-many"
+    by = c("Plate" = "Plate", "Quadrant" = "Quadrant",
+           "Pseudotype" = "Virus", "Sample_ID" = "Sample")
   )
 
 # If no matches found, try case-insensitive matching
@@ -218,10 +222,10 @@ if (nrow(merged_data) == 0) {
   merged_data <- nt50_data %>%
     inner_join(
       ic50_data,
-      by = c("Pseudotype_lower" = "Virus_lower", "Sample_ID_lower" = "Sample_lower"),
-      relationship = "many-to-many"
+      by = c("Plate" = "Plate", "Quadrant" = "Quadrant",
+             "Pseudotype_lower" = "Virus_lower", "Sample_ID_lower" = "Sample_lower")
     ) %>%
-    select(Pseudotype, Sample_ID, NT50_numeric, Virus, Sample,
+    select(Plate, Quadrant, Pseudotype, Sample_ID, NT50_numeric, Virus, Sample,
            IC50_Titre, Quality, Lower, Upper, Slope, IC50, LOD_Flag)
 }
 
@@ -279,7 +283,7 @@ if (nrow(merged_data) > 0) {
   top_mismatches <- merged_data %>%
     arrange(desc(abs_log2_fold_difference)) %>%
     head(5) %>%
-    select(Sample = Sample_ID, Virus = Pseudotype, NT50 = NT50_numeric,
+    select(Plate, Quadrant, Sample = Sample_ID, Virus = Pseudotype, NT50 = NT50_numeric,
            IC50_Titre, Log2_Fold_Difference = log2_fold_difference, Quality)
 
   stats <- data.frame(
@@ -427,6 +431,8 @@ if (nrow(merged_data) > 0) {
 
   merged_export <- merged_data %>%
     select(
+      Plate,
+      Quadrant,
       Pseudotype,
       Sample_ID,
       `NT50 (Linear Interpolation)` = NT50_numeric,

@@ -14,7 +14,6 @@
   <!-- Quick Start -->
   <div class="card mb-4" style="border-left: 4px solid #28a745;">
     <div class="card-header d-flex align-items-center gap-2" style="background: #f0f9f4;">
-      <span style="font-size: 1rem;">🚀</span>
       <span style="font-weight: 600;">Quick Start Guide</span>
     </div>
     <div class="card-body">
@@ -59,7 +58,6 @@
   <!-- File Requirements -->
   <div class="card mb-4">
     <div class="card-header d-flex align-items-center gap-2">
-      <span style="font-size: 1rem;">📄</span>
       <span style="font-weight: 600;">CSV File Requirements</span>
     </div>
     <div class="card-body" style="padding-bottom: 0.5rem;">
@@ -90,7 +88,6 @@
   <!-- Pseudotype Configuration -->
   <div class="card mb-4">
     <div class="card-header d-flex align-items-center gap-2">
-      <span style="font-size: 1rem;">🔢</span>
       <span style="font-weight: 600;">Pseudotype Configuration Logic</span>
     </div>
     <div class="card-body">
@@ -141,7 +138,7 @@
       {% endfor %}
 
       <div class="alert alert-info mt-3 mb-0" style="font-size: 0.88rem;">
-        <strong>💡 Tip:</strong> Use the <strong>Plate Layout Preview</strong> on the home page to visualize how your configuration will look before processing.
+        <strong>Tip:</strong> Use the <strong>Plate Layout Preview</strong> on the home page to visualize how your configuration will look before processing.
       </div>
 
     </div>
@@ -150,7 +147,6 @@
   <!-- Sample IDs -->
   <div class="card mb-4">
     <div class="card-header d-flex align-items-center gap-2">
-      <span style="font-size: 1rem;">🏷️</span>
       <span style="font-weight: 600;">Sample ID Handling</span>
     </div>
     <div class="card-body">
@@ -159,14 +155,14 @@
       </p>
 
       <div style="background: #f8f9fa; padding: 1rem; border-radius: 6px; border: 1px solid #dee2e6; margin-bottom: 1rem;">
-        <div style="font-weight: 600; color: #212529; margin-bottom: 8px; font-size: 0.9rem;">✅ With Sample IDs Provided</div>
+        <div style="font-weight: 600; color: #212529; margin-bottom: 8px; font-size: 0.9rem;">With Sample IDs Provided</div>
         <div style="font-size: 0.88rem; color: #555; line-height: 1.6;">
           Quadrants are labeled with the sample IDs you enter (comma-separated). Example: <code style="background: white; padding: 2px 6px; border-radius: 3px; font-size: 0.85em;">Sample1, Sample2, Sample3</code>
         </div>
       </div>
 
       <div style="background: #fff3cd; padding: 1rem; border-radius: 6px; border: 1px solid #ffc107; margin-bottom: 1rem;">
-        <div style="font-weight: 600; color: #856404; margin-bottom: 8px; font-size: 0.9rem;">⚠️ Without Sample IDs (Left Blank)</div>
+        <div style="font-weight: 600; color: #856404; margin-bottom: 8px; font-size: 0.9rem;">Without Sample IDs (Left Blank)</div>
         <div style="font-size: 0.88rem; color: #856404; line-height: 1.6;">
           <strong>Linear interpolation</strong> (NT50/NT90): Quadrants are left blank in the Excel file. Appear as Unlabelled on the Summary Sheet.<br>
           <strong>Curve fitting</strong> (IC50): Samples are automatically labeled as <code style="background: white; padding: 2px 6px; border-radius: 3px; font-size: 0.85em;">Unlabelled1</code>, <code style="background: white; padding: 2px 6px; border-radius: 3px; font-size: 0.85em;">Unlabelled2</code>, etc. This ensures all quadrants are processed and identifiable.
@@ -180,7 +176,6 @@
   <!-- Understanding Outputs -->
   <div class="card mb-4">
     <div class="card-header d-flex align-items-center gap-2">
-      <span style="font-size: 1rem;">📊</span>
       <span style="font-weight: 600;">Understanding Your Outputs</span>
     </div>
     <div class="card-body" style="padding-bottom: 0.5rem;">
@@ -231,14 +226,13 @@
   <!-- Analysis Methods -->
   <div class="card mb-4">
     <div class="card-header d-flex align-items-center gap-2">
-      <span style="font-size: 1rem;">🔬</span>
       <span style="font-weight: 600;">Analysis Methods</span>
     </div>
     <div class="card-body" style="font-size: 0.9rem; color: var(--text-mid, #444); line-height: 1.75;">
 
       <!-- Linear Interpolation -->
       <div style="background: #e7f3ff; padding: 1.25rem; border-radius: 8px; border-left: 4px solid #2196F3; margin-bottom: 1.25rem;">
-        <div style="font-weight: 700; color: #1565C0; margin-bottom: 8px; font-size: 1rem;">📐 Linear Interpolation (Default Method)</div>
+        <div style="font-weight: 700; color: #1565C0; margin-bottom: 8px; font-size: 1rem;">Linear Interpolation (Default Method)</div>
         <div style="font-size: 0.88rem; color: #1565C0; line-height: 1.7; margin-bottom: 8px;">
           <strong>Overview:</strong> Calculates NT50 and NT90 titres by finding the dilution at which the luminescence signal crosses 50% or 90% of the no-serum control (NSC) value.
         </div>
@@ -255,7 +249,7 @@
 
       <!-- Sigmoid Curve Fitting -->
       <div style="background: #f3e5f5; padding: 1.25rem; border-radius: 8px; border-left: 4px solid #9C27B0; margin-bottom: 1.25rem;">
-        <div style="font-weight: 700; color: #6A1B9A; margin-bottom: 8px; font-size: 1rem;">📈 Sigmoid Curve Fitting</div>
+        <div style="font-weight: 700; color: #6A1B9A; margin-bottom: 8px; font-size: 1rem;">Sigmoid Curve Fitting</div>
         <div style="font-size: 0.88rem; color: #6A1B9A; line-height: 1.7; margin-bottom: 8px;">
           <strong>Overview:</strong> Fits a four-parameter logistic (4PL) sigmoid function to percentage neutralisation data, yielding an IC50 value and associated quality metrics for each sample–virus combination.
         </div>
@@ -272,7 +266,7 @@
 
       <!-- Titre Comparison -->
       <div style="background: #e8f5e9; padding: 1.25rem; border-radius: 8px; border-left: 4px solid #4CAF50; margin-bottom: 0;">
-        <div style="font-weight: 700; color: #2E7D32; margin-bottom: 8px; font-size: 1rem;">🔬 Titre Comparison Analysis</div>
+        <div style="font-weight: 700; color: #2E7D32; margin-bottom: 8px; font-size: 1rem;">Titre Comparison Analysis</div>
         <div style="font-size: 0.88rem; color: #2E7D32; line-height: 1.7; margin-bottom: 8px;">
           <strong>Overview:</strong> Compares NT50 titres from linear interpolation with IC50-derived titres from sigmoid curve fitting to assess agreement between the two methods.
         </div>
@@ -290,7 +284,6 @@
   <!-- Settings & Customization -->
   <div class="card mb-4">
     <div class="card-header d-flex align-items-center gap-2">
-      <span style="font-size: 1rem;">⚙️</span>
       <span style="font-weight: 600;">Settings & Customization</span>
     </div>
     <div class="card-body" style="padding-bottom: 0.5rem;">
@@ -321,7 +314,6 @@
   <!-- Troubleshooting -->
   <div class="card mb-4">
     <div class="card-header d-flex align-items-center gap-2">
-      <span style="font-size: 1rem;">🔧</span>
       <span style="font-weight: 600;">Troubleshooting Common Issues</span>
     </div>
     <div class="card-body" style="padding-bottom: 0.5rem;">
@@ -344,7 +336,7 @@
         border-left: 4px solid #ffc107;
         border-radius: 6px;
       ">
-        <div style="font-weight: 600; color: #f57c00; margin-bottom: 6px; font-size: 0.9rem;">⚠️ {{ title }}</div>
+        <div style="font-weight: 600; color: #f57c00; margin-bottom: 6px; font-size: 0.9rem;">{{ title }}</div>
         <div style="font-size: 0.88rem; color: #e65100; line-height: 1.55;">{{ solution | safe }}</div>
       </div>
       {% endfor %}
@@ -355,7 +347,6 @@
   <!-- Technical Details -->
   <div class="card mb-4">
     <div class="card-header d-flex align-items-center gap-2">
-      <span style="font-size: 1rem;">🔬</span>
       <span style="font-weight: 600;">Technical Details</span>
     </div>
     <div class="card-body" style="padding-bottom: 0.75rem;">

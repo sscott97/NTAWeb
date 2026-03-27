@@ -1,123 +1,1007 @@
-/* NTA Web App — Original Green Theme */
+/* NTA Web App — Blueprint Theme (styles-light.css)
+   ─────────────────────────────────────────────────────────
+   Inspired by Modulo Bio — warm biotech modern.
+   Canvas: warm cream. Text: Modulo's #2b2533 purple-navy.
+   Primary action: deep teal. Highlight: Modulo's lime-green.
+   Font: IBM Plex Mono. Organic background blobs. No grid.
+   ────────────────────────────────────────────────────────── */
 
-/* ── Base ───────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap');
+
+
+/* ═══════════════════════════════════════════════════════
+   DESIGN TOKENS
+   ═══════════════════════════════════════════════════════ */
+
+:root {
+
+  /* ── Warm cream canvas (Modulo's bg-warm) ────────────── */
+
+  --bg-base:        #f2ece4;
+  --bg-surface:     #faf7f3;
+  --bg-raised:      #ece6dc;
+  --bg-hover:       #e4ddd4;
+  --bg-inset:       #eee8df;
+
+  /* ── Teal — functional (dark enough for text & white-text buttons) ── */
+  /* Modulo's decorative #81e6e5 can't meet contrast — so we use a       */
+  /* darker working teal for interactive elements, light for decoration. */
+
+  --teal:           #087a79;   /* borders, button bg — 4.7:1 with white */
+  --teal-dim:       #055c5b;   /* text, hover — 6.2:1 on cream          */
+  --teal-light:     #81e6e5;   /* Modulo's original — decorative only    */
+  --teal-glow:      rgba(8, 122, 121, 0.22);
+  --teal-pale:      rgba(8, 122, 121, 0.09);
+  --teal-ink:       rgba(8, 122, 121, 0.35);
+
+  /* ── Lime-green — Modulo's signature highlight, secondary accent ── */
+
+  --accent:         #cde02a;   /* lime highlight                         */
+  --accent-dim:     #8ea100;   /* dark lime for text on light surfaces   */
+  --accent-pale:    rgba(205, 224, 42, 0.14);
+  --accent-glow:    rgba(205, 224, 42, 0.28);
+
+  /* ── Modulo's deep purple-navy — primary text ────────── */
+
+  --text-primary:   #2b2533;
+  --text-mid:       #4a4158;
+  --text-dim:       #7d7092;
+  --text-faint:     #b5acca;
+
+  /* ── Borders — warm purple-grey ─────────────────────── */
+
+  --border:         rgba(43, 37, 51, 0.07);
+  --border-sharp:   rgba(43, 37, 51, 0.14);
+  --border-ink:     rgba(43, 37, 51, 0.22);
+
+  /* ── Status ──────────────────────────────────────────── */
+
+  --danger:         #c0392b;
+  --warning:        #956e18;
+  --info:           #087a79;
+  --success-soft:   #d4e9e8;
+
+  /* ── Shadows — warm purple-tinted depth ─────────────── */
+
+  --shadow-xs:      0 1px 3px rgba(43, 37, 51, 0.06),
+                    0 1px 2px rgba(43, 37, 51, 0.04);
+  --shadow-sm:      0 2px 8px  rgba(43, 37, 51, 0.08),
+                    0 1px 3px  rgba(43, 37, 51, 0.05);
+  --shadow-md:      0 8px 28px rgba(43, 37, 51, 0.10),
+                    0 3px 8px  rgba(43, 37, 51, 0.06);
+  --shadow-lg:      0 18px 52px rgba(43, 37, 51, 0.14),
+                    0 6px  16px rgba(43, 37, 51, 0.08);
+  --shadow-glow:    0 0 0 3px var(--teal-glow);
+
+  /* ── Radii — generous, organic ───────────────────────── */
+
+  --radius:         8px;
+  --radius-lg:      14px;
+  --radius-full:    9999px;
+
+  /* ── Transitions ─────────────────────────────────────── */
+
+  --ease:           cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --ease-out:       cubic-bezier(0.16, 1, 0.3, 1);
+  --dur:            0.2s;
+}
+
+
+/* ═══════════════════════════════════════════════════════
+   BASE LAYOUT — warm organic canvas
+   ═══════════════════════════════════════════════════════ */
+
+*, *::before, *::after { box-sizing: border-box; }
+
 body {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  margin: 0;
-  padding: 0;
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.6;
+  color: var(--text-primary);
+  background-color: var(--bg-base);
+
+  /*
+   * Organic radial blobs — Modulo's signature background treatment.
+   * Teal atmosphere top-right, lime glow bottom-left, dark depth centre.
+   */
+  background-image:
+    radial-gradient(ellipse 65% 50% at 96%  4%,  rgba(129, 230, 229, 0.22) 0%, transparent 70%),
+    radial-gradient(ellipse 52% 42% at  4% 94%,  rgba(205, 224,  42, 0.14) 0%, transparent 65%),
+    radial-gradient(ellipse 40% 35% at 54% 50%,  rgba( 43,  37,  51, 0.03) 0%, transparent 70%);
+
   min-height: 100vh;
-  background: linear-gradient(45deg, #b6d9b7, #a9cbb7, #7ea69a, #c8d8c8);
-  background-size: 400% 400%;
-  animation: backgroundGradient 20s ease infinite;
+  margin: 0;
+
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-sharp) transparent;
 }
 
-/* Animated gradient-filled text */
-h2.text-success, h3.text-success {
-  background: linear-gradient(135deg, #f0f4ef, #c9d8d0, #6a8471, #3e5f51);
-  background-size: 400% 400%;
-  animation: textGradient 20s ease infinite;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  color: transparent;
-  font-weight: bold;
-  letter-spacing: 0.5px;
+
+/* ═══════════════════════════════════════════════════════
+   TYPOGRAPHY
+   ═══════════════════════════════════════════════════════ */
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  letter-spacing: -0.3px;
+  color: var(--text-primary);
+  line-height: 1.3;
 }
 
-@keyframes backgroundGradient {
-  0%   { background-position: 0% 50%; }
-  50%  { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+/* Page titles (text-success class used in templates) */
+h2.text-success,
+h3.text-success {
+  font-weight: 700;
+  color: var(--teal-dim) !important;
 }
 
-@keyframes textGradient {
-  0%   { background-position: 0% 50%; }
-  50%  { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+p, li {
+  line-height: 1.7;
+  color: var(--text-mid);
 }
 
-/* ── Forms ──────────────────────────────────────────── */
-label.form-label {
+small, .small {
+  color: var(--text-dim);
+}
+
+code, pre, .font-mono {
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  font-size: 0.82em;
+  background: var(--bg-raised);
+  padding: 2px 7px;
+  border-radius: 5px;
+  border: 1px solid var(--border-sharp);
+  color: var(--teal-dim);
+}
+
+::selection {
+  background: rgba(8, 122, 121, 0.18);
+  color: var(--text-primary);
+}
+
+
+/* ═══════════════════════════════════════════════════════
+   NAVBAR — frosted glass + grain + gradient accent stripe
+   ═══════════════════════════════════════════════════════ */
+
+.navbar {
+  position: relative;
+  background: rgba(242, 236, 228, 0.84) !important;
+  backdrop-filter: blur(18px) saturate(1.15);
+  -webkit-backdrop-filter: blur(18px) saturate(1.15);
+  border-bottom: 1px solid var(--border-sharp) !important;
+  box-shadow: var(--shadow-sm);
+  /* overflow: visible so the ::after gradient stripe isn't clipped */
+}
+
+/* Grain texture — inspired by Modulo's nav_bg-grain element */
+.navbar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.78' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='0.45'/%3E%3C/svg%3E");
+  opacity: 0.06;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Lime → teal gradient stripe at bottom of navbar — Modulo-inspired accent */
+.navbar::after {
+  content: '';
+  position: absolute;
+  bottom: -1px; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    var(--accent)      0%,
+    var(--teal-light)  48%,
+    transparent        100%
+  );
+  z-index: 1;
+}
+
+/* Ensure all nav children sit above the pseudo-elements */
+.navbar > * { position: relative; z-index: 2; }
+.navbar .container,
+.navbar .container > * { position: relative; z-index: 2; }
+
+/* Brand — Modulo keeps its logo in the deep navy, not teal */
+.navbar-brand {
+  font-weight: 700;
+  font-size: 1.06rem;
+  letter-spacing: 0.3px;
+  color: var(--text-primary) !important;
+  transition: color var(--dur) var(--ease);
+}
+
+.navbar-brand:hover {
+  color: var(--teal) !important;
+}
+
+.navbar .nav-link {
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  color: var(--text-mid) !important;
+  font-size: 0.83rem;
   font-weight: 500;
+  padding: 0.35rem 0.9rem !important;
+  border-radius: var(--radius);
+  transition: color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+
+.navbar .nav-link:hover {
+  color: var(--teal-dim) !important;
+  background: var(--teal-pale);
+}
+
+
+/* ═══════════════════════════════════════════════════════
+   CONTAINER
+   ═══════════════════════════════════════════════════════ */
+
+.container { max-width: 820px; }
+
+main.container {
+  padding-top: 2.5rem !important;
+  padding-bottom: 4rem !important;
+  position: relative;
+  z-index: 2;
+}
+
+
+/* ═══════════════════════════════════════════════════════
+   CARDS — warm white panels floating on the canvas
+   ═══════════════════════════════════════════════════════ */
+
+.card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-sharp);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  transition:
+    transform      var(--dur) var(--ease),
+    box-shadow   0.28s var(--ease),
+    border-color 0.28s var(--ease);
+  position: relative;
+  overflow: visible;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md), 0 0 0 1px rgba(8, 122, 121, 0.14);
+  border-color: rgba(8, 122, 121, 0.26);
+}
+
+.card:active {
+  transform: translateY(0) scale(0.999);
+  box-shadow: var(--shadow-xs);
+  transition-duration: 0.08s;
+}
+
+.card-header {
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--border);
+  border-radius: calc(var(--radius-lg) - 1px) calc(var(--radius-lg) - 1px) 0 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  padding: 0.8rem 1.4rem;
+}
+
+.card-body {
+  padding: 1.5rem 1.6rem;
+}
+
+
+/* ═══════════════════════════════════════════════════════
+   FORMS
+   ═══════════════════════════════════════════════════════ */
+
+label.form-label {
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  font-weight: 600;
+  font-size: 0.69rem;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 0.4rem;
+  transition: color 0.15s var(--ease);
+}
+
+.mb-3:focus-within > label.form-label,
+.form-group:focus-within > label.form-label {
+  color: var(--teal-dim);
 }
 
 input[type="text"],
 input[type="file"],
+select.form-select,
+.form-control {
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  background: var(--bg-surface);
+  border: 1.5px solid var(--border-sharp);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  padding: 0.58rem 0.9rem;
+  font-size: 0.93rem;
+  transition: border-color var(--dur) var(--ease),
+              box-shadow   var(--dur) var(--ease),
+              background   var(--dur) var(--ease);
+}
+
+input:focus,
+select:focus,
+.form-control:focus {
+  border-color: var(--teal);
+  box-shadow: var(--shadow-glow);
+  background: #fdfcfa;
+  outline: none;
+}
+
+input::placeholder,
+.form-control::placeholder {
+  color: var(--text-faint);
+  font-style: italic;
+}
+
 select.form-select {
-  border-radius: 0.5rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%237d7092' d='M6 8.5L1.5 4h9z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.85rem center;
+  background-size: 11px;
+  padding-right: 2.2rem;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
 }
 
-/* ── Buttons ────────────────────────────────────────── */
-.btn,
-.btn-success,
+
+/* ═══════════════════════════════════════════════════════
+   BUTTONS
+   ═══════════════════════════════════════════════════════ */
+
+.btn {
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  font-weight: 600;
+  font-size: 0.86rem;
+  border-radius: var(--radius);
+  padding: 0.55rem 1.4rem;
+  letter-spacing: 0.15px;
+  cursor: pointer;
+  transition:
+    background    var(--dur) var(--ease-out),
+    border-color  var(--dur) var(--ease-out),
+    transform     var(--dur) var(--ease-out),
+    box-shadow    var(--dur) var(--ease-out),
+    color         var(--dur) var(--ease-out);
+  position: relative;
+}
+
+/* Primary — deep teal with white text */
 .btn-primary,
-.btn-danger,
-.btn-outline-primary,
-.btn-outline-success,
-.btn-outline-secondary,
-.btn-outline-info {
-  font-weight: normal;
-  letter-spacing: normal;
-  font-family: inherit;
-  border-radius: 0.5rem;
-}
-
 .btn-success {
-  background-color: #28a745;
-  border-color: #28a745;
+  background: var(--teal);
+  border: 1.5px solid var(--teal-dim);
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
 }
+
+.btn-primary:hover,
 .btn-success:hover {
-  background-color: #218838;
-  border-color: #1e7e34;
+  background: var(--teal-dim);
+  border-color: var(--teal-dim);
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow:
+    0 4px 20px rgba(8, 122, 121, 0.34),
+    0 1px 4px  rgba(8, 122, 121, 0.20);
 }
 
-/* ── Layout ─────────────────────────────────────────── */
-.container {
-  max-width: 800px;
+.btn-primary:active,
+.btn-success:active {
+  transform: translateY(0);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.12);
 }
 
-/* ── Navbar ─────────────────────────────────────────── */
-.navbar {
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-  background-color: #fff !important;
+/* Outline success */
+.btn-outline-success {
+  background: transparent;
+  border: 1.5px solid var(--teal);
+  color: var(--teal-dim);
+}
+.btn-outline-success:hover {
+  background: var(--teal-pale);
+  border-color: var(--teal-dim);
+  color: var(--teal-dim);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 10px var(--teal-glow);
 }
 
-.nav-link {
-  font-weight: 500;
+/* Outline secondary */
+.btn-outline-secondary {
+  background: transparent;
+  border: 1.5px solid var(--border-sharp);
+  color: var(--text-mid);
+}
+.btn-outline-secondary:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-ink);
+  color: var(--text-primary);
 }
 
-.navbar-brand.text-success {
-  color: #3e5f51 !important;
+/* Danger */
+.btn-danger {
+  background: transparent;
+  border: 1.5px solid var(--danger);
+  color: var(--danger);
+}
+.btn-danger:hover {
+  background: var(--danger);
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(192, 57, 43, 0.30);
 }
 
-/* Force Plate Mapper link colour */
-.navbar .plate-link {
-  color: #388bfd !important;
+/* Small */
+.btn-sm {
+  font-size: 0.80rem;
+  padding: 0.38rem 0.95rem;
 }
 
-.navbar .plate-link:hover,
-.navbar .plate-link:focus {
-  color: #388bfd !important;
-  opacity: 0.85;
+/* Disabled */
+.btn:disabled,
+.btn.disabled {
+  opacity: 0.46;
+  cursor: not-allowed;
+  pointer-events: none;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Focus ring */
+.btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--bg-base), 0 0 0 4px var(--teal);
 }
 
 
-/* ── Image preview ──────────────────────────────────── */
-img.img-fluid {
-  border: 2px solid #ccc;
-  border-radius: 0.5rem;
+/* ═══════════════════════════════════════════════════════
+   ALERTS
+   ═══════════════════════════════════════════════════════ */
+
+.alert {
+  border-radius: var(--radius);
+  border: 1px solid var(--border-sharp);
+  background: var(--bg-surface);
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.alert-success {
+  background: #d5eae8;
+  border: 1px solid #9fd0ce;
+  border-left: 3px solid var(--teal);
+  color: var(--text-primary);
+}
+.alert-danger {
+  background: #f2e3e2;
+  border: 1px solid #c89292;
+  border-left: 3px solid var(--danger);
+  color: var(--text-primary);
+}
+.alert-warning {
+  background: #f3ead8;
+  border: 1px solid #ccb87c;
+  border-left: 3px solid var(--warning);
+  color: var(--text-primary);
+}
+
+
+/* ═══════════════════════════════════════════════════════
+   TABLES
+   ═══════════════════════════════════════════════════════ */
+
+.table {
+  font-size: 0.87rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  /* Reset Bootstrap 5's CSS-variable-driven colour chain */
+  --bs-table-color: var(--text-primary);
+  --bs-table-bg: transparent;
+  --bs-table-border-color: var(--border);
+  --bs-table-hover-bg: var(--teal-pale);
+  --bs-table-striped-bg: var(--bg-raised);
+}
+
+.table thead th {
+  font-size: 0.69rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.1px;
+  color: var(--text-dim) !important;
+  border-bottom: 2px solid var(--teal);
+  background: var(--bg-raised);
+  padding: 0.72rem 1rem;
+}
+
+.table tbody td {
+  border-color: var(--border);
+  padding: 0.75rem 1rem;
+  color: var(--text-mid) !important;
+  font-variant-numeric: tabular-nums;
+  vertical-align: middle;
+}
+
+.table-hover > tbody > tr:hover {
+  background: var(--teal-pale);
+}
+
+
+/* ═══════════════════════════════════════════════════════
+   BADGES
+   ═══════════════════════════════════════════════════════ */
+
+.badge {
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  font-size: 0.68rem;
+  font-weight: 600;
+  border-radius: var(--radius-full);
+  padding: 0.3em 0.65em;
+  letter-spacing: 0.3px;
+}
+
+.badge.bg-success {
+  background: var(--teal-dim) !important;
+  color: #ffffff;
+}
+
+
+/* ═══════════════════════════════════════════════════════
+   SPINNERS & TEXT-SUCCESS UTILITY
+   ═══════════════════════════════════════════════════════ */
+
+.spinner-border.text-success { color: var(--teal) !important; }
+
+/* text-success is used for page titles and the nav brand */
+.text-success { color: var(--teal-dim) !important; }
+
+
+/* ═══════════════════════════════════════════════════════
+   LINKS
+   ═══════════════════════════════════════════════════════ */
+
+a {
+  color: var(--teal-dim);
+  text-decoration-color: var(--teal-ink);
+  transition: color var(--dur) var(--ease);
+}
+a:hover {
+  color: var(--teal);
+  text-decoration-color: var(--teal-glow);
+}
+
+
+/* ═══════════════════════════════════════════════════════
+   PAGE TITLE UNDERLINE  (h2.text-success used in templates)
+   Uses Modulo's lime→teal gradient — same as the navbar stripe.
+   ═══════════════════════════════════════════════════════ */
+
+h2.text-success {
+  position: relative;
+  display: inline-block;
+  padding-bottom: 7px;
+}
+
+h2.text-success::after {
+  content: '';
+  position: absolute;
+  left: 0; bottom: 0;
+  width: 100%; height: 2px;
+  background: linear-gradient(
+    90deg,
+    var(--accent)      0%,
+    var(--teal-light)  55%,
+    transparent        100%
+  );
+  border-radius: 2px;
+}
+
+
+/* ═══════════════════════════════════════════════════════
+   SCROLLBAR
+   ═══════════════════════════════════════════════════════ */
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--border-sharp);
+  border-radius: var(--radius-full);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--text-faint); }
+
+
+/* ═══════════════════════════════════════════════════════
+   FOCUS RING (global)
+   ═══════════════════════════════════════════════════════ */
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-glow);
+}
+
+
+/* ═══════════════════════════════════════════════════════
+   UPLOAD DROPZONE — organic, Modulo-inspired interior
+   ═══════════════════════════════════════════════════════ */
+
+.upload-dropzone {
+  border: 2px dashed var(--border-sharp);
+  background:
+    radial-gradient(ellipse 70% 60% at 85% 15%, rgba(129, 230, 229, 0.12) 0%, transparent 65%),
+    radial-gradient(ellipse 55% 50% at 15% 85%, rgba(205, 224,  42, 0.08) 0%, transparent 60%),
+    var(--teal-pale);
+  padding: 2.5rem 2rem;
+  text-align: center;
+  border-radius: var(--radius-lg);
+  transition: all 0.25s var(--ease);
+  cursor: pointer;
+  color: var(--text-dim);
+}
+
+.upload-dropzone:hover {
+  border-color: var(--teal);
+  background:
+    radial-gradient(ellipse 70% 60% at 85% 15%, rgba(129, 230, 229, 0.15) 0%, transparent 65%),
+    radial-gradient(ellipse 55% 50% at 15% 85%, rgba(205, 224,  42, 0.10) 0%, transparent 60%),
+    rgba(8, 122, 121, 0.07);
+  transform: scale(1.005);
+}
+
+.upload-dropzone--dragover {
+  border-color: var(--teal) !important;
+  background: rgba(8, 122, 121, 0.10) !important;
+  box-shadow: var(--shadow-glow);
+  transform: scale(1.01);
+}
+
+.upload-dropzone--has-file {
+  border-style: solid;
+  border-color: var(--teal);
+  background: rgba(8, 122, 121, 0.06);
+}
+
+.upload-dropzone:focus-visible {
+  box-shadow: var(--shadow-glow);
+  outline: none;
+}
+
+
+/* ═══════════════════════════════════════════════════════
+   BENTO GRID
+   ═══════════════════════════════════════════════════════ */
+
+.bento-grid {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}
+.bento-wide { grid-column: span 2; }
+
+
+/* ═══════════════════════════════════════════════════════
+   Q-PILL TOGGLES
+   ═══════════════════════════════════════════════════════ */
+
+.q-pill {
+  font-family: 'IBM Plex Mono', 'Courier New', monospace !important;
+  font-size: 0.76rem !important;
+  border: 1.5px solid var(--border-sharp) !important;
+  border-radius: var(--radius-full) !important;
+  background: var(--bg-raised) !important;
+  color: var(--text-dim) !important;
+  transition:
+    background    var(--dur) var(--ease),
+    border-color  var(--dur) var(--ease),
+    color         var(--dur) var(--ease),
+    box-shadow    var(--dur) var(--ease) !important;
+}
+
+.q-pill:hover {
+  border-color: var(--teal) !important;
+  color: var(--teal-dim) !important;
+  background: var(--teal-pale) !important;
+}
+
+.q-pill.on {
+  background: var(--teal) !important;
+  color: #ffffff !important;
+  border-color: var(--teal-dim) !important;
+  box-shadow: 0 2px 8px var(--teal-glow) !important;
+}
+
+
+/* ═══════════════════════════════════════════════════════
+   DATA MODE PICKER BUTTONS
+   ═══════════════════════════════════════════════════════ */
+
+.data-mode-btn {
+  border: 2px solid var(--border-sharp) !important;
+  background: var(--bg-surface) !important;
+  color: var(--text-mid) !important;
+  font-family: 'IBM Plex Mono', 'Courier New', monospace !important;
+  font-size: 0.82rem;
+  border-radius: var(--radius) !important;
+  transition: all var(--dur) var(--ease);
+  position: relative;
+}
+
+.data-mode-btn:hover {
+  border-color: var(--teal) !important;
+  background: var(--teal-pale) !important;
+  color: var(--teal-dim) !important;
+}
+
+.data-mode-btn.data-mode-selected {
+  border-color: var(--teal) !important;
+  background: var(--bg-surface) !important;
+  color: var(--teal-dim) !important;
+  box-shadow: 0 0 0 1px var(--teal),
+              inset 0 2px 6px rgba(8, 122, 121, 0.07) !important;
+}
+
+.data-mode-btn.data-mode-selected::after {
+  content: '✓';
+  position: absolute;
+  top: 6px; right: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--teal);
+}
+
+/* Override any inline green styles set by JS */
+.data-mode-btn[style*="border-color: #28a745"],
+.data-mode-btn[style*="border-color: rgb(40, 167, 69)"] {
+  border-color: var(--teal) !important;
+  background: rgba(8, 122, 121, 0.07) !important;
+  color: var(--teal-dim) !important;
+}
+
+
+/* ═══════════════════════════════════════════════════════
+   PLATE PREVIEW TABLE
+   ═══════════════════════════════════════════════════════ */
+
+#platePreviewCard .card-body table td {
+  border: 1px solid var(--border) !important;
+}
+
+
+/* ═══════════════════════════════════════════════════════
+   GRAPH / PLOT DISPLAY AREAS
+   ═══════════════════════════════════════════════════════ */
+
+#graphDisplayArea {
+  background: var(--bg-inset) !important;
+  border-radius: var(--radius) !important;
+}
+
+#boxplotArea {
+  background: var(--bg-base) !important;
+}
+
+
+/* ═══════════════════════════════════════════════════════
+   CUSTOM PRESET DROPDOWN
+   ═══════════════════════════════════════════════════════ */
+
+#customPresetTrigger {
+  background: var(--bg-surface) !important;
+  border-color: var(--border-sharp) !important;
+  color: var(--text-mid) !important;
+  border-radius: var(--radius) !important;
+}
+
+#customPresetList {
+  background: var(--bg-surface) !important;
+  border-color: var(--border-sharp) !important;
+  box-shadow: var(--shadow-md) !important;
+  border-radius: var(--radius) !important;
+}
+
+
+/* ═══════════════════════════════════════════════════════
+   PROCESSING OVERLAY
+   ═══════════════════════════════════════════════════════ */
+
+.processing-overlay {
+  display: none;
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(242, 236, 228, 0.86);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.processing-overlay--visible { display: block; }
+
+.processing-overlay__inner {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center; max-width: 380px; width: 90%;
+}
+
+.processing-overlay__card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-sharp);
+  border-radius: var(--radius-lg);
+  padding: 2.5rem 2rem;
+  box-shadow: var(--shadow-lg);
+}
+
+.processing-overlay__spinner {
+  margin: 0 auto 1.25rem;
+  width: 44px; height: 44px;
+  border: 3px solid var(--border-sharp);
+  border-top-color: var(--teal);
+  border-radius: 50%;
+  animation: ntaSpin 0.85s linear infinite;
+}
+
+.processing-overlay__title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--teal-dim);
+  margin-bottom: 0.4rem;
+}
+
+.processing-overlay__subtext {
+  font-size: 0.70rem;
+  color: var(--text-dim);
+  letter-spacing: 0.4px;
+  line-height: 1.7;
+}
+
+.processing-overlay__dots {
   margin-top: 1rem;
+  display: flex; justify-content: center; gap: 6px;
 }
 
-/* ── Cards ──────────────────────────────────────────── */
-.card {
-  border-radius: 0.5rem;
+.processing-overlay__dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--teal);
+  opacity: 0.25;
+  animation: ntaPulse 1.6s ease-in-out infinite;
 }
 
-.card-header.bg-success {
-  background-color: #28a745 !important;
+.processing-overlay__dot:nth-child(2) { animation-delay: 0.22s; }
+.processing-overlay__dot:nth-child(3) { animation-delay: 0.44s; }
+
+.processing-overlay__footnote {
+  margin-top: 1rem;
+  font-size: 0.74rem;
+  color: var(--text-faint);
+  font-style: italic;
 }
 
-.card-header.bg-primary {
-  background-color: #0d6efd !important;
+@keyframes ntaSpin  { to { transform: rotate(360deg); } }
+@keyframes ntaPulse {
+  0%,  100% { opacity: 0.22; transform: scale(1);    }
+  50%        { opacity: 1;    transform: scale(1.28); }
+}
+
+
+/* ═══════════════════════════════════════════════════════
+   TOAST NOTIFICATIONS
+   ═══════════════════════════════════════════════════════ */
+
+.nta-toast-container {
+  position: fixed;
+  top: 1rem; right: 1rem;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  pointer-events: none;
+}
+
+.nta-toast {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.78rem 1.05rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-sharp);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  font-size: 0.87rem;
+  color: var(--text-primary);
+  max-width: 420px;
+  pointer-events: auto;
+  transform: translateX(120%);
+  opacity: 0;
+  transition: transform 0.32s var(--ease-out), opacity 0.32s var(--ease);
+}
+
+.nta-toast--visible  { transform: translateX(0); opacity: 1; }
+.nta-toast--warning  { border-left: 3px solid var(--warning); }
+.nta-toast--danger   { border-left: 3px solid var(--danger); }
+.nta-toast--success  { border-left: 3px solid var(--teal); }
+.nta-toast--info     { border-left: 3px solid var(--info); }
+
+.nta-toast__icon  { font-size: 1.1rem; flex-shrink: 0; }
+.nta-toast__msg   { flex: 1; line-height: 1.5; }
+.nta-toast__close {
+  background: none; border: none;
+  color: var(--text-dim);
+  cursor: pointer; font-size: 0.9rem;
+  padding: 0 0 0 0.5rem; line-height: 1;
+  transition: color var(--dur) var(--ease);
+}
+.nta-toast__close:hover { color: var(--text-primary); }
+
+
+/* ═══════════════════════════════════════════════════════
+   CONFIRM DIALOG
+   ═══════════════════════════════════════════════════════ */
+
+.nta-confirm-backdrop {
+  position: fixed; inset: 0; z-index: 10001;
+  background: rgba(242, 236, 228, 0.72);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s var(--ease);
+}
+.nta-confirm-backdrop--visible { opacity: 1; }
+
+.nta-confirm-dialog {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-sharp);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 1.6rem 1.8rem;
+  max-width: 420px; width: 90%;
+}
+
+.nta-confirm-dialog__body {
+  font-size: 0.94rem;
+  color: var(--text-primary);
+  line-height: 1.65;
+  margin-bottom: 1.25rem;
+}
+
+.nta-confirm-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+
+/* ═══════════════════════════════════════════════════════
+   RECENT RESULTS STRIP
+   ═══════════════════════════════════════════════════════ */
+
+.recent-result-item {
+  transition: background 0.15s var(--ease);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.45rem !important;
+}
+.recent-result-item:hover { background: var(--teal-pale); }
+.recent-result-item:last-child { border-bottom: none !important; }
+
+
+/* ═══════════════════════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════════════════════ */
+
+@media (max-width: 600px) {
+  .card-body { padding: 1.1rem 1rem; }
+  .bento-wide { grid-column: span 1; }
+  .nta-toast-container { left: 0.5rem; right: 0.5rem; top: auto; bottom: 0.75rem; }
+  .nta-toast { max-width: 100%; }
 }

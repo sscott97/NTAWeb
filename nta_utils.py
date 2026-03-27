@@ -1018,7 +1018,8 @@ def generate_sigmoid_csv(excel_path_or_bytes, output_csv_path):
 
                 if dilution_log2[i] is not None:
                     all_rows.append({
-                        'Batch': 1,
+                        'Plate': sheet_name,
+                        'Quadrant': f'Q{quad_idx + 1}',
                         'Virus': virus_str,
                         'Sample': sample_str,
                         'Dilution': dilutions[i],
@@ -1036,7 +1037,7 @@ def generate_sigmoid_csv(excel_path_or_bytes, output_csv_path):
 
     if all_rows:
         with open(output_csv_path, 'w', newline='') as csvfile:
-            fieldnames = ['Batch', 'Virus', 'Sample', 'Dilution', 'DilutionLog2', 'Rep1', 'Rep2', 'Rep3', 'Rep_Mean', 'NSC_Mean', 'Neutralisation']
+            fieldnames = ['Plate', 'Quadrant', 'Virus', 'Sample', 'Dilution', 'DilutionLog2', 'Rep1', 'Rep2', 'Rep3', 'Rep_Mean', 'NSC_Mean', 'Neutralisation']
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(all_rows)

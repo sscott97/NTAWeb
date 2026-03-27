@@ -39,9 +39,11 @@ ic50_filtered <- ic50_data %>% filter(Quality %in% allowed_quality)
 if (nrow(ic50_filtered) == 0) stop("No samples match the selected quality filters")
 
 # Data points: join raw data with quality info
+# Join on Plate+Quadrant+Sample+Virus so duplicate sample names are never merged
 plot_points <- raw_data %>%
-  inner_join(ic50_filtered %>% select(Sample, Virus, Quality), by = c("Sample", "Virus")) %>%
-  mutate(Facet_Label = paste0(Virus, "\n", Sample))
+  inner_join(ic50_filtered %>% select(Plate, Quadrant, Sample, Virus, Quality),
+             by = c("Plate", "Quadrant", "Sample", "Virus")) %>%
+  mutate(Facet_Label = paste0(Virus, "\n", Sample, "\n(", Plate, " ", Quadrant, ")"))
 
 # Fitted curves: reconstruct from parameters for samples with valid IC50
 x_range <- seq(min(raw_data$DilutionLog2) - 0.5, max(raw_data$DilutionLog2) + 0.5, length.out = 120)
@@ -50,12 +52,14 @@ curves <- bind_rows(lapply(seq_len(nrow(ic50_filtered)), function(i) {
   row <- ic50_filtered[i, ]
   if (is.na(row$IC50)) return(NULL)
   data.frame(
+    Plate         = row$Plate,
+    Quadrant      = row$Quadrant,
     Sample        = row$Sample,
     Virus         = row$Virus,
     Quality       = row$Quality,
     DilutionLog2  = x_range,
     Neutralisation = sigmoid(x_range, row$Lower, row$Upper, row$Slope, row$IC50),
-    Facet_Label   = paste0(row$Virus, "\n", row$Sample)
+    Facet_Label   = paste0(row$Virus, "\n", row$Sample, "\n(", row$Plate, " ", row$Quadrant, ")")
   )
 }))
 

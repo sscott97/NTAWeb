@@ -13,7 +13,7 @@
   <div class="mb-4">
     <h2 class="text-success mb-1" style="font-size: 1.75rem;">Data Analysis</h2>
     <p style="color: var(--text-dim, #888); font-size: 0.85rem; margin: 0;">
-      The data has been processed — choose an analysis method below
+      Data processed — choose an analysis method 
     </p>
   </div>
 
@@ -33,7 +33,18 @@
             display: flex; align-items: center; justify-content: center;
             box-shadow: 0 8px 24px rgba(33, 150, 243, 0.28);
           ">
-            <span style="font-size: 2.5rem; line-height: 1;">📐</span>
+            <svg width="46" height="46" viewBox="0 0 46 46" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <line x1="7" y1="6" x2="7" y2="38" stroke="white" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+              <line x1="7" y1="38" x2="39" y2="38" stroke="white" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+              <polyline points="9,10 16,15 22,22 29,28 36,32" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+              <line x1="7" y1="22" x2="39" y2="22" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="3 2.5" opacity="0.7"/>
+              <line x1="22" y1="22" x2="22" y2="38" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="3 2.5" opacity="0.7"/>
+              <circle cx="22" cy="22" r="3.5" fill="white"/>
+              <circle cx="9" cy="10" r="2" fill="white" opacity="0.75"/>
+              <circle cx="16" cy="15" r="2" fill="white" opacity="0.75"/>
+              <circle cx="29" cy="28" r="2" fill="white" opacity="0.75"/>
+              <circle cx="36" cy="32" r="2" fill="white" opacity="0.75"/>
+            </svg>
           </div>
 
           <!-- Text -->
@@ -50,7 +61,7 @@
               ">Default</span>
             </div>
             <p style="color: var(--text-mid, #666); font-size: 0.9rem; line-height: 1.6; margin-bottom: 1.1rem; max-width: 580px;">
-              NT50 and NT90 titres calculated by interpolation between measured dilution points. Download Excel results, summary graphs, and per-plate plots.
+              NT50% and NT90% calculated by interpolation between measured dilution points. Download Excel results and summary graphs.
             </p>
             <span class="btn btn-primary btn-sm" style="pointer-events: none;">
               View Results →
@@ -73,7 +84,14 @@
             margin-bottom: 1rem;
             box-shadow: 0 6px 18px rgba(156, 39, 176, 0.25);
           ">
-            <span style="font-size: 1.75rem; line-height: 1;">📈</span>
+            <svg width="34" height="34" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <line x1="4" y1="4" x2="4" y2="30" stroke="white" stroke-width="1.5" stroke-linecap="round" opacity="0.55"/>
+              <line x1="4" y1="30" x2="30" y2="30" stroke="white" stroke-width="1.5" stroke-linecap="round" opacity="0.55"/>
+              <path d="M 5 28 C 7 28 9 24 13 19 S 21 8 29 7" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+              <circle cx="17" cy="17" r="2.5" fill="white" opacity="0.9"/>
+              <line x1="4" y1="17" x2="17" y2="17" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-dasharray="2.5 2" opacity="0.6"/>
+              <line x1="17" y1="17" x2="17" y2="30" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-dasharray="2.5 2" opacity="0.6"/>
+            </svg>
           </div>
           <h5 style="font-weight: 700; color: var(--text-primary, #222); margin-bottom: 0.4rem; font-size: 1rem;">
             Sigmoid Curve Fitting
@@ -108,18 +126,26 @@
             margin-bottom: 1rem;
             box-shadow: 0 6px 18px rgba(76, 175, 80, 0.25);
           ">
-            <span id="compareIconEmoji" style="font-size: 1.75rem; line-height: 1;">🔬</span>
+            <svg id="compareIconSvg" width="34" height="34" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <line x1="4" y1="4" x2="4" y2="30" stroke="white" stroke-width="1.5" stroke-linecap="round" opacity="0.55"/>
+              <line x1="4" y1="30" x2="30" y2="30" stroke="white" stroke-width="1.5" stroke-linecap="round" opacity="0.55"/>
+              <line x1="4" y1="30" x2="30" y2="4" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="3 2.5" opacity="0.65"/>
+              <circle cx="8" cy="25" r="2.2" fill="white"/>
+              <circle cx="13" cy="19" r="2.2" fill="white"/>
+              <circle cx="18" cy="14" r="2.2" fill="white"/>
+              <circle cx="24" cy="9" r="2.2" fill="white"/>
+            </svg>
           </div>
           <h5 style="font-weight: 700; color: var(--text-primary, #222); margin-bottom: 0.4rem; font-size: 1rem;">
             Titre Comparison
           </h5>
           <p style="color: var(--text-mid, #666); font-size: 0.82rem; line-height: 1.55; margin-bottom: 1rem; flex: 1;">
-            Compare NT50 (linear interpolation) with IC50 (curve fitting) to assess inter-method agreement. Requires curve fitting first.
+            Compare NT50 (linear interpolation) with IC50 (curve fitting). Requires curve fitting first.
           </p>
           <!-- Locked state -->
           <div id="compareLockedBtn" style="display: none;">
             <span class="btn btn-outline-secondary btn-sm" style="pointer-events: none; opacity: 0.75;">
-              🔒 Run Curve Fitting First
+              Run Curve Fitting First
             </span>
           </div>
           <!-- Unlocked state -->
@@ -138,18 +164,19 @@
 
   </div>
 
-  <!-- Quick download -->
+  <!-- Quick download + Report row -->
   <div class="card mb-4">
     <div class="card-body d-flex align-items-center justify-content-between flex-wrap gap-2" style="padding: 1rem 1.25rem;">
       <div>
-        <span style="font-weight: 600; color: var(--text-primary, #333); font-size: 0.9rem;">📊 Processed Excel File</span>
+        <span style="font-weight: 600; color: var(--text-primary, #333); font-size: 0.9rem;">Processed Excel File</span>
         <span style="color: var(--text-dim, #888); font-size: 0.85rem; margin-left: 0.5rem;">{{ filename }}</span>
       </div>
       <a href="{{ url_for('download_memory', file_id=excel_file_id) }}" class="btn btn-success btn-sm">
-        <span style="margin-right: 0.25rem;">📥</span>Download
+        Download
       </a>
     </div>
   </div>
+
 
 
 </div>
@@ -214,7 +241,22 @@
 document.addEventListener('DOMContentLoaded', function() {
   var toastKey = 'toast_shown_hub_{{ excel_file_id }}';
   if (!sessionStorage.getItem(toastKey)) {
-    ntaToast('<strong>{{ filename }}</strong> — processed successfully. Select an analysis to continue.', 'success');
+    var serverSecs = {{ processing_time | default(0) }};
+    var clientMs   = parseInt(sessionStorage.getItem('timing_start_hub') || '0', 10);
+    sessionStorage.removeItem('timing_start_hub');
+
+    var msg = '<strong>{{ filename }}</strong> — processed';
+    if (serverSecs > 0) {
+      msg += ' in <strong>' + serverSecs.toFixed(1) + 's</strong> (R processing)';
+      if (clientMs > 0) {
+        var totalSecs = ((Date.now() - clientMs) / 1000).toFixed(1);
+        if (parseFloat(totalSecs) < 600) {
+          msg += ' &middot; <strong>' + totalSecs + 's</strong> browser load';
+        }
+      }
+    }
+    msg += '. Select an analysis to continue.';
+    ntaToast(msg, 'success');
     sessionStorage.setItem(toastKey, '1');
   }
 });
@@ -226,20 +268,22 @@ function submitCurveFitting() {
   // Show spinner, hide button label
   document.getElementById('curveFitBtnLabel').style.display = 'none';
   document.getElementById('curveFitSpinner').style.display = 'inline-flex';
-  // Submit the hidden form
+  sessionStorage.setItem('timing_start_curve', Date.now().toString());
   document.getElementById('curveFitForm').submit();
 }
 
 function navigateToComparison() {
   var fittingId = sessionStorage.getItem('last_fitting_id');
   if (!fittingId) {
-    ntaToast('Please run Sigmoid Curve Fitting first. The titre comparison requires IC50 values.', 'warning', {icon: '🔒'});
+    ntaToast('Please run Sigmoid Curve Fitting first. The titre comparison requires IC50 values.', 'warning');
     return;
   }
   document.getElementById('compareBtnLabel').style.display = 'none';
   document.getElementById('compareSpinner').style.display = 'inline-flex';
+  sessionStorage.setItem('timing_start_compare', Date.now().toString());
   window.location.href = '/compare_titres_page/{{ excel_file_id }}?fitting_id=' + fittingId;
 }
+
 
 // Set locked/unlocked state on the comparison card — no overlay, just in-card state
 document.addEventListener('DOMContentLoaded', function() {
@@ -248,7 +292,7 @@ document.addEventListener('DOMContentLoaded', function() {
   if (!fittingId) {
     card.style.opacity = '0.6';
     card.style.cursor = 'default';
-    document.getElementById('compareIconEmoji').textContent = '🔒';
+    document.getElementById('compareIconBox').innerHTML = '<svg width="34" height="34" viewBox="0 0 34 34" fill="none"><rect x="6" y="16" width="22" height="14" rx="3" stroke="white" stroke-width="2" fill="none" opacity="0.8"/><path d="M11 16v-5a6 6 0 0 1 12 0v5" stroke="white" stroke-width="2" stroke-linecap="round" opacity="0.8"/></svg>';
     document.getElementById('compareIconBox').style.background = 'linear-gradient(135deg, #9e9e9e 0%, #bdbdbd 100%)';
     document.getElementById('compareIconBox').style.boxShadow = '0 6px 18px rgba(0,0,0,0.12)';
     document.getElementById('compareLockedBtn').style.display = 'block';

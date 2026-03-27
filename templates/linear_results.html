@@ -11,14 +11,13 @@
 
   <!-- Page header -->
   <div class="mb-4">
-    <h2 class="text-success mb-1" style="font-size: 1.75rem;">Linear Interpolation Results</h2>
-    <p style="color: var(--text-dim, #888); font-size: 0.85rem; margin: 0;">Data processed through excel to produce neutralising titres</p>
+    <h2 class="text-success mb-1" style="font-size: 1.75rem;">Linear Interpolation</h2>
+    <p style="color: var(--text-dim, #888); font-size: 0.85rem; margin: 0;">Data processed through excel and R to produce neutralising titres and plots</p>
   </div>
 
   <!-- Data Summary Metrics -->
   <div class="card mb-4">
     <div class="card-header d-flex align-items-center gap-2">
-      <span style="font-size: 1rem;">📋</span>
       <span style="font-weight: 600;">Data Summary</span>
     </div>
     <div class="card-body">
@@ -34,15 +33,14 @@
   <!-- Excel Results -->
   <div class="card mb-4">
     <div class="card-header d-flex align-items-center gap-2">
-      <span style="font-size: 1rem;">📊</span>
-      <span style="font-weight: 600;">Excel Results</span>
+      <span style="font-weight: 600;">Linear Interpolation Results</span>
     </div>
     <div class="card-body">
       <p style="color: var(--text-mid, #666); font-size: 0.9rem; margin-bottom: 1rem;">
-        The CSV data has been processed and written into the Excel template with calculated neutralising antibody titres (NT50 and NT90 values).
+        Results file contains all raw plate data and calculated titres, as well as dilution curve graphs for each plate and a summary graph of all plates.
       </p>
       <a href="{{ url_for('download_memory', file_id=excel_file_id) }}" class="btn btn-success">
-        <span style="margin-right: 0.35rem;">📥</span>Download Excel Results
+        Download Results
       </a>
     </div>
   </div>
@@ -52,7 +50,6 @@
     <div class="card-header d-flex align-items-center justify-content-between" style="cursor:pointer;" onclick="toggleCard('summary-graph-body')">
       <div class="d-flex align-items-center gap-2">
         <span class="card-chevron" id="chevron-summary-graph-body">▾</span>
-        <span style="font-size:1rem;">🖼️</span>
         <span>Summary Graph</span>
       </div>
       <a href="#" id="downloadGraphBtn" class="graph-dl-btn" style="display:none;" download onclick="event.stopPropagation();">↓ PNG</a>
@@ -90,7 +87,6 @@
     <div class="card-header d-flex align-items-center justify-content-between" style="cursor:pointer;" onclick="toggleCard('boxplot-body')">
       <div class="d-flex align-items-center gap-2">
         <span class="card-chevron" id="chevron-boxplot-body">▾</span>
-        <span style="font-size:1rem;">📦</span>
         <span id="boxplotTitle">NT50 Box Plot</span>
       </div>
       <a href="#" id="downloadBoxplotBtn" class="graph-dl-btn" style="display:none;" onclick="event.stopPropagation();">↓ PNG</a>
@@ -115,7 +111,7 @@
       </div>
       <div id="boxplotLegend" style="padding:0 1rem 0.25rem;"></div>
       <div style="padding:0.4rem 1rem 0.65rem;font-size:0.70rem;color:var(--text-faint);font-style:italic;border-top:1px solid var(--border);">
-        Tukey box plot: box = IQR, line = median, whiskers = 1.5× IQR, dots = outliers. Each point is the average of 3 replicates per sample (linear interpolation). Boundary values (≤/≥) excluded.
+        Tukey box plot: box = IQR, line = median, whiskers = 1.5× IQR, dots = outliers. Each point represents a triplicate mean. Boundary values (≤/≥) excluded.
       </div>
     </div>
   </div>
@@ -123,7 +119,6 @@
   <!-- Method -->
   <div class="card mb-4">
     <div class="card-header d-flex align-items-center gap-2">
-      <span style="font-size: 1rem;">📝</span>
       <span style="font-weight: 600;">Method</span>
     </div>
     <div class="card-body" style="font-size: 0.9rem; color: var(--text-mid, #444); line-height: 1.75;">
@@ -132,16 +127,21 @@
         Neutralising Antibody Titre Determination by Linear Interpolation
       </p>
 
+      <p style="margin-bottom: 0.8rem; font-weight: 600; color: var(--text-primary, #222);">
+        File processing
+      </p>
+
+    
       <p style="margin-bottom: 0.6rem;">
-        Neutralising antibody titres were determined at 50% and 90% neutralisation levels (NT50 and NT90).
+        8x12 data chunks are extracted from the uploaded CSV file and fit to a template sequentially. Sample IDs and pseudotype labels are appended based on the Number of Pseudotypes logic. Formulas within the excel template sheet calculate neutralising titres for each replicate and calculate the mean. Calculations adjust based on the dilution series in the chosen template. During processing ggplot on R is used to graph the dilution curves for each plate, as well as a summary graph of all plates, and the output is pasted in to the final processed excel file. 
       </p>
 
       <p style="margin-bottom: 0.8rem; font-weight: 600; color: var(--text-primary, #222);">
-        Threshold Calculation
+        Titre estimation
       </p>
 
       <p style="margin-bottom: 0.6rem;">
-        For each replicate column, the titre was estimated relative to the NSC luminescence::
+        Titres are initially estimated based on a 50% or 90% reduction of the NSC replicate:
       </p>
 
       <div style="
@@ -164,7 +164,7 @@
       </p>
 
       <p style="margin-bottom: 0.6rem;">
-        The neutralising titre for each replicate was estimated by linear interpolation between the two assay dilution points on either side of to the titre estimation:
+        The estimated titre is then matched with its two adjacent dilution points from the assay and linear interpolation is performed to between the two points to calculate the neutralising titre:
       </p>
 
       <div style="
@@ -183,7 +183,7 @@
       </div>
 
       <p style="margin-bottom: 0.6rem;">
-        where <em>x<sub>i</sub></em> and <em>x<sub>i+1</sub></em> are the serum dilution factors at the two adjacent dilution points, and <em>y<sub>i</sub></em> and <em>y<sub>i+1</sub></em> are the corresponding luminescence values.
+        where <em>x<sub>i</sub></em> and <em>x<sub>i+1</sub></em> are the serum dilution factors at the two adjacent dilution points, and <em>y<sub>i</sub></em> and <em>y<sub>i+1</sub></em> are the corresponding luminescence values. Titres outside of the bounds of the dilution series (A5 and A12 on the excel template sheet) are recorded as &lt;A5 or &gt;A12.
       </p>
 
       <p style="margin-bottom: 0.8rem; font-weight: 600; color: var(--text-primary, #222);">
@@ -191,7 +191,7 @@
       </p>
 
       <p style="margin-bottom: 0.6rem;">
-        Neutralising titres were calculated for each of replicate within the assay and the mean calculated for each triplicate at 50% and 90% neutralisation thresholds. If the titre was outwith the bounds of the dilution series in the excel template file (cells A5-A12) then the titre was reported as either &lt;A5 or &gt;A12. Boundary values were excluded from the box plot visualisation and from downstream analyses.
+        The 50% and 90% neutralising titre for each replicate is calculated and the mean of the triplicate is copied to the Data Summary page of the processed excel file.
       </p>
 
       <p style="margin-bottom: 0.8rem; font-weight: 600; color: var(--text-primary, #222);">
@@ -199,7 +199,7 @@
       </p>
 
       <p style="margin-bottom: 0;">
-        Neutralising titres are compared for each pseudotype in a Tukey box plot (log<sub>10</sub>scale). Boxes span the interquartile range (Q1–Q3), the horizontal line is the median and whiskers reach the furthest data point within 1.5× IQR of the box. Points beyond the whiskers are plotted individually as outliers. All individual averaged titres are overlaid for transparency.
+        Neutralising titres are compared for each pseudotype in a Tukey box plot (log<sub>10</sub>scale). Boxes span the interquartile range (Q1–Q3), the horizontal line is the median and whiskers reach the furthest data point within 1.5× IQR of the box. Points beyond the whiskers are plotted individually as outliers. All averaged titres are overlaid for transparency.
       </p>
 
     </div>
@@ -379,7 +379,7 @@ function toggleBoxplotQ(q) {
 }
 
 /* ═══════════════════════════════════════════════════════
-   SETTINGS LOAD → auto-generate both graphs
+   SETTINGS LOAD → auto-load both graphs
    ═══════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', function() {
   fetch('/get_settings')
@@ -424,8 +424,8 @@ document.addEventListener('DOMContentLoaded', function() {
         list.appendChild(item);
       });
 
-      /* Auto-generate both */
-      generateGraph();
+      /* Auto-load both */
+      loadCachedGraph();
       loadBoxplotData(currentThreshold);
     });
 });
@@ -460,8 +460,38 @@ document.addEventListener('click', function(e) {
 });
 
 /* ═══════════════════════════════════════════════════════
-   SUMMARY GRAPH — auto-generates, no button needed
+   SUMMARY GRAPH
+   Initial load: served directly from the cached PNG in the
+   processed Excel (fast, no R re-run).
+   Regenerate: triggered only when the user changes a preset
+   or quadrant toggle.
    ═══════════════════════════════════════════════════════ */
+function loadCachedGraph() {
+  var area  = document.getElementById('graphDisplayArea');
+  var dlBtn = document.getElementById('downloadGraphBtn');
+  area.innerHTML = '<div style="padding:2rem;"><div class="spinner-border spinner-border-sm text-success" role="status"></div><span style="font-size:0.82rem;color:var(--text-dim);margin-left:0.5rem;">Loading…</span></div>';
+  area.style.display = 'flex';
+  dlBtn.style.display = 'none';
+
+  var t0 = Date.now();
+  fetch('/summary_plot/{{ excel_file_id }}')
+    .then(function(r) { if (!r.ok) throw new Error('not found'); return r.blob(); })
+    .then(function(blob) {
+      var url = URL.createObjectURL(blob);
+      area.innerHTML = '<img src="' + url + '" style="max-width:100%;display:block;" alt="Summary Graph">';
+      area.style.display = 'block';
+      dlBtn.href = url;
+      dlBtn.download = '{{ filename }}'.replace('.xlsx', '.png');
+      dlBtn.style.display = 'inline-flex';
+      var elapsed = ((Date.now() - t0) / 1000).toFixed(1);
+      ntaToast('Summary graph loaded in <strong>' + elapsed + 's</strong>', 'info', {duration: 5000});
+    })
+    .catch(function() {
+      // Fallback to R regeneration if cached plot unavailable
+      generateGraph();
+    });
+}
+
 function generateGraph() {
   var area  = document.getElementById('graphDisplayArea');
   var dlBtn = document.getElementById('downloadGraphBtn');
@@ -474,6 +504,7 @@ function generateGraph() {
   fd.append('graph_preset', document.getElementById('selectPreset').value || '');
   fd.append('graph_quadrants', JSON.stringify(graphQState));
 
+  var t0 = Date.now();
   fetch("{{ url_for('generate_graphs') }}", { method:'POST', body:fd })
     .then(function(r) { if (!r.ok) throw new Error('failed'); return r.blob(); })
     .then(function(blob) {
@@ -483,6 +514,8 @@ function generateGraph() {
       dlBtn.href = url;
       dlBtn.download = '{{ filename }}'.replace('.xlsx', '.png');
       dlBtn.style.display = 'inline-flex';
+      var elapsed = ((Date.now() - t0) / 1000).toFixed(1);
+      ntaToast('Graph regenerated in <strong>' + elapsed + 's</strong>', 'info', {duration: 5000});
     })
     .catch(function() {
       area.innerHTML = '<div style="padding:1.5rem;color:var(--text-dim);font-size:0.82rem;">Graph generation failed.</div>';
@@ -711,7 +744,7 @@ function drawBoxplot(groups, titreLabel) {
         var errCount = data.error_count || 0;
         var errColor = errCount > 0 ? '#e74c3c' : '#28a745';
         var errLabel = errCount > 0 ? (errCount + ' Flagged') : 'None';
-        var errIcon = errCount > 0 ? '⚠️' : '✓';
+        var errIcon = errCount > 0 ? '!' : '✓';
 
         html +=
           '<div class="' + colClass + ' text-center">' +

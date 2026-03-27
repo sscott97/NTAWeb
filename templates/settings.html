@@ -23,7 +23,6 @@
     <!-- ── 1. Data Processing ──────────────────────────── -->
     <div class="card mb-4">
       <div class="card-header d-flex align-items-center gap-2">
-        <span style="font-size: 1rem;">⚙️</span>
         <span style="font-weight: 600;">Data Processing</span>
       </div>
       <div class="card-body">
@@ -128,7 +127,6 @@
     <!-- ── 2. Analysis Thresholds ──────────────────────── -->
     <div class="card mb-4">
       <div class="card-header d-flex align-items-center gap-2">
-        <span style="font-size: 1rem;">📐</span>
         <span style="font-weight: 600;">Analysis Thresholds</span>
       </div>
       <div class="card-body">
@@ -188,7 +186,6 @@
   <form method="post" action="{{ url_for('save_template_selection') }}" enctype="multipart/form-data">
   <div class="card mb-4">
     <div class="card-header d-flex align-items-center gap-2">
-      <span style="font-size: 1rem;">📄</span>
       <span style="font-weight: 600;">Template Settings</span>
     </div>
     <div class="card-body">
@@ -299,7 +296,6 @@
   <!-- ── 4. Graph Appearance ────────────────────────────── -->
   <div class="card mb-4">
     <div class="card-header d-flex align-items-center gap-2">
-      <span style="font-size: 1rem;">🎨</span>
       <span style="font-weight: 600;">Graph Appearance</span>
     </div>
     <div class="card-body">
@@ -370,7 +366,6 @@
   <!-- ── 5. Themes ───────────────────────────────────────── -->
   <div class="card mb-4">
     <div class="card-header d-flex align-items-center gap-2">
-      <span style="font-size: 1rem;">🖥️</span>
       <span style="font-weight: 600;">Themes</span>
     </div>
     <div class="card-body">
@@ -397,23 +392,24 @@
           </div>
         </div>
 
-        <!-- Green (Original) -->
+        <!-- Blueprint -->
         <div class="theme-card" id="theme-light" onclick="setTheme('light')"
-             style="flex: 1; cursor: pointer; border-radius: 8px; border: 2px solid transparent; overflow: hidden; transition: border-color .2s, box-shadow .2s;">
-          <div style="background: #b6d9b7; padding: 1rem 1rem 0.75rem; border-bottom: 1px solid #a9cbb7;">
-            <div style="background: #fff; border-radius: 4px; padding: 0.6rem 0.75rem; margin-bottom: 0.5rem; box-shadow: 0 1px 4px rgba(0,0,0,.08);">
-              <div style="width: 60%; height: 8px; background: #3e5f51; border-radius: 3px; margin-bottom: 6px;"></div>
-              <div style="width: 80%; height: 6px; background: #d0d0d0; border-radius: 3px; margin-bottom: 4px;"></div>
-              <div style="width: 50%; height: 6px; background: #d0d0d0; border-radius: 3px;"></div>
+             style="flex:1; min-width:140px; cursor:pointer; border-radius:8px; border:2px solid transparent; overflow:hidden; transition:border-color .2s, box-shadow .2s;">
+          <div style="background: linear-gradient(rgba(74,122,155,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(74,122,155,0.07) 1px, transparent 1px), #f0f4f8; background-size: 10px 10px; padding:1rem 1rem 0.75rem; border-bottom:1px solid rgba(74,122,155,0.18); position:relative;">
+            <div style="position:absolute; left:10px; top:0; bottom:0; width:1.5px; background:rgba(180,60,60,0.10);"></div>
+            <div style="background:rgba(255,255,255,0.97); border:1px solid rgba(74,122,155,0.18); border-radius:4px; padding:0.6rem 0.75rem; margin-bottom:0.5rem; box-shadow:2px 3px 0 -1px #f0f4f8, 3px 4px 0 -1px rgba(74,122,155,0.14);">
+              <div style="width:60%; height:8px; background:#4a7a9b; border-radius:3px; margin-bottom:6px;"></div>
+              <div style="width:80%; height:6px; background:#e8edf3; border-radius:3px; margin-bottom:4px;"></div>
+              <div style="width:50%; height:6px; background:#e8edf3; border-radius:3px;"></div>
             </div>
-            <div style="display: flex; gap: 6px;">
-              <div style="flex:1; height: 24px; background: #28a745; border-radius: 3px;"></div>
-              <div style="flex:1; height: 24px; background: #fff; border: 1px solid #ccc; border-radius: 3px;"></div>
+            <div style="display:flex; gap:6px;">
+              <div style="flex:1; height:24px; background:#4a7a9b; border-radius:3px;"></div>
+              <div style="flex:1; height:24px; background:rgba(255,255,255,0.97); border:1px solid rgba(74,122,155,0.18); border-radius:3px;"></div>
             </div>
           </div>
-          <div style="background: #f5fdf6; padding: 0.6rem 1rem; display: flex; align-items: center; gap: 0.5rem; border-top: 1px solid #d0e8d4;">
-            <span style="color: #3e5f51; font-size: 0.85rem; font-weight: 500;">Green (Original)</span>
-            <span id="light-tick" style="margin-left: auto; color: #28a745; font-size: 1rem; display: none;">✓</span>
+          <div style="background:#edf1f5; padding:0.6rem 1rem; display:flex; align-items:center; gap:0.5rem; border-top:1px solid rgba(74,122,155,0.16);">
+            <span style="color:#1c2b3a; font-size:0.85rem; font-weight:500;">Blueprint</span>
+            <span id="light-tick" style="margin-left:auto; color:#4a7a9b; font-size:1rem; display:none;">✓</span>
           </div>
         </div>
 
@@ -547,7 +543,7 @@ function toggleOutlierField(enabled) {
 // ── Theme switcher ──────────────────────────────────────
 var themeConfig = {
   'green':  { css: 'styles.css',        name: 'Standard',        accent: '#4a7a9b', glow: 'rgba(74,122,155,0.20)',   tick: 'green-tick'  },
-  'light':  { css: 'styles-light.css',  name: 'Green (Original)', accent: '#28a745', glow: 'rgba(40,167,69,0.15)',   tick: 'light-tick'  },
+  'light':  { css: 'styles-light.css',  name: 'Blueprint',        accent: '#4a7a9b', glow: 'rgba(74,122,155,0.18)',  tick: 'light-tick'  },
   'theme3': { css: 'styles-theme3.css', name: 'Paper',            accent: '#2e6b7b', glow: 'rgba(46,107,123,0.18)', tick: 'theme3-tick' },
   'theme4': { css: 'styles-theme4.css', name: 'Dark Paper',       accent: '#6aaa72', glow: 'rgba(106,170,114,0.18)', tick: 'theme4-tick' }
 };

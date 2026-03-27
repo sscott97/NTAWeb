@@ -18,7 +18,6 @@
   <!-- Quality Metrics Summary -->
   <div class="card mb-4">
     <div class="card-header d-flex align-items-center gap-2">
-      <span style="font-size: 1rem;">📈</span>
       <span style="font-weight: 600;">Quality Metrics Summary</span>
     </div>
     <div class="card-body">
@@ -33,12 +32,53 @@
     </div>
   </div>
 
+  <!-- Downloads (IC50 Results + Working Files) -->
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center gap-2">
+      <span style="font-weight: 600;">Downloads</span>
+    </div>
+    <div class="card-body" style="padding-bottom: 0;">
+
+      <!-- IC50 Values section -->
+      <div style="margin-bottom: 1.5rem;">
+        <p style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim, #888); margin-bottom: 0.6rem;">IC50 Values</p>
+        <p style="color: var(--text-mid, #666); font-size: 0.9rem; margin-bottom: 1rem;">
+          Contains IC50 values and sigmoid parameters including upper/lower bounds, slope, R² values and flags for quality and limit of detection.
+        </p>
+        <a href="{{ url_for('download_sigmoid', fitting_id=fitting_id, filename=ic50_filename) }}"
+           class="btn btn-success">
+          Download {{ ic50_filename }}
+        </a>
+      </div>
+
+      <hr style="border-color: var(--border, #dee2e6); margin: 0 -1.25rem 1.5rem;">
+
+      <!-- Working Files section -->
+      <div style="margin-bottom: 1.25rem;">
+        <p style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim, #888); margin-bottom: 0.6rem;">Working Files</p>
+        <p style="color: var(--text-mid, #666); font-size: 0.9rem; margin-bottom: 1rem;">
+          Contains working data (pseudotype virus, sample, raw replicate data, dilution, % neutralisation) extracted before curve fitting. Input for the R-code requires -log2 dilution, % neutralisation and virus ID for graphs.
+        </p>
+        {% if 'sigmoidData.csv' in output_files %}
+          <a href="{{ url_for('download_sigmoid', fitting_id=fitting_id, filename='sigmoidData.csv') }}"
+             class="btn btn-success">
+            Download sigmoidData.csv
+          </a>
+        {% else %}
+          <div class="alert alert-warning mb-0" role="alert" style="font-size: 0.9rem;">
+            Working file not available
+          </div>
+        {% endif %}
+      </div>
+
+    </div>
+  </div>
+
   <!-- Fitted Curve Plots — combined interactive card -->
   <div class="card mb-4">
     <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2" style="padding: 0.65rem 1.25rem; cursor: pointer;" onclick="toggleCard('sigmoid-graph-body')">
       <div class="d-flex align-items-center gap-2">
         <span class="card-chevron" id="chevron-sigmoid-graph-body">▾</span>
-        <span style="font-size: 1rem;">📊</span>
         <span style="font-weight: 600;">Fitted Sigmoid Curves</span>
       </div>
       <div class="d-flex align-items-center gap-2 flex-wrap" onclick="event.stopPropagation();">
@@ -52,13 +92,13 @@
     </div>
 
     <div id="sigmoid-graph-body" class="card-collapsible">
-      <!-- Graph display area -->
+      <!-- Graph display area — fixed height, scrollable for tall multi-panel graphs -->
       <div id="sigmoidGraphArea" style="
-        min-height: 260px;
+        height: 520px;
         background: var(--bg-inset, #f5f0e4);
         border-bottom: 1px solid var(--border, #dee2e6);
         display: flex; align-items: center; justify-content: center;
-        overflow: hidden;
+        overflow-y: auto;
       ">
         <div style="padding:2rem; text-align:center;">
           <div class="spinner-border spinner-border-sm text-success" role="status"></div>
@@ -75,50 +115,9 @@
     </div>
   </div>
 
-  <!-- IC50 Results -->
-  <div class="card mb-4">
-    <div class="card-header d-flex align-items-center gap-2">
-      <span style="font-size: 1rem;">📋</span>
-      <span style="font-weight: 600;">IC50 Values</span>
-    </div>
-    <div class="card-body">
-      <p style="color: var(--text-mid, #666); font-size: 0.9rem; margin-bottom: 1.25rem;">
-        The IC50s csv file contains sigmoid parameters including IC50 values, upper/lower bounds, slope, R² values and flags for quality and limit of detection.
-      </p>
-      <a href="{{ url_for('download_sigmoid', fitting_id=fitting_id, filename=ic50_filename) }}"
-         class="btn btn-success">
-        <span style="margin-right: 0.35rem;">📥</span>Download {{ ic50_filename }}
-      </a>
-    </div>
-  </div>
-
-  <!-- Working Files -->
-  <div class="card mb-4">
-    <div class="card-header d-flex align-items-center gap-2">
-      <span style="font-size: 1rem;">🔧</span>
-      <span style="font-weight: 600;">Working Files</span>
-    </div>
-    <div class="card-body">
-      <p style="color: var(--text-mid, #666); font-size: 0.9rem; margin-bottom: 1.25rem;">
-        <strong>sigmoidData.csv</strong> — working file containing neutralisation data (batch, virus, sample, log₂ dilution, % neutralisation) extracted before curve fitting. These are drawn from the original processed excel file and neutralisation is calulcated per triplicate mean and dilution is converted to a base log₂ scale.
-      </p>
-      {% if 'sigmoidData.csv' in output_files %}
-        <a href="{{ url_for('download_sigmoid', fitting_id=fitting_id, filename='sigmoidData.csv') }}" 
-           class="btn btn-success">
-          <span style="margin-right: 0.35rem;">📥</span>Download sigmoidData.csv
-        </a>
-      {% else %}
-        <div class="alert alert-warning mb-0" role="alert" style="font-size: 0.9rem;">
-          ⚠️ Working file not available
-        </div>
-      {% endif %}
-    </div>
-  </div>
-
   <!-- Methods -->
   <div class="card mb-4">
     <div class="card-header d-flex align-items-center gap-2">
-      <span style="font-size: 1rem;">📝</span>
       <span style="font-weight: 600;">Methods</span>
     </div>
     <div class="card-body" style="font-size: 0.9rem; color: var(--text-mid, #444); line-height: 1.75;">
@@ -198,7 +197,7 @@
         3. Parameter Estimation
       </h6>
       <p style="margin-bottom: 1.5rem;">
-        Parameters were estimated by non-linear least squares regression using the Levenberg–Marquardt algorithm (<code style="font-size: 0.85em; background: var(--bg-raised, #f0f0f0); padding: 1px 5px; border-radius: 3px;">nlsLM</code> function, <em>minpack.lm</em> R package), with a maximum of 200 iterations. Starting values were set to Lower = 0, Upper = 100, Slope = 1, and IC50 = −8. Parameter bounds were used to prevent poor fits. 
+        Parameters were estimated by non-linear least squares regression using the Levenberg–Marquardt algorithm (<code style="font-size: 0.85em; background: var(--bg-raised, #f0f0f0); padding: 1px 5px; border-radius: 3px;">nlsLM</code> function, <em>minpack.lm</em> R package), with a maximum of 200 iterations. Starting values were set to Lower = 0, Upper = 100, Slope = 1, and IC50 = −8. Parameter bounds were used to prevent poor fits and used with review flagging to identify potential errors. 
       </p>
 
       <h6 style="color: var(--text-primary, #222); font-weight: 700; margin-bottom: 0.5rem;">
@@ -353,12 +352,17 @@ function renderQualityPills() {
 }
 
 // ── Graph generation ────────────────────────────────────────
+var _sigmoidFirstLoad = true;
+var _sigmoidFetchStart = 0;
+
 function generateSigmoidGraph() {
   var area  = document.getElementById('sigmoidGraphArea');
   var dlBtn = document.getElementById('downloadSigmoidBtn');
   dlBtn.style.display = 'none';
 
-  area.style.cssText = 'min-height:260px;background:var(--bg-inset,#f5f0e4);border-bottom:1px solid var(--border,#dee2e6);display:flex;align-items:center;justify-content:center;overflow:hidden;';
+  if (_sigmoidFirstLoad) _sigmoidFetchStart = Date.now();
+
+  area.style.cssText = 'height:520px;background:var(--bg-inset,#f5f0e4);border-bottom:1px solid var(--border,#dee2e6);display:flex;align-items:center;justify-content:center;overflow:hidden;';
   area.innerHTML = '<div style="padding:2rem;text-align:center;"><div class="spinner-border spinner-border-sm text-success" role="status"></div><span style="font-size:0.82rem;color:var(--text-dim);margin-left:0.5rem;">Generating…</span></div>';
 
   var params = new URLSearchParams({
@@ -373,14 +377,20 @@ function generateSigmoidGraph() {
     })
     .then(function(blob) {
       var url = URL.createObjectURL(blob);
-      area.style.cssText = 'background:var(--bg-inset,#f5f0e4);border-bottom:1px solid var(--border,#dee2e6);overflow:hidden;';
+      area.style.cssText = 'height:520px;background:var(--bg-inset,#f5f0e4);border-bottom:1px solid var(--border,#dee2e6);overflow-y:auto;display:block;';
       area.innerHTML = '<img src="' + url + '" style="width:100%;height:auto;display:block;" />';
       dlBtn.href = url;
       dlBtn.style.display = 'inline-flex';
+      if (_sigmoidFirstLoad && _sigmoidFetchStart > 0) {
+        var elapsed = ((Date.now() - _sigmoidFetchStart) / 1000).toFixed(1);
+        ntaToast('Sigmoid graph generated in <strong>' + elapsed + 's</strong>', 'info', {duration: 5000});
+      }
+      _sigmoidFirstLoad = false;
     })
     .catch(function() {
-      area.style.cssText = 'min-height:120px;background:var(--bg-inset,#f5f0e4);display:flex;align-items:center;justify-content:center;';
+      area.style.cssText = 'height:520px;background:var(--bg-inset,#f5f0e4);display:flex;align-items:center;justify-content:center;';
       area.innerHTML = '<div style="padding:1.5rem;color:var(--text-dim);font-size:0.82rem;">Graph generation failed.</div>';
+      _sigmoidFirstLoad = false;
     });
 }
 
@@ -393,7 +403,21 @@ document.addEventListener('DOMContentLoaded', function() {
 document.addEventListener('DOMContentLoaded', function() {
   var toastKey = 'toast_shown_curve_{{ fitting_id }}';
   if (!sessionStorage.getItem(toastKey)) {
-    ntaToast('<strong>Sigmoid curve fitting complete!</strong> Download available below.', 'success');
+    var serverSecs = {{ processing_time | default(0) }};
+    var clientMs   = parseInt(sessionStorage.getItem('timing_start_curve') || '0', 10);
+    sessionStorage.removeItem('timing_start_curve');
+
+    var msg = '<strong>Sigmoid curve fitting complete!</strong>';
+    if (serverSecs > 0) {
+      msg += ' Fitted in <strong>' + serverSecs.toFixed(1) + 's</strong> (R processing)';
+      if (clientMs > 0) {
+        var totalSecs = ((Date.now() - clientMs) / 1000).toFixed(1);
+        if (parseFloat(totalSecs) < 600) {
+          msg += ' &middot; <strong>' + totalSecs + 's</strong> browser load';
+        }
+      }
+    }
+    ntaToast(msg, 'success');
     sessionStorage.setItem(toastKey, '1');
   }
 });
@@ -407,14 +431,14 @@ fetch("{{ url_for('download_sigmoid', fitting_id=fitting_id, filename=ic50_filen
   .then(csv => {
     const lines = csv.trim().split('\n');
     const dataLines = lines.slice(1).filter(line => line.trim().length > 0);
-    
+
     if (dataLines.length === 0) {
       document.getElementById('qualityMetrics').innerHTML = '<div class="col-12 text-center"><p class="text-muted mb-0">No fitting data available</p></div>';
       return;
     }
-    
+
     let good = 0, unstable = 0, outsideLod = 0, r2Values = [];
-    
+
     function parseCSVLine(line) {
       var result = [], cur = '', inQuote = false;
       for (var i = 0; i < line.length; i++) {
@@ -427,10 +451,14 @@ fetch("{{ url_for('download_sigmoid', fitting_id=fitting_id, filename=ic50_filen
       return result;
     }
 
+    const headers = parseCSVLine(lines[0]);
+    const qIdx  = headers.indexOf('Quality');
+    const r2Idx = headers.indexOf('R2');
+
     dataLines.forEach(line => {
       const parts = parseCSVLine(line);
-      const quality = parts[8] ? parts[8].trim() : '';
-      const r2Str = parts[7] ? parts[7].trim() : '';
+      const quality = qIdx  >= 0 && parts[qIdx]  ? parts[qIdx].trim()  : '';
+      const r2Str   = r2Idx >= 0 && parts[r2Idx] ? parts[r2Idx].trim() : '';
       
       if (quality === 'Good') good++;
       else if (quality === 'Unstable') unstable++;

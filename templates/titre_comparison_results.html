@@ -11,14 +11,13 @@
 
   <!-- Page header -->
   <div class="mb-4">
-    <h2 class="text-success mb-1" style="font-size: 1.75rem;">Titre Comparison Analysis</h2>
-    <p style="color: var(--text-dim, #888); font-size: 0.85rem; margin: 0;">NT50 (Linear Interpolation) vs NT50/IC50 (Curve Fitting) correlation and mismatch detection</p>
+    <h2 class="text-success mb-1" style="font-size: 1.75rem;">Neutralising Titre Comparison</h2>
+    <p style="color: var(--text-dim, #888); font-size: 0.85rem; margin: 0;">Linear Interpolation and Curve Fitting titre comparison</p>
   </div>
 
   <!-- Summary Statistics -->
   <div class="card mb-4">
     <div class="card-header d-flex align-items-center gap-2">
-      <span style="font-size: 1rem;">📊</span>
       <span style="font-weight: 600;">Summary Statistics</span>
     </div>
     <div class="card-body">
@@ -81,7 +80,6 @@
     <div class="card-header d-flex align-items-center justify-content-between" style="cursor:pointer;" onclick="toggleCard('comparison-plot-body')">
       <div class="d-flex align-items-center gap-2">
         <span class="card-chevron" id="chevron-comparison-plot-body">▾</span>
-        <span style="font-size: 1rem;">📈</span>
         <span style="font-weight: 600;">Correlation Plot</span>
       </div>
       <div class="d-flex align-items-center gap-2" onclick="event.stopPropagation();">
@@ -106,44 +104,40 @@
   </div>
   {% endif %}
 
-  <!-- Top Mismatches -->
+  <!-- Mismatches -->
   {% if mismatches and mismatches|length > 0 %}
   <div class="card mb-4">
     <div class="card-header d-flex align-items-center gap-2">
-      <span style="font-size: 1rem;">⚠️</span>
-      <span style="font-weight: 600;">Top Mismatches (&gt;2-fold difference)</span>
+      <span style="font-weight: 600;">Mismatches</span>
+      <span style="font-size: 0.75rem; color: var(--text-dim, #888); margin-left: 0.25rem;">(|log₂ fold diff| ≥ 2, sorted by magnitude)</span>
     </div>
-    <div class="card-body">
-      <p style="color: var(--text-mid, #666); font-size: 0.9rem; margin-bottom: 1.25rem;">
-        Samples showing the largest log₂ fold difference between NT50 and IC50 titres. These may warrant further investigation.
-      </p>
-      
-      <div class="table-responsive">
-        <table class="table table-sm table-hover" style="font-size: 0.9rem;">
-          <thead style="background: var(--bg-raised, #f8f9fa);">
+    <div class="card-body" style="padding: 0;">
+      <div style="max-height: 360px; overflow-y: auto;">
+        <table class="table table-sm table-hover mb-0" style="font-size: 0.88rem;">
+          <thead style="background: var(--bg-raised, #f8f9fa); position: sticky; top: 0; z-index: 1;">
             <tr>
-              <th>Sample</th>
+              <th style="padding: 0.5rem 1rem;">Sample</th>
               <th>Virus</th>
               <th class="text-end">NT50</th>
               <th class="text-end">IC50 Titre</th>
-              <th class="text-end">Log₂ Fold Diff</th>
-              <th>Quality</th>
+              <th class="text-end" style="padding-right: 1rem;">Log₂ Fold Diff</th>
+              <th style="padding-right: 1rem;">Quality</th>
             </tr>
           </thead>
           <tbody>
             {% for mismatch in mismatches %}
             <tr>
-              <td><strong>{{ mismatch.Sample }}</strong></td>
+              <td style="padding-left: 1rem;"><strong>{{ mismatch.Sample }}</strong></td>
               <td>{{ mismatch.Virus }}</td>
               <td class="text-end">{{ "%.1f"|format(mismatch.NT50|float) }}</td>
               <td class="text-end">{{ "%.1f"|format(mismatch.IC50_Titre|float) }}</td>
-              <td class="text-end">
+              <td class="text-end" style="padding-right: 1rem;">
                 {% set abs_lfd = mismatch.Log2_Fold_Difference|float|abs %}
-                <span class="badge" style="background: {{ '#e74c3c' if abs_lfd > 2 else '#f39c12' }};">
+                <span class="badge" style="background: {{ '#c0392b' if abs_lfd >= 3 else '#e74c3c' }};">
                   {{ "%+.2f"|format(mismatch.Log2_Fold_Difference|float) }}
                 </span>
               </td>
-              <td>
+              <td style="padding-right: 1rem;">
                 <span class="badge bg-{{ 'primary' if mismatch.Quality == 'Good' else 'danger' }}">
                   {{ mismatch.Quality }}
                 </span>
@@ -160,25 +154,17 @@
   <!-- Download All Data -->
   <div class="card mb-4">
     <div class="card-header d-flex align-items-center gap-2">
-      <span style="font-size: 1rem;">📂</span>
       <span style="font-weight: 600;">Download Data Files</span>
     </div>
     <div class="card-body">
+      <p style="color: var(--text-mid, #666); font-size: 0.9rem; margin-bottom: 1rem;">
+        Contains titre comparison data for all matched samples including NT50, IC50 titres, log₂ fold differences, and quality flags.
+      </p>
       <div class="d-flex flex-wrap gap-2">
-        <a href="{{ url_for('download_comparison', comparison_id=comparison_id, filename='merged_titres.csv') }}" 
+        <a href="{{ url_for('download_comparison', comparison_id=comparison_id, filename='merged_titres.csv') }}"
            class="btn btn-success">
-          <span style="margin-right: 0.35rem;">📥</span>Merged Titres (CSV)
+          Merged Titres (CSV)
         </a>
-        <a href="{{ url_for('download_comparison', comparison_id=comparison_id, filename='comparison_stats.csv') }}" 
-           class="btn btn-outline-success">
-          <span style="margin-right: 0.35rem;">📥</span>Statistics (CSV)
-        </a>
-        {% if mismatches and mismatches|length > 0 %}
-        <a href="{{ url_for('download_comparison', comparison_id=comparison_id, filename='top_mismatches.csv') }}" 
-           class="btn btn-outline-success">
-          <span style="margin-right: 0.35rem;">📥</span>Top Mismatches (CSV)
-        </a>
-        {% endif %}
       </div>
     </div>
   </div>
@@ -186,7 +172,6 @@
   <!-- Methods -->
   <div class="card mb-4">
     <div class="card-header d-flex align-items-center gap-2">
-      <span style="font-size: 1rem;">📝</span>
       <span style="font-weight: 600;">Methods</span>
     </div>
     <div class="card-body" style="font-size: 0.9rem; color: var(--text-mid, #444); line-height: 1.75;">
@@ -247,7 +232,7 @@
         Common causes of disagreement include incomplete or atypical curves, flat titrations where the sigmoid fit is poorly constrained, or edge cases where the neutralisation threshold falls outside the measured dilution range.
       </p>
       <p style="margin-bottom: 0;">
-        The five samples with the highest absolute log₂ fold difference are reported in the Top Mismatches table. All data is available for download from the "Download Data Files" section above for further review and analysis.
+        All samples with an absolute log₂ fold difference ≥ 2 (i.e. a ≥ 4-fold difference) are reported in the Mismatches table, sorted by magnitude. All data is available for download from the "Download Data Files" section above for further review and analysis.
       </p>
 
     </div>
@@ -305,11 +290,28 @@ function toggleCard(id) {
   if (chevron) chevron.classList.toggle('collapsed', collapsing);
 }
 
+sessionStorage.setItem('last_comparison_id', '{{ comparison_id }}');
+
 // Toast notification on load (only once per comparison)
 document.addEventListener('DOMContentLoaded', function() {
   var toastKey = 'toast_shown_compare_{{ comparison_id }}';
   if (!sessionStorage.getItem(toastKey)) {
-    ntaToast('<strong>Comparison complete!</strong> Analysis results are ready below.', 'success');
+    var serverSecs = {{ processing_time | default(0) }};
+    var clientMs   = parseInt(sessionStorage.getItem('timing_start_compare') || '0', 10);
+    sessionStorage.removeItem('timing_start_compare');
+
+    var msg = '<strong>Comparison complete!</strong>';
+    if (serverSecs > 0) {
+      msg += ' Ran in <strong>' + serverSecs.toFixed(1) + 's</strong> (R processing)';
+      if (clientMs > 0) {
+        var totalSecs = ((Date.now() - clientMs) / 1000).toFixed(1);
+        if (parseFloat(totalSecs) < 600) {
+          msg += ' &middot; <strong>' + totalSecs + 's</strong> browser load';
+        }
+      }
+    }
+    msg += ' Analysis results are ready below.';
+    ntaToast(msg, 'success');
     sessionStorage.setItem(toastKey, '1');
   }
 });

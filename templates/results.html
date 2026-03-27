@@ -13,7 +13,6 @@
   <!-- Linear Interpolation Processing -->
   <div class="card mb-4">
     <div class="card-header d-flex align-items-center gap-2">
-      <span style="font-size: 1rem;">📐</span>
       <span style="font-weight: 600;">Linear Interpolation Processing</span>
     </div>
     <div class="card-body">
@@ -21,20 +20,20 @@
       <!-- Excel Results Section -->
       <div class="mb-4 pb-4" style="border-bottom: 1px solid var(--border, #dee2e6);">
         <h6 style="font-weight: 600; color: var(--text-primary, #333); margin-bottom: 0.75rem;">
-          📊 Excel Results
+          Excel Results
         </h6>
         <p style="color: var(--text-mid, #666); font-size: 0.9rem; margin-bottom: 1rem;">
           Your CSV data has been processed and written into the Excel template with calculated neutralising antibody titres (NT50 and NT90 values).
         </p>
         <a href="{{ url_for('download_memory', file_id=excel_file_id) }}" class="btn btn-success">
-          <span style="margin-right: 0.35rem;">📥</span>Download Excel Results
+          Download Excel Results
         </a>
       </div>
 
       <!-- Method note -->
       <div class="mb-4 pb-4" style="border-bottom: 1px solid var(--border, #dee2e6);">
         <h6 style="font-weight: 600; color: var(--text-primary, #333); margin-bottom: 0.75rem;">
-          📝 Method
+          Method
         </h6>
         <div style="color: var(--text-mid, #555); font-size: 0.88rem; line-height: 1.7;">
           <p style="margin-bottom: 0.6rem;">
@@ -49,7 +48,7 @@
       <!-- Summary Graph Section -->
       <div>
         <h6 style="font-weight: 600; color: var(--text-primary, #333); margin-bottom: 0.75rem;">
-          🖼️ Summary Graph
+          Summary Graph
         </h6>
 
         <!-- Quick graph settings -->
@@ -157,11 +156,11 @@
               <input type="hidden" name="graph_preset"    id="graph_preset">
               <input type="hidden" name="graph_quadrants" id="graph_quadrants">
               <button type="submit" class="btn btn-outline-success" onclick="injectSettings(event)">
-                🔄 Regenerate Graph
+                Regenerate Graph
               </button>
             </form>
             <a href="{{ url_for('download', filename=plot_file) }}" class="btn btn-success">
-              <span style="margin-right: 0.35rem;">📥</span>Download Graph
+              Download Graph
             </a>
           </div>
 
@@ -176,7 +175,7 @@
             <input type="hidden" name="graph_preset"    id="graph_preset">
             <input type="hidden" name="graph_quadrants" id="graph_quadrants">
             <button type="submit" class="btn btn-success" onclick="injectSettings(event)">
-              <span style="margin-right: 0.35rem;">📊</span>Generate Graph
+              Generate Graph
             </button>
           </form>
 
@@ -191,7 +190,6 @@
   <!-- Curve Fitting section -->
 <div class="card mb-4">
   <div class="card-header d-flex align-items-center gap-2">
-    <span style="font-size: 1rem;">📈</span>
     <span style="font-weight: 600;">Sigmoid Curve Fitting</span>
   </div>
   <div class="card-body">
@@ -201,7 +199,7 @@
     <form action="{{ url_for('perform_curve_fitting') }}" method="post" onsubmit="storeFittingRequest()">
       <input type="hidden" name="file_id" value="{{ excel_file_id }}">
       <button type="submit" class="btn btn-success">
-        <span style="margin-right: 0.35rem;">📈</span>Perform Curve Fitting
+        Perform Curve Fitting
       </button>
     </form>
   </div>
@@ -210,7 +208,6 @@
   <!-- Titre Comparison section -->
   <div class="card mb-4">
     <div class="card-header d-flex align-items-center gap-2">
-      <span style="font-size: 1rem;">🔬</span>
       <span style="font-weight: 600;">Titre Comparison Analysis</span>
     </div>
     <div class="card-body">
@@ -219,14 +216,14 @@
       </p>
       
       <div class="alert alert-info mb-3" role="alert" style="font-size: 0.85rem;">
-        <strong>📋 Note:</strong> You must perform curve fitting first before running titre comparison.
+        <strong>Note:</strong> You must perform curve fitting first before running titre comparison.
       </div>
       
       <form action="{{ url_for('compare_titres') }}" method="post" id="comparisonForm">
         <input type="hidden" name="excel_file_id" value="{{ excel_file_id }}">
         <input type="hidden" name="fitting_id" id="fitting_id" value="">
         <button type="button" class="btn btn-success" onclick="checkAndSubmitComparison()">
-          <span style="margin-right: 0.35rem;">🔬</span>Compare Titres
+          Compare Titres
         </button>
       </form>
     </div>
@@ -256,7 +253,7 @@ function checkAndSubmitComparison() {
   const fittingId = sessionStorage.getItem('last_fitting_id');
   
   if (!fittingId) {
-    ntaToast('Please perform Sigmoid Curve Fitting first before comparing titres.', 'warning', {icon: '📋'});
+    ntaToast('Please perform Sigmoid Curve Fitting first before comparing titres.', 'warning');
     return;
   }
   
@@ -441,7 +438,7 @@ function checkAndSubmitComparison() {
   console.log('Checking fitting_id:', fittingId); // Debug
   
   if (!fittingId) {
-    ntaToast('Please perform Sigmoid Curve Fitting first before comparing titres.', 'warning', {icon: '📋'});
+    ntaToast('Please perform Sigmoid Curve Fitting first before comparing titres.', 'warning');
     return;
   }
   

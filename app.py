@@ -3,6 +3,7 @@ import os
 import uuid
 import json
 import subprocess
+import time
 from datetime import datetime
 from io import BytesIO
 import re
@@ -185,6 +186,7 @@ def process():
         flash(str(e), "danger")
         return redirect(url_for("index"))
 
+    _proc_start = time.time()
     output_bytes = BytesIO()
     process_csv_to_template(
         csv_path=csv_bytes,
@@ -275,18 +277,23 @@ def process():
     with open(excel_path, "rb") as f:
         final_bytes = BytesIO(f.read())
 
+    with open(output_plot_path, "rb") as f:
+        summary_plot_bytes = f.read()
+
     os.remove(excel_path)
     os.remove(output_plot_path)
 
     file_id = uuid.uuid4().hex
-    in_memory_files[file_id] = {"data": final_bytes.getvalue(), "name": filename}
+    in_memory_files[file_id] = {"data": final_bytes.getvalue(), "name": filename, "summary_plot": summary_plot_bytes}
     session["file_id"] = file_id
 
     # ── NEW: Redirect to Data Analysis instead of old results page ──
+    _proc_elapsed = round(time.time() - _proc_start, 1)
     return render_template(
         "analysis_hub.html",
         excel_file_id=file_id,
         filename=filename,
+        processing_time=_proc_elapsed,
     )
 
 
@@ -625,6 +632,16 @@ def generate_graphs():
         return redirect(url_for("index"))
 
 
+@app.route("/summary_plot/<file_id>")
+def summary_plot(file_id):
+    if file_id not in in_memory_files:
+        return "", 404
+    plot_bytes = in_memory_files[file_id].get("summary_plot")
+    if not plot_bytes:
+        return "", 404
+    return send_file(BytesIO(plot_bytes), mimetype="image/png")
+
+
 @app.route("/save_quadrants", methods=["POST"])
 def save_quadrants():
     quadrants = request.get_json()
@@ -844,6 +861,7 @@ def perform_curve_fitting():
         r_script = os.path.join(os.getcwd(), "fit_sigmoids.R")
         r2_threshold = str(settings.get("sigmoid_r2_threshold", 0.5))
 
+        _proc_start = time.time()
         result = subprocess.run(
             ["Rscript", r_script, sigmoid_csv_path, output_dir, assay_title, timestamp, r2_threshold],
             check=True,
@@ -893,13 +911,15 @@ def perform_curve_fitting():
             "ic50_filename": ic50_filename
         }
         
+        _proc_elapsed = round(time.time() - _proc_start, 1)
         return render_template(
             "curve_fitting_results.html",
             fitting_id=fitting_id,
             excel_file_id=file_id,
             output_files=list(output_files.keys()),
             ic50_filename=ic50_filename,
-            settings=load_settings()
+            settings=load_settings(),
+            processing_time=_proc_elapsed,
         )
 
     except subprocess.CalledProcessError as e:
@@ -1074,6 +1094,7 @@ def _run_comparison(excel_file_id, fitting_id):
         cmp_settings = load_settings()
         disagreement_threshold = str(cmp_settings.get("comparison_disagreement_threshold", 1.0))
 
+        _proc_start = time.time()
         result = subprocess.run(
             ["Rscript", r_script, excel_path, ic50_path, output_dir, disagreement_threshold],
             check=True,
@@ -1121,11 +1142,27 @@ def _run_comparison(excel_file_id, fitting_id):
             stats = next(reader)
 
         mismatches = []
-        if 'top_mismatches.csv' in output_files:
-            csv_data = output_files['top_mismatches.csv'].decode('utf-8')
+        if 'merged_titres.csv' in output_files:
+            csv_data = output_files['merged_titres.csv'].decode('utf-8')
             reader = py_csv.DictReader(csv_data.splitlines())
-            mismatches = list(reader)
+            all_rows = list(reader)
+            for row in all_rows:
+                try:
+                    lfd = float(row.get('log2_fold_difference', 0) or 0)
+                except ValueError:
+                    lfd = 0
+                if abs(lfd) >= 2:
+                    mismatches.append({
+                        'Sample':               row.get('Sample_ID', ''),
+                        'Virus':                row.get('Pseudotype', ''),
+                        'NT50':                 row.get('NT50 (Linear Interpolation)', ''),
+                        'IC50_Titre':           row.get('NT50 / IC50 (Curve Fitting)', ''),
+                        'Log2_Fold_Difference': lfd,
+                        'Quality':              row.get('Sigmoid Quality', ''),
+                    })
+            mismatches.sort(key=lambda r: abs(r['Log2_Fold_Difference']), reverse=True)
 
+        _proc_elapsed = round(time.time() - _proc_start, 1)
         return render_template(
             "titre_comparison_results.html",
             comparison_id=comparison_id,
@@ -1133,7 +1170,8 @@ def _run_comparison(excel_file_id, fitting_id):
             stats=stats,
             mismatches=mismatches,
             has_plot='titre_comparison.png' in output_files,
-            settings=load_settings()
+            settings=load_settings(),
+            processing_time=_proc_elapsed,
         )
 
     except subprocess.TimeoutExpired:

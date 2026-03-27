@@ -74,59 +74,63 @@ Upper_bounds <-    c(Lower = 80,  Upper = 100, Slope = 10,    IC50 = 0)
 
 # ----- 1.4. Fit Sigmoids ------------------------------------------------------
 
-samples <- unique(data$Sample)
-viruses <- unique(data$Virus)
+# Each unique Plate+Quadrant+Sample+Virus combination is fitted independently.
+# This prevents quadrants with duplicate sample names from being merged.
+combos <- unique(data[, c("Plate", "Quadrant", "Sample", "Virus")])
 
 results <- data.frame()
 
-# For each sample and virus
-for (s in samples) {
-  for (v in viruses) {
-    
-    # Collect only that sample x virus data
-    current_data <- filter(data, Sample == s, Virus == v)
-    
-    # Skip if no data for this combination
-    if (nrow(current_data) == 0) {
-      next
-    }
-    
-    # Get mean neutralisation (useful for failed curves)
-    u <- mean(current_data$Neutralisation)
-    
-    # Try to fit a sigmoid statistically
-    fit <- try(nlsLM(Neutralisation ~ sigmoid(DilutionLog2, Lower, Upper, Slope, IC50),
-                     data    = current_data,
-                     start   = start_values,
-                     lower   = Lower_bounds,
-                     upper   = Upper_bounds,
-                     control = nls.lm.control(maxiter = 200)),
-               silent = TRUE)
-    
-    # If the process fails, add a row with NAs to results table
-    if (inherits(fit, "try-error")) {
-      
-      results <- rbind(results,
-        data.frame(Sample = s, Virus = v, u_Neutralisation = u, Lower = NA,
-                   Upper = NA, Slope = NA, IC50 = NA, R2 = NA))
-      
-      # Otherwise, add parameter estimates to results table
-    } else {
-      
-      # Calculate pseudo R squared
-      RSS <- sum((current_data$Neutralisation - predict(fit))^2)
-      TSS <- sum((current_data$Neutralisation - mean(current_data$Neutralisation))^2)
-      R2 <- pmax(0, 1 - RSS / TSS)
-      
-      # Get parameter estimates
-      coefs <- coef(fit)
-      
-      # Append to results
-      results <- rbind(results,
-                       data.frame(Sample = s, Virus = v, u_Neutralisation = u, Lower = coefs["Lower"],
-                                  Upper = coefs["Upper"], Slope = coefs["Slope"], IC50 = coefs["IC50"],
-                                  R2 = R2))
-    }
+for (i in seq_len(nrow(combos))) {
+  p <- combos$Plate[i]
+  q <- combos$Quadrant[i]
+  s <- combos$Sample[i]
+  v <- combos$Virus[i]
+
+  # Collect only that plate x quadrant x sample x virus data
+  current_data <- filter(data, Plate == p, Quadrant == q, Sample == s, Virus == v)
+
+  # Skip if no data for this combination
+  if (nrow(current_data) == 0) {
+    next
+  }
+
+  # Get mean neutralisation (useful for failed curves)
+  u <- mean(current_data$Neutralisation)
+
+  # Try to fit a sigmoid statistically
+  fit <- try(nlsLM(Neutralisation ~ sigmoid(DilutionLog2, Lower, Upper, Slope, IC50),
+                   data    = current_data,
+                   start   = start_values,
+                   lower   = Lower_bounds,
+                   upper   = Upper_bounds,
+                   control = nls.lm.control(maxiter = 200)),
+             silent = TRUE)
+
+  # If the process fails, add a row with NAs to results table
+  if (inherits(fit, "try-error")) {
+
+    results <- rbind(results,
+      data.frame(Plate = p, Quadrant = q, Sample = s, Virus = v,
+                 u_Neutralisation = u, Lower = NA,
+                 Upper = NA, Slope = NA, IC50 = NA, R2 = NA))
+
+  # Otherwise, add parameter estimates to results table
+  } else {
+
+    # Calculate pseudo R squared
+    RSS <- sum((current_data$Neutralisation - predict(fit))^2)
+    TSS <- sum((current_data$Neutralisation - mean(current_data$Neutralisation))^2)
+    R2 <- pmax(0, 1 - RSS / TSS)
+
+    # Get parameter estimates
+    coefs <- coef(fit)
+
+    # Append to results
+    results <- rbind(results,
+                     data.frame(Plate = p, Quadrant = q, Sample = s, Virus = v,
+                                u_Neutralisation = u, Lower = coefs["Lower"],
+                                Upper = coefs["Upper"], Slope = coefs["Slope"],
+                                IC50 = coefs["IC50"], R2 = R2))
   }
 }
 
@@ -229,9 +233,9 @@ results$u_Neutralisation <- NULL
 # Calculate titres from IC50 values (NA for LOD samples)
 results$Titre <- ifelse(is.na(results$IC50), NA, round(2^(-results$IC50), 2))
 
-# Reorder columns: Sample, Virus, Lower, Upper, Slope, IC50, Titre, R2, Quality, LOD_Flag
+# Reorder columns: Plate, Quadrant, Sample, Virus, Lower, Upper, Slope, IC50, Titre, R2, Quality, LOD_Flag
 results <- results %>%
-  select(Sample, Virus, Lower, Upper, Slope, IC50, Titre, R2, Quality, LOD_Flag)
+  select(Plate, Quadrant, Sample, Virus, Lower, Upper, Slope, IC50, Titre, R2, Quality, LOD_Flag)
 
 # Build custom filename based on assay title and timestamp
 if (!is.null(assay_title) && assay_title != "" && !is.null(timestamp) && timestamp != "") {
