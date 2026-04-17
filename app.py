@@ -24,12 +24,14 @@ from nta_utils import (
     flag_triplicate_errors,
     count_errors_from_workbook,
     validate_csv_mode,
+    DEFAULT_SETTINGS,
 )
 
 in_memory_files = {}  # Key: UUID, Value: BytesIO
 
 app = Flask(__name__)
 app.secret_key = "your-secret-key"
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB upload limit
 
 
 
@@ -103,6 +105,7 @@ def settings():
             new_settings["sigmoid_r2_threshold"] = float(request.form.get("sigmoid_r2_threshold", 0.5))
         except ValueError:
             new_settings["sigmoid_r2_threshold"] = 0.5
+        new_settings["lod_censor_include"] = request.form.get("lod_censor_include") == "on"
         try:
             new_settings["comparison_disagreement_threshold"] = float(request.form.get("comparison_disagreement_threshold", 1.0))
         except ValueError:
@@ -114,6 +117,22 @@ def settings():
     current_settings["template_path"] = current_template_path
 
     return render_template("settings.html", settings=current_settings, default_templates=default_templates)
+
+
+@app.route("/reset_settings", methods=["POST"])
+def reset_settings():
+    """Reset threshold/toggle settings to defaults, preserving presets and custom templates."""
+    current = load_settings()
+    reset_keys = [
+        "timestamp_in_filename", "error_flagging", "default_data_mode",
+        "default_num_pseudotypes", "outlier_threshold_log2",
+        "sigmoid_r2_threshold", "lod_censor_include", "comparison_disagreement_threshold",
+    ]
+    for key in reset_keys:
+        current[key] = DEFAULT_SETTINGS[key]
+    save_settings(current)
+    flash("Settings reset to defaults.", "success")
+    return redirect(url_for("settings"))
 
 
 @app.route("/save_template_selection", methods=["POST"])
@@ -164,13 +183,28 @@ def process():
         flash("Please enter at least one pseudotype name.", "danger")
         return redirect(url_for("index"))
 
-    try:
-        num_pseudotypes = int(request.form.get("num_pseudotypes", "1"))
-        if num_pseudotypes not in [1, 2, 3, 4]:
-            raise ValueError()
-    except ValueError:
-        flash("Invalid pseudotype count. Must be 1–4.", "danger")
-        return redirect(url_for("index"))
+    raw_np = request.form.get("num_pseudotypes", "1")
+    if raw_np == "2alt":
+        num_pseudotypes = "2alt"
+    else:
+        try:
+            num_pseudotypes = int(raw_np)
+            if num_pseudotypes not in [1, 2, 3, 4]:
+                raise ValueError()
+        except ValueError:
+            flash("Invalid pseudotype count. Must be 1–4.", "danger")
+            return redirect(url_for("index"))
+
+    # Per-plate config (optional — sent as JSON when custom per-plate mode is active)
+    plate_configs = None
+    raw_pc = request.form.get("plate_configs", "").strip()
+    if raw_pc:
+        try:
+            plate_configs = json.loads(raw_pc)
+            if not isinstance(plate_configs, list):
+                plate_configs = None
+        except (ValueError, TypeError):
+            plate_configs = None
 
     settings = load_settings()
     safe_title = assay_title.strip().replace(" ", "_")
@@ -197,6 +231,7 @@ def process():
         assay_title_text=assay_title,
         sample_id_text=sample_ids,
         data_mode=data_mode,
+        plate_configs=plate_configs,
     )
 
     extract_final_titres_xlwings(output_bytes)
@@ -294,11 +329,13 @@ def process():
         excel_file_id=file_id,
         filename=filename,
         processing_time=_proc_elapsed,
+        fitting_id=None,
+        settings=load_settings(),
     )
 
 
 # ════════════════════════════════════════════════════════════════
-# NEW ROUTES: Data Analysis and dedicated analysis pages
+# Data Analysis
 # ════════════════════════════════════════════════════════════════
 
 @app.route("/hub/<file_id>")
@@ -313,6 +350,9 @@ def analysis_hub(file_id):
         "analysis_hub.html",
         excel_file_id=file_id,
         filename=file_info.get("name", "results.xlsx"),
+        fitting_id=file_info.get("fitting_id"),
+        comparison_id=file_info.get("comparison_id"),
+        settings=load_settings(),
     )
 
 
@@ -328,6 +368,7 @@ def linear_results(file_id):
         "linear_results.html",
         excel_file_id=file_id,
         filename=file_info.get("name", "results.xlsx"),
+        settings=load_settings(),
     )
 
 
@@ -489,6 +530,28 @@ def boxplot_data(file_id):
         return jsonify({"status": "error", "message": str(e)})
 
 
+@app.route("/curve_fitting_results/<fitting_id>")
+def curve_fitting_results(fitting_id):
+    """Serve cached sigmoid curve fitting results without reprocessing."""
+    if fitting_id not in in_memory_files:
+        flash("Curve fitting results not found. Please run curve fitting again.", "danger")
+        return redirect(url_for("index"))
+    info = in_memory_files[fitting_id]
+    excel_file_id = info.get("excel_file_id")
+    if not excel_file_id or excel_file_id not in in_memory_files:
+        flash("Original Excel results not found.", "danger")
+        return redirect(url_for("index"))
+    return render_template(
+        "curve_fitting_results.html",
+        fitting_id=fitting_id,
+        excel_file_id=excel_file_id,
+        output_files=list(info["data"].keys()),
+        ic50_filename=info["ic50_filename"],
+        settings=load_settings(),
+        processing_time=None,
+    )
+
+
 @app.route("/compare_titres_page/<file_id>")
 def compare_titres_page(file_id):
     """
@@ -504,12 +567,27 @@ def compare_titres_page(file_id):
         flash("Curve fitting results not found. Please perform curve fitting first.", "danger")
         return redirect(url_for("analysis_hub", file_id=file_id))
 
+    # Return cached comparison results if already computed for this file
+    existing_cmp_id = in_memory_files[file_id].get("comparison_id")
+    if existing_cmp_id and existing_cmp_id in in_memory_files:
+        cached = in_memory_files[existing_cmp_id]
+        return render_template(
+            "titre_comparison_results.html",
+            comparison_id=existing_cmp_id,
+            excel_file_id=file_id,
+            stats=cached["stats"],
+            mismatches=cached["mismatches"],
+            has_plot=cached["has_plot"],
+            settings=load_settings(),
+            processing_time=None,
+        )
+
     # Delegate to the existing compare logic
     return _run_comparison(file_id, fitting_id)
 
 
 # ════════════════════════════════════════════════════════════════
-# KEEP: Existing download / utility routes (unchanged)
+# download / utility routes
 # ════════════════════════════════════════════════════════════════
 
 @app.route("/download_memory/<file_id>")
@@ -831,6 +909,12 @@ def perform_curve_fitting():
         return redirect(url_for("index"))
 
     file_info = in_memory_files[file_id]
+
+    # Return cached results immediately if already computed for this file
+    existing_fitting_id = file_info.get("fitting_id")
+    if existing_fitting_id and existing_fitting_id in in_memory_files:
+        return redirect(url_for("curve_fitting_results", fitting_id=existing_fitting_id))
+
     file_bytes = file_info["data"]
     filename = file_info["name"]
 
@@ -860,10 +944,11 @@ def perform_curve_fitting():
 
         r_script = os.path.join(os.getcwd(), "fit_sigmoids.R")
         r2_threshold = str(settings.get("sigmoid_r2_threshold", 0.5))
+        include_lod = "TRUE" if settings.get("lod_censor_include", False) else "FALSE"
 
         _proc_start = time.time()
         result = subprocess.run(
-            ["Rscript", r_script, sigmoid_csv_path, output_dir, assay_title, timestamp, r2_threshold],
+            ["Rscript", r_script, sigmoid_csv_path, output_dir, assay_title, timestamp, r2_threshold, include_lod],
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -908,8 +993,11 @@ def perform_curve_fitting():
             "data": output_files,
             "name": "sigmoid_fitting_results",
             "type": "sigmoid_results",
-            "ic50_filename": ic50_filename
+            "ic50_filename": ic50_filename,
+            "excel_file_id": file_id,
         }
+        # Store fitting_id server-side so analysis hub can unlock comparison card
+        in_memory_files[file_id]["fitting_id"] = fitting_id
         
         _proc_elapsed = round(time.time() - _proc_start, 1)
         return render_template(
@@ -982,6 +1070,7 @@ def generate_sigmoid_graph(fitting_id):
 
     show_good     = request.args.get("good",     "true").lower() == "true"
     show_unstable = request.args.get("unstable", "true").lower() == "true"
+    show_poor_fit = request.args.get("poor_fit", "true").lower() == "true"
 
     tmp_dir = None
     try:
@@ -999,9 +1088,12 @@ def generate_sigmoid_graph(fitting_id):
         output_png = os.path.join(tmp_dir, "sigmoid_combined.png")
 
         r_script = os.path.join(os.getcwd(), "plot_sigmoids.R")
+        _plot_settings = load_settings()
+        show_lod = "true" if _plot_settings.get("lod_censor_include", False) else "false"
         subprocess.run(
             ["Rscript", r_script, raw_csv, ic50_csv, output_png,
-             str(show_good).lower(), str(show_unstable).lower()],
+             str(show_good).lower(), str(show_unstable).lower(), show_lod,
+             str(show_poor_fit).lower()],
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -1162,6 +1254,14 @@ def _run_comparison(excel_file_id, fitting_id):
                     })
             mismatches.sort(key=lambda r: abs(r['Log2_Fold_Difference']), reverse=True)
 
+        # Cache parsed render data so future visits skip reprocessing
+        has_plot = 'titre_comparison.png' in output_files
+        in_memory_files[comparison_id]["stats"]      = stats
+        in_memory_files[comparison_id]["mismatches"] = mismatches
+        in_memory_files[comparison_id]["has_plot"]   = has_plot
+        # Store back-reference so the hub and compare_titres_page can find the cache
+        in_memory_files[excel_file_id]["comparison_id"] = comparison_id
+
         _proc_elapsed = round(time.time() - _proc_start, 1)
         return render_template(
             "titre_comparison_results.html",
@@ -1169,7 +1269,7 @@ def _run_comparison(excel_file_id, fitting_id):
             excel_file_id=excel_file_id,
             stats=stats,
             mismatches=mismatches,
-            has_plot='titre_comparison.png' in output_files,
+            has_plot=has_plot,
             settings=load_settings(),
             processing_time=_proc_elapsed,
         )
@@ -1242,6 +1342,193 @@ def download_comparison(comparison_id, filename):
 def view_results(file_id):
     """Legacy route — redirects to Data Analysis."""
     return redirect(url_for("analysis_hub", file_id=file_id))
+
+
+# ════════════════════════════════════════════════════════════════
+# PLATE MAPPER
+# ════════════════════════════════════════════════════════════════
+
+PM_PRESETS_FILE = os.path.join(os.path.dirname(__file__), 'plate_mapper_presets.json')
+
+
+def pm_load_presets():
+    if os.path.exists(PM_PRESETS_FILE):
+        with open(PM_PRESETS_FILE, 'r') as f:
+            return json.load(f)
+    return {}
+
+
+def _pm_write_presets(presets):
+    with open(PM_PRESETS_FILE, 'w') as f:
+        json.dump(presets, f, indent=4)
+
+
+def pm_save_preset(name, settings):
+    presets = pm_load_presets()
+    presets[name] = settings
+    _pm_write_presets(presets)
+    return True
+
+
+def pm_delete_preset(name):
+    presets = pm_load_presets()
+    if name in presets:
+        del presets[name]
+        _pm_write_presets(presets)
+        return True
+    return False
+
+
+def pm_format_id(entry, prefix, suffix='', id_length=0, pad_char='0'):
+    if not entry or entry.strip() == "":
+        return None
+    if entry.startswith('!'):
+        return entry[1:]
+    if id_length > 0:
+        entry = entry.zfill(id_length) if pad_char == '0' else entry.rjust(id_length, pad_char)
+    return f"{prefix}{entry}{suffix}"
+
+
+def pm_build_grid(sample_ids, replicate_count, layout_mode,
+                  pos_label='PosCtrl', neg_label='NegCtrl', ctrl3_label='Ctrl3',
+                  include_pos=True, include_neg=True, include_ctrl3=True):
+    grid = [["" for _ in range(12)] for _ in range(8)]
+    if layout_mode == 'vertical':
+        fill_positions = []
+        control_labels = []
+        if include_pos:
+            control_labels += [pos_label] * replicate_count
+        if include_neg:
+            control_labels += [neg_label] * replicate_count
+        if include_ctrl3:
+            control_labels += [ctrl3_label] * replicate_count
+        control_col = 0
+        control_row = 0
+        for label in control_labels:
+            if control_row >= 8:
+                control_row = 0
+                control_col += 1
+                if control_col >= 12:
+                    break
+            grid[control_row][control_col] = label
+            control_row += 1
+        for col in range(12):
+            for row in range(8):
+                if grid[row][col] == "":
+                    fill_positions.append((row, col))
+        idx = 0
+        for sid in sample_ids:
+            for _ in range(replicate_count):
+                if idx >= len(fill_positions):
+                    break
+                r, c = fill_positions[idx]
+                grid[r][c] = sid
+                idx += 1
+    elif layout_mode == 'horizontal':
+        current_row = 0
+        col = 0
+        if include_pos:
+            for rep in range(replicate_count):
+                grid[current_row][col + rep] = pos_label
+            current_row += 1
+        if include_neg:
+            for rep in range(replicate_count):
+                grid[current_row][col + rep] = neg_label
+            current_row += 1
+        if include_ctrl3:
+            for rep in range(replicate_count):
+                grid[current_row][col + rep] = ctrl3_label
+            current_row += 1
+        sample_idx = 0
+        while sample_idx < len(sample_ids):
+            if current_row >= 8:
+                current_row = 0
+                col += replicate_count
+                if col + replicate_count > 12:
+                    break
+            for rep in range(replicate_count):
+                if col + rep < 12:
+                    grid[current_row][col + rep] = sample_ids[sample_idx]
+            current_row += 1
+            sample_idx += 1
+    return grid
+
+
+@app.route('/plate_mapper', methods=['GET', 'POST'])
+def plate_mapper():
+    if request.method == 'POST':
+        prefix = request.form.get('prefix', '')
+        suffix = request.form.get('suffix', '')
+        pos_label = request.form.get('pos_label', '').strip() or "Control 1"
+        neg_label = request.form.get('neg_label', '').strip() or "Control 2"
+        ctrl3_label = request.form.get('ctrl3_label', '').strip() or "Control 3"
+        include_pos = 'include_pos' in request.form
+        include_neg = 'include_neg' in request.form
+        include_ctrl3 = 'include_ctrl3' in request.form
+        replicate_count = int(request.form.get('replicate_count', 2) or 2)
+        id_length = int(request.form.get('id_length', 0) or 0)
+        pad_char = (request.form.get('pad_char', '0') or '0')[:1] or '0'
+        layout_mode = request.form.get('layout_mode', 'vertical')
+        plate_count = int(request.form.get('plate_count', 1) or 1)
+
+        plate_labels = []
+        for i in range(1, plate_count + 1):
+            label = request.form.get(f'plate_label_{i}', '').strip()
+            plate_labels.append(label or f"Plate {i}")
+
+        plates = []
+        for i in range(1, plate_count + 1):
+            raw = request.form.get(f'plate_{i}', '')
+            nums = [s.strip() for s in raw.replace(';', ',').split(',') if s.strip()]
+            formatted = [
+                pm_format_id(n, prefix, suffix, id_length, pad_char)
+                for n in nums
+                if pm_format_id(n, prefix, suffix, id_length, pad_char)
+            ]
+            plates.append(pm_build_grid(
+                formatted, replicate_count, layout_mode,
+                pos_label, neg_label, ctrl3_label,
+                include_pos, include_neg, include_ctrl3
+            ))
+
+        control_labels = set()
+        if include_pos:
+            control_labels.add(pos_label)
+        if include_neg:
+            control_labels.add(neg_label)
+        if include_ctrl3:
+            control_labels.add(ctrl3_label)
+
+        return render_template('plate_mapper_results.html', plates=plates, plate_labels=plate_labels,
+                               control_labels=control_labels)
+    return render_template('plate_mapper.html')
+
+
+@app.route('/plate_mapper/settings')
+def plate_mapper_settings():
+    return render_template('plate_mapper_settings.html')
+
+
+@app.route('/plate_mapper/api/presets', methods=['GET'])
+def pm_api_get_presets():
+    return jsonify(pm_load_presets())
+
+
+@app.route('/plate_mapper/api/presets', methods=['POST'])
+def pm_api_save_preset():
+    data = request.json
+    if not data or "name" not in data or "settings" not in data:
+        return jsonify({"error": "Invalid data"}), 400
+    if pm_save_preset(data["name"], data["settings"]):
+        return jsonify({"message": f'Preset "{data["name"]}" saved.'})
+    return jsonify({"error": "Failed to save preset"}), 500
+
+
+@app.route('/plate_mapper/api/presets/<name>', methods=['DELETE'])
+def pm_api_delete_preset(name):
+    if pm_delete_preset(name):
+        return jsonify({"message": f'Preset "{name}" deleted.'})
+    return jsonify({"error": "Preset not found"}), 404
 
 
 if __name__ == '__main__':

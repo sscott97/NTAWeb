@@ -1,0 +1,657 @@
+{% extends 'layout.html' %}
+{% block title %}Plate Mapper - NTA{% endblock %}
+
+{% block nav_left %}
+<a href="{{ url_for('index') }}" class="nav-back-btn">← Home</a>
+{% endblock %}
+
+{% block content %}
+<style>
+.pm-section-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-dim, #888);
+  margin-bottom: 0.6rem;
+}
+.pm-counter {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #388bfd;
+  white-space: nowrap;
+}
+.pm-range-box {
+  background: var(--bg-raised, rgba(255,255,255,0.04));
+  border: 1px solid var(--border, rgba(255,255,255,0.08));
+  border-radius: 6px;
+  padding: 1rem;
+  font-size: 0.88rem;
+  min-height: 2.5rem;
+  word-break: break-all;
+  color: var(--text-main, inherit);
+}
+
+/* ── Plate preview grid ─────────────────────────────── */
+.pm-grid {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 0.72rem;
+  font-family: inherit;
+}
+.pm-grid th {
+  text-align: center;
+  padding: 2px 0;
+  font-weight: 700;
+  font-size: 0.7rem;
+  color: var(--text-dim, #888);
+  background: transparent;
+  border: none;
+}
+.pm-grid td {
+  text-align: center;
+  vertical-align: middle;
+  padding: 2px 1px;
+  height: 28px;
+  max-width: 0;           /* enforces fixed-layout truncation */
+  border: 1px solid var(--border, #dee2e6);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.pm-well-row-label {
+  text-align: right !important;
+  padding-right: 4px !important;
+  font-weight: 700;
+  border: none !important;
+  color: var(--text-dim, #888);
+  width: 18px;            /* no min-width — fixed layout respects this exactly */
+}
+.pm-well-control {
+  background-color: #c8dcff;
+  color: #0d2d6e;
+  font-weight: 700;
+}
+.pm-well-sample {
+  background-color: #b6f0b2;
+  color: #0e3d0a;
+  font-weight: 600;
+}
+.pm-well-empty {
+  background-color: var(--bg-raised, #f0f0f0);
+}
+.pm-preview-nav-btn {
+  background: none;
+  border: 1px solid var(--border-sharp, rgba(120,120,120,0.3));
+  border-radius: 4px;
+  width: 22px;
+  height: 22px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--text-mid, #aaa);
+  line-height: 1;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s, color 0.15s;
+}
+.pm-preview-nav-btn:hover:not(:disabled) {
+  border-color: var(--teal, #2e9bae);
+  color: var(--teal, #2e9bae);
+}
+.pm-preview-nav-btn:disabled { opacity: 0.3; cursor: default; }
+
+/* Preview sub-header strip inside card */
+.pm-preview-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0 0.6rem;
+  margin-bottom: 0.65rem;
+  border-bottom: 1px solid var(--border, rgba(255,255,255,0.08));
+}
+</style>
+
+<div style="max-width: 900px; margin: 0 auto;">
+
+  <!-- Page header -->
+  <div class="mb-4 d-flex align-items-start justify-content-between">
+    <div>
+      <h2 class="text-success mb-1" style="font-size: 1.75rem;">Plate Mapper</h2>
+    </div>
+    <a href="{{ url_for('plate_mapper_settings') }}" class="btn btn-outline-primary btn-sm" style="margin-top: 0.3rem; font-weight: 600;">Presets →</a>
+  </div>
+
+  <!-- ── Single combined card ───────────────────────────────── -->
+  <div class="card mb-4">
+
+    <!-- Card header: title + Clear button -->
+    <div class="card-header d-flex align-items-center justify-content-between">
+      <span style="font-weight:600;">Create Plate Layout</span>
+      <button type="button" class="btn btn-sm btn-outline-danger" style="font-size:0.78rem; padding:0.2rem 0.65rem;" onclick="clearFormInputs()">Clear</button>
+    </div>
+
+    <div class="card-body">
+
+      <!-- ════ LIVE PREVIEW (top) ════════════════════════════ -->
+      <div class="pm-preview-bar">
+        <div class="d-flex align-items-center gap-2">
+          <span style="font-weight:600; font-size:0.95rem;" id="pmPreviewTitle">Preview</span>
+          <!-- Plate navigation (shown when >1 plate) -->
+          <div id="pmPlateNav" style="display:none; align-items:center; gap:0.25rem;">
+            <button class="pm-preview-nav-btn" id="pmPlatePrev" onclick="pmChangePlate(-1)" disabled>‹</button>
+            <span id="pmPlateNavLabel" style="font-size:0.78rem; color:var(--text-dim,#888); min-width:3.2rem; text-align:center;"></span>
+            <button class="pm-preview-nav-btn" id="pmPlateNext" onclick="pmChangePlate(1)">›</button>
+          </div>
+          <span style="font-size:0.72rem; color:var(--text-dim,#aaa);">Updates as you type</span>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-sm btn-outline-secondary" style="font-size:0.78rem;" onclick="pmCopyLayout()">Copy 8×12</button>
+          <button type="button" class="btn btn-sm btn-outline-secondary" style="font-size:0.78rem;" onclick="pmCopyCSV()">Copy CSV</button>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 0.75rem;">
+        <div id="pmPreviewGrid"></div>
+      </div>
+
+      <hr class="my-3">
+
+      <!-- ════ FORM ══════════════════════════════════════════ -->
+      <form id="pmForm">
+
+        <!-- Controls -->
+        <div class="pm-section-label">Controls</div>
+        <div class="row g-3 mb-4">
+          <div class="col-12 col-md-4">
+            <div class="d-flex align-items-center gap-2">
+              <input class="form-check-input pm-live" type="checkbox" name="include_pos" id="include_pos" checked style="width:1.15em;height:1.15em;flex-shrink:0;">
+              <label class="form-label mb-0" for="include_pos" style="white-space:nowrap; font-size:0.88rem;">Control 1:</label>
+              <input type="text" class="form-control form-control-sm pm-live" name="pos_label" placeholder="e.g. PosCtrl">
+            </div>
+          </div>
+          <div class="col-12 col-md-4">
+            <div class="d-flex align-items-center gap-2">
+              <input class="form-check-input pm-live" type="checkbox" name="include_neg" id="include_neg" checked style="width:1.15em;height:1.15em;flex-shrink:0;">
+              <label class="form-label mb-0" for="include_neg" style="white-space:nowrap; font-size:0.88rem;">Control 2:</label>
+              <input type="text" class="form-control form-control-sm pm-live" name="neg_label" placeholder="e.g. NegCtrl">
+            </div>
+          </div>
+          <div class="col-12 col-md-4">
+            <div class="d-flex align-items-center gap-2">
+              <input class="form-check-input pm-live" type="checkbox" name="include_ctrl3" id="include_ctrl3" style="width:1.15em;height:1.15em;flex-shrink:0;">
+              <label class="form-label mb-0" for="include_ctrl3" style="white-space:nowrap; font-size:0.88rem;">Control 3:</label>
+              <input type="text" class="form-control form-control-sm pm-live" name="ctrl3_label" placeholder="e.g. Ctrl3">
+            </div>
+          </div>
+        </div>
+
+        <hr class="my-3">
+
+        <!-- Sample ID Settings -->
+        <div class="pm-section-label">Sample ID Settings</div>
+        <div class="row g-3 mb-4">
+          <div class="col-6 col-md-3">
+            <label class="form-label" style="font-size:0.85rem;">Prefix</label>
+            <input type="text" class="form-control form-control-sm pm-live" name="prefix" placeholder="Optional">
+          </div>
+          <div class="col-6 col-md-3">
+            <label class="form-label" style="font-size:0.85rem;">Suffix</label>
+            <input type="text" class="form-control form-control-sm pm-live" name="suffix" placeholder="Optional">
+          </div>
+          <div class="col-6 col-md-3">
+            <label class="form-label" style="font-size:0.85rem;">ID Length</label>
+            <input type="number" class="form-control form-control-sm pm-live" name="id_length" placeholder="e.g. 4" min="1">
+          </div>
+          <div class="col-6 col-md-3">
+            <label class="form-label" style="font-size:0.85rem;">Pad Character</label>
+            <input type="text" class="form-control form-control-sm pm-live" name="pad_char" maxlength="1" placeholder="0">
+          </div>
+        </div>
+
+        <hr class="my-3">
+
+        <!-- Layout Settings -->
+        <div class="pm-section-label">Layout Settings</div>
+        <div class="row g-3 mb-4">
+          <div class="col-6 col-md-3">
+            <label class="form-label" style="font-size:0.85rem;">Replicates</label>
+            <input type="number" class="form-control form-control-sm pm-live" name="replicate_count" value="2" min="1">
+          </div>
+          <div class="col-6 col-md-3">
+            <label class="form-label" style="font-size:0.85rem;">Layout</label>
+            <select class="form-select form-select-sm pm-live" name="layout_mode">
+              <option value="vertical">Vertical</option>
+              <option value="horizontal">Horizontal</option>
+            </select>
+          </div>
+          <div class="col-6 col-md-3">
+            <label class="form-label" style="font-size:0.85rem;">Number of Plates</label>
+            <input type="number" class="form-control form-control-sm pm-live" id="plate_count" name="plate_count" value="1" min="1" max="10">
+          </div>
+        </div>
+
+        <hr class="my-3">
+
+        <!-- Plate Layouts -->
+        <div class="pm-section-label">Plate Layouts</div>
+        <div id="plate_inputs"></div>
+
+      </form>
+
+    </div>
+  </div>
+
+  <!-- Range Generator -->
+  <div class="card mb-4">
+    <div class="card-header"><span style="font-weight:600;">Number Range Generator</span></div>
+    <div class="card-body">
+      <div class="row g-2 mb-3 align-items-end">
+        <div class="col-auto">
+          <label class="form-label" style="font-size:0.85rem;">Start</label>
+          <input type="number" class="form-control form-control-sm" id="range_start" placeholder="e.g. 1" style="width:100px;">
+        </div>
+        <div class="col-auto">
+          <label class="form-label" style="font-size:0.85rem;">End</label>
+          <input type="number" class="form-control form-control-sm" id="range_end" placeholder="e.g. 10" style="width:100px;">
+        </div>
+        <div class="col-auto">
+          <button type="button" class="btn btn-sm btn-outline-primary" onclick="generateRange()">Generate Range</button>
+        </div>
+      </div>
+      <div class="row g-2 mb-3 align-items-end">
+        <div class="col-auto">
+          <label class="form-label" style="font-size:0.85rem;">Start</label>
+          <input type="number" class="form-control form-control-sm" id="range_count_start" placeholder="e.g. 10" style="width:100px;">
+        </div>
+        <div class="col-auto align-self-end pb-1" style="font-weight:bold;">+</div>
+        <div class="col-auto">
+          <label class="form-label" style="font-size:0.85rem;">Count</label>
+          <input type="number" class="form-control form-control-sm" id="range_count" placeholder="how many" style="width:110px;">
+        </div>
+        <div class="col-auto">
+          <button type="button" class="btn btn-sm btn-outline-primary" onclick="generateRangeByCount()">Generate Next N</button>
+        </div>
+      </div>
+      <div class="pm-range-box" id="range_output">Generated range will appear here...</div>
+      <div class="mt-2">
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="copyRangeToClipboard()">Copy to Clipboard</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// PLATE MAPPER — client-side grid logic (mirrors Python backend)
+// ═══════════════════════════════════════════════════════════════
+
+function pmFormatId(entry, prefix, suffix, idLength, padChar) {
+    entry = entry.trim();
+    if (!entry) return null;
+    if (entry.charAt(0) === '!') return entry.substring(1);
+    if (idLength > 0) entry = entry.padStart(idLength, padChar || '0');
+    return prefix + entry + suffix;
+}
+
+function pmBuildGrid(sampleIds, replicateCount, layoutMode,
+                     posLabel, negLabel, ctrl3Label,
+                     includePos, includeNeg, includeCtrl3) {
+    var grid = [];
+    for (var r = 0; r < 8; r++) grid.push(new Array(12).fill(''));
+
+    if (layoutMode === 'vertical') {
+        var ctrlLabels = [];
+        if (includePos)   for (var k = 0; k < replicateCount; k++) ctrlLabels.push(posLabel);
+        if (includeNeg)   for (var k = 0; k < replicateCount; k++) ctrlLabels.push(negLabel);
+        if (includeCtrl3) for (var k = 0; k < replicateCount; k++) ctrlLabels.push(ctrl3Label);
+
+        var cc = 0, cr = 0;
+        for (var li = 0; li < ctrlLabels.length; li++) {
+            if (cr >= 8) { cr = 0; cc++; if (cc >= 12) break; }
+            grid[cr][cc] = ctrlLabels[li]; cr++;
+        }
+
+        var fill = [];
+        for (var c = 0; c < 12; c++) for (var r = 0; r < 8; r++) if (grid[r][c] === '') fill.push([r, c]);
+
+        var idx = 0;
+        for (var si = 0; si < sampleIds.length && idx < fill.length; si++)
+            for (var rep = 0; rep < replicateCount && idx < fill.length; rep++) {
+                grid[fill[idx][0]][fill[idx][1]] = sampleIds[si]; idx++;
+            }
+
+    } else { // horizontal
+        var curRow = 0, col = 0;
+        if (includePos)   { for (var rep = 0; rep < replicateCount; rep++) grid[curRow][col + rep] = posLabel;   curRow++; }
+        if (includeNeg)   { for (var rep = 0; rep < replicateCount; rep++) grid[curRow][col + rep] = negLabel;   curRow++; }
+        if (includeCtrl3) { for (var rep = 0; rep < replicateCount; rep++) grid[curRow][col + rep] = ctrl3Label; curRow++; }
+
+        var sIdx = 0;
+        while (sIdx < sampleIds.length) {
+            if (curRow >= 8) { curRow = 0; col += replicateCount; if (col + replicateCount > 12) break; }
+            for (var rep = 0; rep < replicateCount; rep++) if (col + rep < 12) grid[curRow][col + rep] = sampleIds[sIdx];
+            curRow++; sIdx++;
+        }
+    }
+    return grid;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LIVE PREVIEW
+// ═══════════════════════════════════════════════════════════════
+
+var pmCurrentPlate = 0;
+var pmGridCache    = [];
+
+function q(sel)    { return document.querySelector(sel); }
+function qv(name)  { var el = q('[name="' + name + '"]'); return el ? el.value : ''; }
+function qc(name)  { var el = q('[name="' + name + '"]'); return el ? el.checked : false; }
+
+function pmReadFormData() {
+    var prefix    = qv('prefix');
+    var suffix    = qv('suffix');
+    var idLength  = parseInt(qv('id_length'))      || 0;
+    var padChar   = (qv('pad_char') || '0')[0]     || '0';
+    var replCount = Math.max(1, parseInt(qv('replicate_count')) || 2);
+    var layout    = qv('layout_mode')              || 'vertical';
+    var plateCount = Math.max(1, parseInt(qv('plate_count')) || 1);
+
+    var incPos    = qc('include_pos');
+    var incNeg    = qc('include_neg');
+    var incCtrl3  = qc('include_ctrl3');
+    var posLabel  = qv('pos_label').trim()  || 'Control 1';
+    var negLabel  = qv('neg_label').trim()  || 'Control 2';
+    var ctrl3Lbl  = qv('ctrl3_label').trim() || 'Control 3';
+
+    var ctrlSet = {};
+    if (incPos)   ctrlSet[posLabel]  = true;
+    if (incNeg)   ctrlSet[negLabel]  = true;
+    if (incCtrl3) ctrlSet[ctrl3Lbl] = true;
+
+    var plates = [];
+    for (var i = 1; i <= plateCount; i++) {
+        var labelEl = q('[name="plate_label_' + i + '"]');
+        var label   = (labelEl && labelEl.value.trim()) ? labelEl.value.trim() : 'Plate ' + i;
+        var taEl    = q('[name="plate_' + i + '"]');
+        var raw     = taEl ? taEl.value : '';
+        var nums = raw.replace(/;/g, ',').split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+        var formatted = [];
+        nums.forEach(function(n) {
+            var f = pmFormatId(n, prefix, suffix, idLength, padChar);
+            if (f !== null) formatted.push(f);
+        });
+        plates.push({
+            label: label,
+            grid: pmBuildGrid(formatted, replCount, layout, posLabel, negLabel, ctrl3Lbl, incPos, incNeg, incCtrl3),
+            controlLabels: ctrlSet
+        });
+    }
+    return plates;
+}
+
+function pmRenderPreview() {
+    pmGridCache = pmReadFormData();
+    var n = pmGridCache.length;
+    if (pmCurrentPlate >= n) pmCurrentPlate = Math.max(0, n - 1);
+
+    var navEl   = document.getElementById('pmPlateNav');
+    var prevBtn = document.getElementById('pmPlatePrev');
+    var nextBtn = document.getElementById('pmPlateNext');
+    var navLbl  = document.getElementById('pmPlateNavLabel');
+    var titleEl = document.getElementById('pmPreviewTitle');
+
+    if (n > 1) {
+        navEl.style.display = 'flex';
+        navLbl.textContent  = (pmCurrentPlate + 1) + ' / ' + n;
+        prevBtn.disabled    = pmCurrentPlate === 0;
+        nextBtn.disabled    = pmCurrentPlate === n - 1;
+    } else {
+        navEl.style.display = 'none';
+    }
+
+    var plate = pmGridCache[pmCurrentPlate];
+    titleEl.textContent = plate.label;
+
+    var LETTERS = 'ABCDEFGH';
+    var html = '<table class="pm-grid"><thead><tr><th class="pm-well-row-label"></th>';
+    for (var c = 0; c < 12; c++) html += '<th>' + (c + 1) + '</th>';
+    html += '</tr></thead><tbody>';
+
+    for (var r = 0; r < 8; r++) {
+        html += '<tr><th class="pm-well-row-label">' + LETTERS[r] + '</th>';
+        for (var c = 0; c < 12; c++) {
+            var well = plate.grid[r][c];
+            var cls  = !well ? 'pm-well-empty' : (plate.controlLabels[well] ? 'pm-well-control' : 'pm-well-sample');
+            var display = well.length > 9 ? well.substring(0, 8) + '…' : well;
+            html += '<td class="' + cls + '" title="' + well.replace(/"/g, '&quot;') + '">' + display + '</td>';
+        }
+        html += '</tr>';
+    }
+    html += '</tbody></table>';
+    document.getElementById('pmPreviewGrid').innerHTML = html;
+}
+
+function pmChangePlate(dir) {
+    var next = pmCurrentPlate + dir;
+    if (next < 0 || next >= pmGridCache.length) return;
+    pmCurrentPlate = next;
+    pmRenderPreview();
+}
+
+// Copy from live grid
+function pmCopyLayout() {
+    if (!pmGridCache.length) return;
+    var rows = pmGridCache[pmCurrentPlate].grid.map(function(row){ return row.join('\t'); });
+    navigator.clipboard.writeText(rows.join('\n')).then(function() {
+        ntaToast('8×12 layout copied to clipboard.', 'success');
+    }).catch(function() { ntaToast('Failed to copy.', 'danger'); });
+}
+
+function pmCopyCSV() {
+    if (!pmGridCache.length) return;
+    var grid = pmGridCache[pmCurrentPlate].grid, values = [];
+    for (var c = 0; c < 12; c++) for (var r = 0; r < 8; r++) if (grid[r][c]) values.push(grid[r][c]);
+    navigator.clipboard.writeText(values.join(',')).then(function() {
+        ntaToast('CSV list copied to clipboard.', 'success');
+    }).catch(function() { ntaToast('Failed to copy.', 'danger'); });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PRESET LOADING
+// ═══════════════════════════════════════════════════════════════
+
+function setAllSettings(s) {
+    if (!s) return;
+    function sv(n, v) { var el = q('[name="' + n + '"]'); if (el) el.value = v || ''; }
+    function sc(n, v) { var el = q('[name="' + n + '"]'); if (el) el.checked = !!v; }
+    sc('include_pos',   s.include_pos);
+    sc('include_neg',   s.include_neg);
+    sc('include_ctrl3', s.include_ctrl3);
+    sv('pos_label',     s.pos_label);
+    sv('neg_label',     s.neg_label);
+    sv('ctrl3_label',   s.ctrl3_label);
+    sv('prefix',        s.prefix);
+    sv('suffix',        s.suffix);
+    sv('id_length',     s.id_length);
+    sv('pad_char',      s.pad_char);
+    sv('replicate_count', s.replicate_count);
+    var lm = q('[name="layout_mode"]'); if (lm) lm.value = s.layout_mode || 'vertical';
+    sv('plate_count',   s.plate_count);
+}
+
+async function loadPresetSettings() {
+    var str = localStorage.getItem('pmCurrentPreset');
+    if (!str) return;
+    try { setAllSettings(JSON.parse(str)); localStorage.removeItem('pmCurrentPreset'); } catch(e) {}
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DYNAMIC PLATE INPUTS
+// ═══════════════════════════════════════════════════════════════
+
+function updatePlateInputs() {
+    var container  = document.getElementById('plate_inputs');
+    var plateCount = parseInt(qv('plate_count')) || 1;
+    container.innerHTML = '';
+    pmCurrentPlate = 0;
+
+    for (var i = 1; i <= plateCount; i++) {
+        (function(idx) {
+            var group = document.createElement('div');
+            group.className = 'mb-3';
+
+            var labelRow = document.createElement('div');
+            labelRow.className = 'd-flex align-items-center gap-2 mb-1';
+
+            var lbl = document.createElement('label');
+            lbl.textContent = 'Plate ' + idx + ' Label:';
+            lbl.style.cssText = 'font-size:0.85rem; white-space:nowrap; margin:0;';
+
+            var labelInput = document.createElement('input');
+            labelInput.type = 'text';
+            labelInput.name = 'plate_label_' + idx;
+            labelInput.placeholder = 'Plate ' + idx;
+            labelInput.className = 'form-control form-control-sm';
+            labelInput.style.flex = '1';
+
+            var counter = document.createElement('span');
+            counter.className = 'pm-counter';
+            counter.textContent = '0 samples';
+
+            var savedLabel = sessionStorage.getItem('plate_label_' + idx);
+            if (savedLabel !== null) labelInput.value = savedLabel;
+            labelInput.addEventListener('input', function() {
+                sessionStorage.setItem('plate_label_' + idx, labelInput.value);
+                pmRenderPreview();
+            });
+
+            var textarea = document.createElement('textarea');
+            textarea.name = 'plate_' + idx;
+            textarea.rows = 3;
+            textarea.placeholder = 'Enter your Sample IDs here';
+            textarea.className = 'form-control form-control-sm';
+            textarea.style.fontFamily = 'monospace';
+
+            var savedText = sessionStorage.getItem('plate_' + idx);
+            if (savedText !== null) textarea.value = savedText;
+
+            function updateCounter() {
+                var text = textarea.value.trim();
+                if (!text) { counter.textContent = '0 samples'; return; }
+                var count = text.replace(/;/g, ',').split(',').filter(function(s){ return s.trim(); }).length;
+                counter.textContent = count + ' sample' + (count !== 1 ? 's' : '');
+            }
+            textarea.addEventListener('input', function() {
+                updateCounter();
+                sessionStorage.setItem('plate_' + idx, textarea.value);
+                pmRenderPreview();
+            });
+            updateCounter();
+
+            labelRow.appendChild(lbl);
+            labelRow.appendChild(labelInput);
+            labelRow.appendChild(counter);
+            group.appendChild(labelRow);
+            group.appendChild(textarea);
+            container.appendChild(group);
+        })(i);
+    }
+    pmRenderPreview();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SESSION STORAGE PERSISTENCE
+// ═══════════════════════════════════════════════════════════════
+
+function saveFormInputs() {
+    document.querySelectorAll('#pmForm input, #pmForm select').forEach(function(el) {
+        var h = function() { if (el.name) sessionStorage.setItem('pm_' + el.name, el.type === 'checkbox' ? el.checked : el.value); };
+        el.addEventListener('input', h);
+        el.addEventListener('change', h);
+    });
+}
+
+function loadFormInputs() {
+    document.querySelectorAll('#pmForm input, #pmForm select').forEach(function(el) {
+        if (!el.name) return;
+        var val = sessionStorage.getItem('pm_' + el.name);
+        if (val === null) return;
+        if (el.type === 'checkbox') el.checked = (val === 'true');
+        else el.value = val;
+    });
+}
+
+function clearFormInputs() {
+    Object.keys(sessionStorage)
+        .filter(function(k){ return k.startsWith('pm_') || k.startsWith('plate_'); })
+        .forEach(function(k){ sessionStorage.removeItem(k); });
+    location.reload();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// WIRE LIVE INPUTS
+// ═══════════════════════════════════════════════════════════════
+
+function wirePreviewInputs() {
+    document.querySelectorAll('.pm-live').forEach(function(el) {
+        el.addEventListener('input',  pmRenderPreview);
+        el.addEventListener('change', pmRenderPreview);
+    });
+    // plate_count rebuilds the textarea list (which re-renders)
+    var pc = q('[name="plate_count"]');
+    if (pc) {
+        pc.addEventListener('input',  updatePlateInputs);
+        pc.addEventListener('change', updatePlateInputs);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RANGE GENERATOR
+// ═══════════════════════════════════════════════════════════════
+
+function generateRange() {
+    var s = parseInt(document.getElementById('range_start').value);
+    var e = parseInt(document.getElementById('range_end').value);
+    var out = document.getElementById('range_output');
+    if (isNaN(s) || isNaN(e)) { out.textContent = 'Please enter valid numbers.'; return; }
+    if (s > e) { out.textContent = 'Start must be ≤ end.'; return; }
+    var r = []; for (var i = s; i <= e; i++) r.push(i);
+    out.textContent = r.join(',');
+}
+
+function generateRangeByCount() {
+    var s = parseInt(document.getElementById('range_count_start').value);
+    var n = parseInt(document.getElementById('range_count').value);
+    var out = document.getElementById('range_output');
+    if (isNaN(s) || isNaN(n)) { out.textContent = 'Please enter a start and a count.'; return; }
+    if (n < 1) { out.textContent = 'Count must be at least 1.'; return; }
+    var r = []; for (var i = s; i < s + n; i++) r.push(i);
+    out.textContent = r.join(',');
+}
+
+function copyRangeToClipboard() {
+    var text = document.getElementById('range_output').textContent;
+    var bad  = ['Generated range', 'Please enter', 'Start must', 'Count must'];
+    if (bad.some(function(b){ return text.startsWith(b); })) { ntaToast('Please generate a range first.', 'warning'); return; }
+    navigator.clipboard.writeText(text).then(function() {
+        ntaToast('Range copied to clipboard.', 'success');
+    }).catch(function() { ntaToast('Failed to copy.', 'danger'); });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+
+window.addEventListener('DOMContentLoaded', async function() {
+    loadFormInputs();
+    await loadPresetSettings();
+    updatePlateInputs();  // builds textareas + triggers pmRenderPreview
+    saveFormInputs();
+    wirePreviewInputs();  // wires Controls / Sample ID / Layout inputs
+});
+</script>
+{% endblock %}

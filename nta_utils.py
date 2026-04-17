@@ -207,6 +207,74 @@ def load_csv_blocks_standard(csv_stream):
     return blocks
 
 
+def _apply_quadrant_labels(ws, num_pseudotypes, pt_list, sid_list, sample_index):
+    """
+    Write pseudotype and sample-ID labels into the four quadrant header cells of
+    a plate worksheet.  Returns the updated sample_index.
+
+    pt_list   – list of pseudotype name strings for this plate
+    sid_list  – list of sample ID strings to draw from (global or per-plate)
+    """
+    # Pad pt_list with "Unlabelled" if fewer names provided than slots needed
+    _np_count = 2 if num_pseudotypes == '2alt' else num_pseudotypes
+    pt_list = list(pt_list)
+    while len(pt_list) < _np_count:
+        pt_list.append("Unlabelled")
+
+    def _consume(idx):
+        """Return (value, new_index), incrementing only when in bounds."""
+        val = sid_list[idx] if idx < len(sid_list) else ''
+        new_idx = idx + 1 if idx < len(sid_list) else idx
+        return val, new_idx
+
+    if num_pseudotypes == 1:
+        val = pt_list[0] if pt_list else ''
+        for cell in ['B3', 'E3', 'H3', 'K3']:
+            ws[cell] = val
+        for cell in ['B4', 'E4', 'H4', 'K4']:
+            v, sample_index = _consume(sample_index)
+            ws[cell] = v
+    elif num_pseudotypes == 2:
+        ws['B3'] = pt_list[0] if len(pt_list) > 0 else ''
+        ws['E3'] = pt_list[0] if len(pt_list) > 0 else ''
+        ws['H3'] = pt_list[1] if len(pt_list) > 1 else ''
+        ws['K3'] = pt_list[1] if len(pt_list) > 1 else ''
+        val1, sample_index = _consume(sample_index)
+        val2, sample_index = _consume(sample_index)
+        ws['B4'] = val1; ws['H4'] = val1
+        ws['E4'] = val2; ws['K4'] = val2
+    elif num_pseudotypes == '2alt':
+        ws['B3'] = pt_list[0] if len(pt_list) > 0 else ''
+        ws['E3'] = pt_list[1] if len(pt_list) > 1 else ''
+        ws['H3'] = pt_list[0] if len(pt_list) > 0 else ''
+        ws['K3'] = pt_list[1] if len(pt_list) > 1 else ''
+        val1, sample_index = _consume(sample_index)
+        val2, sample_index = _consume(sample_index)
+        ws['B4'] = val1; ws['E4'] = val1   # Q1/Q2 = first sample
+        ws['H4'] = val2; ws['K4'] = val2   # Q3/Q4 = second sample
+    elif num_pseudotypes == 3:
+        ws['B3'] = pt_list[0] if len(pt_list) > 0 else ''
+        ws['E3'] = pt_list[1] if len(pt_list) > 1 else ''
+        ws['H3'] = pt_list[2] if len(pt_list) > 2 else ''
+        ws['K3'] = ''
+        val, sample_index = _consume(sample_index)
+        ws['B4'] = val; ws['E4'] = val; ws['H4'] = val; ws['K4'] = ''
+        for row in range(5, 13):
+            for col in ['K', 'L', 'M']:
+                ws[f'{col}{row}'] = ''
+    elif num_pseudotypes == 4:
+        for idx, cell in enumerate(['B3', 'E3', 'H3', 'K3']):
+            ws[cell] = pt_list[idx] if idx < len(pt_list) else ''
+        val, sample_index = _consume(sample_index)
+        for cell in ['B4', 'E4', 'H4', 'K4']:
+            ws[cell] = val
+    else:
+        for cell in ['B3', 'E3', 'H3', 'K3', 'B4', 'E4', 'H4', 'K4']:
+            ws[cell] = ''
+
+    return sample_index
+
+
 def process_csv_to_template(
     csv_path,
     template_path,
@@ -216,7 +284,16 @@ def process_csv_to_template(
     assay_title_text,
     sample_id_text,
     data_mode="data_only",
+    plate_configs=None,
 ):
+    """
+    plate_configs – optional list of per-plate dicts:
+        [{"num_pseudotypes": 4, "pseudotypes": ["A","B","C","D"], "sample_ids": ["P1"]}, ...]
+    When provided, each plate uses its own config instead of the global values.
+    sample_ids within a plate config resets the index for that plate only.
+    If a plate config omits sample_ids, the global sample_id_list with a
+    continuing counter is used instead.
+    """
     if data_mode == "standard":
         blocks = load_csv_blocks_standard(csv_path)
     else:
@@ -228,15 +305,16 @@ def process_csv_to_template(
     wb = openpyxl.load_workbook(template_path)
     template_sheet = wb.active
 
-    pseudotype_list = [pt.strip() for line in pseudotype_texts.splitlines() for pt in line.split(",") if pt.strip()]
+    # Global fallback lists (used when plate_configs is None or a plate config
+    # does not supply its own sample_ids)
+    global_pt_list = [pt.strip() for line in pseudotype_texts.splitlines() for pt in line.split(",") if pt.strip()]
+    _np_count = 2 if num_pseudotypes == '2alt' else num_pseudotypes
+    while len(global_pt_list) < _np_count:
+        global_pt_list.append("Unlabelled")
 
-    # Pad with "Unlabelled" if not enough pseudotypes provided
-    while len(pseudotype_list) < num_pseudotypes:
-        pseudotype_list.append("Unlabelled")
+    global_sid_list = [sid.strip() for line in sample_id_text.splitlines() for sid in line.split(",") if sid.strip()]
 
-    sample_id_list = [sid.strip() for line in sample_id_text.splitlines() for sid in line.split(",") if sid.strip()]
-
-    sample_index = 0
+    global_sample_index = 0
 
     for i, block in enumerate(blocks):
         sheet_title = f"Plate{i+1}"
@@ -255,55 +333,26 @@ def process_csv_to_template(
         ws = new_sheet
         ws['B2'] = assay_title_text
 
-        if num_pseudotypes == 1:
-            val = pseudotype_list[0] if len(pseudotype_list) > 0 else ''
-            for cell in ['B3', 'E3', 'H3', 'K3']:
-                ws[cell] = val
-            sample_cells = ['B4', 'E4', 'H4', 'K4']
-            for cell in sample_cells:
-                if sample_index < len(sample_id_list):
-                    ws[cell] = sample_id_list[sample_index]
-                    sample_index += 1
-                else:
-                    ws[cell] = ''
-        elif num_pseudotypes == 2:
-            ws['B3'] = pseudotype_list[0] if len(pseudotype_list) > 0 else ''
-            ws['E3'] = pseudotype_list[0] if len(pseudotype_list) > 0 else ''
-            ws['H3'] = pseudotype_list[1] if len(pseudotype_list) > 1 else ''
-            ws['K3'] = pseudotype_list[1] if len(pseudotype_list) > 1 else ''
-            val1 = sample_id_list[sample_index] if sample_index < len(sample_id_list) else ''
-            if sample_index < len(sample_id_list): sample_index += 1
-            val2 = sample_id_list[sample_index] if sample_index < len(sample_id_list) else ''
-            if sample_index < len(sample_id_list): sample_index += 1
-            ws['B4'] = val1
-            ws['H4'] = val1
-            ws['E4'] = val2
-            ws['K4'] = val2
-        elif num_pseudotypes == 3:
-            ws['B3'] = pseudotype_list[0] if len(pseudotype_list) > 0 else ''
-            ws['E3'] = pseudotype_list[1] if len(pseudotype_list) > 1 else ''
-            ws['H3'] = pseudotype_list[2] if len(pseudotype_list) > 2 else ''
-            ws['K3'] = ''
-            val = sample_id_list[sample_index] if sample_index < len(sample_id_list) else ''
-            if sample_index < len(sample_id_list): sample_index += 1
-            ws['B4'] = val
-            ws['E4'] = val
-            ws['H4'] = val
-            # Explicitly clear the unused 4th quadrant label and data
-            ws['K4'] = ''
-            for row in range(5, 13):
-                for col in ['K', 'L', 'M']:
-                    ws[f'{col}{row}'] = ''
-        elif num_pseudotypes == 4:
-            for idx, cell in enumerate(['B3', 'E3', 'H3', 'K3']):
-                ws[cell] = pseudotype_list[idx] if idx < len(pseudotype_list) else ''
-            val = sample_id_list[sample_index] if sample_index < len(sample_id_list) else ''
-            if sample_index < len(sample_id_list): sample_index += 1
-            for cell in ['B4', 'E4', 'H4', 'K4']:
-                ws[cell] = val
+        # Resolve per-plate config
+        if plate_configs and i < len(plate_configs):
+            pc = plate_configs[i]
+            np_val = pc.get('num_pseudotypes', num_pseudotypes)
+            if np_val != '2alt':
+                try:
+                    np_val = int(np_val)
+                except (ValueError, TypeError):
+                    np_val = num_pseudotypes
+            pt_list = [p.strip() for p in pc.get('pseudotypes', global_pt_list)]
+            if 'sample_ids' in pc and pc['sample_ids']:
+                # Per-plate sample list — reset index to 0 for this plate
+                sid_list = [s.strip() for s in pc['sample_ids']]
+                local_index = 0
+                local_index = _apply_quadrant_labels(ws, np_val, pt_list, sid_list, local_index)
+                # global_sample_index unchanged — per-plate IDs don't consume it
+            else:
+                global_sample_index = _apply_quadrant_labels(ws, np_val, pt_list, global_sid_list, global_sample_index)
         else:
-            for cell in ['B3', 'E3', 'H3', 'K3', 'B4', 'E4', 'H4', 'K4']:
-                ws[cell] = ''
+            global_sample_index = _apply_quadrant_labels(ws, num_pseudotypes, global_pt_list, global_sid_list, global_sample_index)
 
     wb.remove(template_sheet)
 
@@ -849,6 +898,7 @@ DEFAULT_SETTINGS = {
     "default_num_pseudotypes": 1,
     "outlier_threshold_log2": 1.0,
     "sigmoid_r2_threshold": 0.5,
+    "lod_censor_include": False,
     "comparison_disagreement_threshold": 1.0,
     "custom_templates": {},
     "presets": {

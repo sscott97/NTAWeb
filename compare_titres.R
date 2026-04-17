@@ -140,9 +140,9 @@ for (sheet_name in plate_sheets) {
         valid_lum <- lum[1:7]
         valid_lum <- valid_lum[!is.na(valid_lum)]
         if (length(valid_lum) > 0 && all(valid_lum < target)) {
-          nt50_val <- dilutions[1]
+          nt50_val <- dilutions[7]   # all lum low → potent serum → NT50 above upper bound
         } else if (length(valid_lum) > 0 && all(valid_lum > target)) {
-          nt50_val <- dilutions[7]
+          nt50_val <- dilutions[1]   # all lum high → weak serum → NT50 below lower bound
         }
       }
 
@@ -181,11 +181,16 @@ cat(sprintf("  Extracted %d NT50 values from %d plate(s)\n",
 # ===== 2. Load IC50 Data =====================================================
 # ==============================================================================
 
-ic50_data <- read_csv(ic50_csv, show_col_types = FALSE) %>%
+ic50_all <- read_csv(ic50_csv, show_col_types = FALSE) %>%
   select(Plate, Quadrant, Sample, Virus, IC50_Titre = Titre, Quality,
          Lower, Upper, Slope, IC50, LOD_Flag) %>%
-  filter(!is.na(IC50_Titre)) %>%
   mutate(across(c(Sample, Virus), as.character))
+
+n_excluded_lod      <- sum(is.na(ic50_all$IC50_Titre) & !is.na(ic50_all$LOD_Flag))
+n_excluded_poor_fit <- sum(is.na(ic50_all$IC50_Titre) &  is.na(ic50_all$LOD_Flag))
+n_lod_excluded      <- n_excluded_lod + n_excluded_poor_fit  # kept for backwards compat
+
+ic50_data <- ic50_all %>% filter(!is.na(IC50_Titre))
 
 
 # ==============================================================================
@@ -242,34 +247,13 @@ merged_data <- merged_data %>%
   )
 
 
-# ==============================================================================
-# ===== 4. Curve Fit Hybrid NT50 ==============================================
-# ==============================================================================
-
-merged_data <- merged_data %>%
-  mutate(
-    hybrid_log2 = case_when(
-      is.na(Lower) | is.na(Upper) | is.na(Slope) | is.na(IC50) ~ NA_real_,
-      Lower >= 50  ~ NA_real_,
-      Upper <= 50  ~ NA_real_,
-      Slope == 0   ~ NA_real_,
-      TRUE ~ IC50 - (1 / Slope) * log((Upper - Lower) / (50 - Lower) - 1)
-    ),
-    `Curve Fit Hybrid NT50` = ifelse(is.na(hybrid_log2), NA_real_, round(2^(-hybrid_log2), 2))
-  ) %>%
-  select(-hybrid_log2)
-
 cat(sprintf("Successfully merged %d samples across %d viruses\n",
             nrow(merged_data),
             length(unique(merged_data$Pseudotype))))
 
-hybrid_valid <- sum(!is.na(merged_data$`Curve Fit Hybrid NT50`))
-cat(sprintf("Curve Fit Hybrid NT50 calculated for %d / %d samples\n",
-            hybrid_valid, nrow(merged_data)))
-
 
 # ==============================================================================
-# ===== 5. Statistics ==========================================================
+# ===== 4. Statistics ==========================================================
 # ==============================================================================
 
 if (nrow(merged_data) > 0) {
@@ -280,6 +264,18 @@ if (nrow(merged_data) > 0) {
   lm_fit    <- lm(log10_IC50 ~ log10_NT50, data = merged_data)
   r_squared <- summary(lm_fit)$r.squared
 
+  # Per-pseudotype r and R² (requires ≥3 points per pseudotype)
+  pt_stats <- merged_data %>%
+    group_by(Pseudotype) %>%
+    filter(n() >= 3) %>%
+    summarise(
+      n   = n(),
+      r   = cor(log10_NT50, log10_IC50, use = "complete.obs"),
+      r2  = summary(lm(log10_IC50 ~ log10_NT50))$r.squared,
+      .groups = "drop"
+    )
+  has_multi_pt <- length(unique(merged_data$Pseudotype)) > 1 && nrow(pt_stats) > 0
+
   top_mismatches <- merged_data %>%
     arrange(desc(abs_log2_fold_difference)) %>%
     head(5) %>%
@@ -288,6 +284,9 @@ if (nrow(merged_data) > 0) {
 
   stats <- data.frame(
     n_samples            = nrow(merged_data),
+    n_lod_excluded       = n_lod_excluded,
+    n_excluded_lod       = n_excluded_lod,
+    n_excluded_poor_fit  = n_excluded_poor_fit,
     correlation          = correlation,
     r_squared            = r_squared,
     n_disagreements      = sum(merged_data$disagreement),
@@ -334,6 +333,25 @@ if (nrow(merged_data) > 0) {
       plot.subtitle    = element_text(hjust = 0.5, color = "gray40", size = 11),
       legend.position  = "bottom"
     )
+
+  if (has_multi_pt) {
+    pt_label <- paste(
+      apply(pt_stats, 1, function(row) {
+        sprintf("%s  r=%.2f  R\u00b2=%.2f  (n=%s)",
+                row[["Pseudotype"]], as.numeric(row[["r"]]),
+                as.numeric(row[["r2"]]), row[["n"]])
+      }),
+      collapse = "\n"
+    )
+    p <- p + annotate(
+      "text",
+      x = Inf, y = -Inf,
+      label    = pt_label,
+      hjust    = 1.05, vjust = -0.4,
+      size     = 2.7,  color = "gray30",
+      lineheight = 1.4, fontface = "plain"
+    )
+  }
 
   ggsave(plot_file, p, width = 8, height = 7, dpi = 300, units = "in")
 
@@ -402,7 +420,30 @@ if (nrow(merged_data) > 0) {
       legend = list(title = list(text = ""), orientation = "h",
                     y = -0.15, x = 0.5, xanchor = "center"),
       hovermode = "closest",
-      plot_bgcolor = "white", paper_bgcolor = "white"
+      plot_bgcolor = "white", paper_bgcolor = "white",
+      annotations = if (has_multi_pt) {
+        pt_html <- paste(
+          apply(pt_stats, 1, function(row) {
+            sprintf("<b>%s</b>: r=%.3f, R\u00b2=%.3f (n=%s)",
+                    row[["Pseudotype"]], as.numeric(row[["r"]]),
+                    as.numeric(row[["r2"]]), row[["n"]])
+          }),
+          collapse = "<br>"
+        )
+        list(list(
+          x = 0.99, y = 0.01, xref = "paper", yref = "paper",
+          text      = pt_html,
+          showarrow = FALSE,
+          align     = "right",
+          xanchor   = "right",
+          yanchor   = "bottom",
+          font      = list(size = 11, color = "gray30"),
+          bgcolor   = "rgba(255,255,255,0.85)",
+          bordercolor = "rgba(0,0,0,0.15)",
+          borderwidth = 1,
+          borderpad   = 4
+        ))
+      } else list()
     ) %>%
     config(displayModeBar = TRUE, displaylogo = FALSE)
 
@@ -437,7 +478,6 @@ if (nrow(merged_data) > 0) {
       Sample_ID,
       `NT50 (Linear Interpolation)` = NT50_numeric,
       `NT50 / IC50 (Curve Fitting)` = IC50_Titre,
-      `Curve Fit Hybrid NT50`,
       `Sigmoid Quality` = Quality,
       log10_NT50,
       log10_IC50,

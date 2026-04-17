@@ -30,47 +30,23 @@
         </div>
       </div>
     </div>
-  </div>
-
-  <!-- Downloads (IC50 Results + Working Files) -->
-  <div class="card mb-4">
-    <div class="card-header d-flex align-items-center gap-2">
-      <span style="font-weight: 600;">Downloads</span>
-    </div>
-    <div class="card-body" style="padding-bottom: 0;">
-
-      <!-- IC50 Values section -->
-      <div style="margin-bottom: 1.5rem;">
-        <p style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim, #888); margin-bottom: 0.6rem;">IC50 Values</p>
-        <p style="color: var(--text-mid, #666); font-size: 0.9rem; margin-bottom: 1rem;">
-          Contains IC50 values and sigmoid parameters including upper/lower bounds, slope, R² values and flags for quality and limit of detection.
-        </p>
+    <div class="card-footer" style="padding: 0.65rem 1.25rem;">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <span style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim, #888);">IC50 Values</span>
         <a href="{{ url_for('download_sigmoid', fitting_id=fitting_id, filename=ic50_filename) }}"
-           class="btn btn-success">
-          Download {{ ic50_filename }}
+           class="btn btn-success btn-sm">
+          ↓ {{ ic50_filename }}
         </a>
       </div>
-
-      <hr style="border-color: var(--border, #dee2e6); margin: 0 -1.25rem 1.5rem;">
-
-      <!-- Working Files section -->
-      <div style="margin-bottom: 1.25rem;">
-        <p style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim, #888); margin-bottom: 0.6rem;">Working Files</p>
-        <p style="color: var(--text-mid, #666); font-size: 0.9rem; margin-bottom: 1rem;">
-          Contains working data (pseudotype virus, sample, raw replicate data, dilution, % neutralisation) extracted before curve fitting. Input for the R-code requires -log2 dilution, % neutralisation and virus ID for graphs.
-        </p>
-        {% if 'sigmoidData.csv' in output_files %}
-          <a href="{{ url_for('download_sigmoid', fitting_id=fitting_id, filename='sigmoidData.csv') }}"
-             class="btn btn-success">
-            Download sigmoidData.csv
-          </a>
-        {% else %}
-          <div class="alert alert-warning mb-0" role="alert" style="font-size: 0.9rem;">
-            Working file not available
-          </div>
-        {% endif %}
+      {% if 'sigmoidData.csv' in output_files %}
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-2">
+        <span style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim, #888);">Working Data</span>
+        <a href="{{ url_for('download_sigmoid', fitting_id=fitting_id, filename='sigmoidData.csv') }}"
+           class="btn btn-outline-secondary btn-sm">
+          ↓ sigmoidData.csv
+        </a>
       </div>
-
+      {% endif %}
     </div>
   </div>
 
@@ -82,10 +58,11 @@
         <span style="font-weight: 600;">Fitted Sigmoid Curves</span>
       </div>
       <div class="d-flex align-items-center gap-2 flex-wrap" onclick="event.stopPropagation();">
-        <!-- Quality filter pills (radio-style: Both / Good / Unstable) -->
-        <div id="pill-Both"     class="q-pill on q-pill--teal" onclick="setQuality('Both')"    >Both</div>
-        <div id="pill-Good"     class="q-pill q-pill--blue"    onclick="setQuality('Good')"    >Good</div>
-        <div id="pill-Unstable" class="q-pill q-pill--red"     onclick="setQuality('Unstable')">Unstable</div>
+        <!-- Quality filter pills (radio-style: All / Good / Unstable / Poor Fit) -->
+        <div id="pill-All"      class="q-pill on q-pill--teal"   onclick="setQuality('All')"     >All</div>
+        <div id="pill-Good"     class="q-pill q-pill--blue"      onclick="setQuality('Good')"    >Good</div>
+        <div id="pill-Unstable" class="q-pill q-pill--red"       onclick="setQuality('Unstable')">Unstable</div>
+        <div id="pill-PoorFit"  class="q-pill q-pill--purple"    onclick="setQuality('PoorFit')" >Poor Fit</div>
         <!-- Download -->
         <a href="#" id="downloadSigmoidBtn" class="graph-dl-btn" style="display:none;" download="sigmoid_curves.png">↓ PNG</a>
       </div>
@@ -94,11 +71,12 @@
     <div id="sigmoid-graph-body" class="card-collapsible">
       <!-- Graph display area — fixed height, scrollable for tall multi-panel graphs -->
       <div id="sigmoidGraphArea" style="
-        height: 520px;
+        min-height: 520px;
+        max-height: 70vh;
         background: var(--bg-inset, #f5f0e4);
         border-bottom: 1px solid var(--border, #dee2e6);
         display: flex; align-items: center; justify-content: center;
-        overflow-y: auto;
+        overflow: auto;
       ">
         <div style="padding:2rem; text-align:center;">
           <div class="spinner-border spinner-border-sm text-success" role="status"></div>
@@ -110,16 +88,20 @@
       <div style="padding: 0.4rem 1.25rem 0.6rem; font-size: 0.70rem; color: var(--text-faint, #aaa); font-style: italic; border-top: 1px solid var(--border, #eee);">
         <span style="color:#3498db; font-weight:600;">●</span> Good &nbsp;·&nbsp;
         <span style="color:#e74c3c; font-weight:600;">●</span> Unstable &nbsp;·&nbsp;
-        Outside LOD samples are excluded.
+        <span style="color:#9b59b6; font-weight:600;">●</span> Poor Fit &nbsp;·&nbsp;
+        <span style="color:#28a745; font-weight:600;">●</span> &lt;Lower LOD &nbsp;·&nbsp;
+        <span style="color:#f39c12; font-weight:600;">●</span> &gt;Upper LOD
       </div>
     </div>
   </div>
 
   <!-- Methods -->
   <div class="card mb-4">
-    <div class="card-header d-flex align-items-center gap-2">
+    <div class="card-header d-flex align-items-center gap-2" style="cursor:pointer;" onclick="toggleCard('methods-body')">
+      <span class="card-chevron collapsed" id="chevron-methods-body">▾</span>
       <span style="font-weight: 600;">Methods</span>
     </div>
+    <div id="methods-body" class="card-collapsible collapsed">
     <div class="card-body" style="font-size: 0.9rem; color: var(--text-mid, #444); line-height: 1.75;">
 
       <h6 style="color: var(--text-primary, #222); font-weight: 700; margin-bottom: 0.5rem; margin-top: 0;">
@@ -245,12 +227,13 @@
         where RSS is the residual sum of squares between observed and predicted neutralisation values, and TSS is the total sum of squares about the mean.
       </p>
       <p style="margin-bottom: 0.75rem;">
-        Samples that resulted in an R² &lt; 0.5 were reported as <strong>Outside Limit of Detection (LOD)</strong>, given NA vaues and exluded from generated graphs. 
+        Samples that resulted in an R² &lt; 0.5 were reported as <strong>Outside Limit of Detection (LOD)</strong>, given NA vaues and exluded from generated graphs.
       </p>
       <p style="margin-bottom: 0;">
         A quality flag of <strong style="color: #e74c3c;">"Unstable"</strong> was assigned when any fitted parameter reached its upper or lower bound constraint, indicating the code couldnt not find a well-defined solution within the bounded parameter space. All other successful fits were flagged as <strong style="color: #3498db;">"Good"</strong>. Unstable fits should be interpreted with caution, as the resulting IC50 and titre values may not reliably represent the true neutralising activity of the sample.
       </p>
 
+    </div>
     </div>
   </div>
 
@@ -280,6 +263,8 @@
 .q-pill--blue:not(.on):hover { border-color: #3498db; color: #3498db; background: rgba(52,152,219,0.08); }
 .q-pill--red.on   { background: #e74c3c; color: #fff; border-color: #c0392b; }
 .q-pill--red:not(.on):hover  { border-color: #e74c3c; color: #e74c3c; background: rgba(231,76,60,0.08); }
+.q-pill--purple.on  { background: #9b59b6; color: #fff; border-color: #7d3c98; }
+.q-pill--purple:not(.on):hover { border-color: #9b59b6; color: #9b59b6; background: rgba(155,89,182,0.08); }
 
 /* graph-dl-btn — matches linear_results style */
 .graph-dl-btn {
@@ -333,8 +318,8 @@ function toggleCard(id) {
   if (chevron) chevron.classList.toggle('collapsed', collapsing);
 }
 
-// ── Quality pill state (radio: Both / Good / Unstable) ───────
-var qualityMode = 'Both';
+// ── Quality pill state (radio: All / Good / Unstable / PoorFit) ─────
+var qualityMode = 'All';
 
 function setQuality(mode) {
   qualityMode = mode;
@@ -343,7 +328,7 @@ function setQuality(mode) {
 }
 
 function renderQualityPills() {
-  ['Both', 'Good', 'Unstable'].forEach(function(m) {
+  ['All', 'Good', 'Unstable', 'PoorFit'].forEach(function(m) {
     var pill = document.getElementById('pill-' + m);
     if (!pill) return;
     if (qualityMode === m) pill.classList.add('on');
@@ -366,8 +351,9 @@ function generateSigmoidGraph() {
   area.innerHTML = '<div style="padding:2rem;text-align:center;"><div class="spinner-border spinner-border-sm text-success" role="status"></div><span style="font-size:0.82rem;color:var(--text-dim);margin-left:0.5rem;">Generating…</span></div>';
 
   var params = new URLSearchParams({
-    good:     qualityMode === 'Both' || qualityMode === 'Good',
-    unstable: qualityMode === 'Both' || qualityMode === 'Unstable'
+    good:     qualityMode === 'All' || qualityMode === 'Good',
+    unstable: qualityMode === 'All' || qualityMode === 'Unstable',
+    poor_fit: qualityMode === 'All' || qualityMode === 'PoorFit'
   });
 
   fetch('/generate_sigmoid_graph/{{ fitting_id }}?' + params)
@@ -377,8 +363,8 @@ function generateSigmoidGraph() {
     })
     .then(function(blob) {
       var url = URL.createObjectURL(blob);
-      area.style.cssText = 'height:520px;background:var(--bg-inset,#f5f0e4);border-bottom:1px solid var(--border,#dee2e6);overflow-y:auto;display:block;';
-      area.innerHTML = '<img src="' + url + '" style="width:100%;height:auto;display:block;" />';
+      area.style.cssText = 'min-height:520px;max-height:70vh;background:var(--bg-inset,#f5f0e4);border-bottom:1px solid var(--border,#dee2e6);overflow:auto;display:block;';
+      area.innerHTML = '<img src="' + url + '" style="min-width:900px;width:100%;height:auto;display:block;" />';
       dlBtn.href = url;
       dlBtn.style.display = 'inline-flex';
       if (_sigmoidFirstLoad && _sigmoidFetchStart > 0) {
@@ -422,8 +408,15 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
-// Store fitting_id in sessionStorage for titre comparison
-sessionStorage.setItem('last_fitting_id', '{{ fitting_id }}');
+
+// Preset colours from settings
+{% set _presets = settings.get('presets', {}) %}
+{% set _selected = settings.get('selected_preset', 'default') %}
+{% set _preset = _presets.get(_selected, _presets.get('default', {})) %}
+const pc1 = "{{ _preset.get('Q1', '#3498db') }}";
+const pc2 = "{{ _preset.get('Q2', '#28a745') }}";
+const pc3 = "{{ _preset.get('Q3', '#9b59b6') }}";
+const pc4 = "{{ _preset.get('Q4', '#e74c3c') }}";
 
 // Fetch and parse IC50s CSV to show summary stats
 fetch("{{ url_for('download_sigmoid', fitting_id=fitting_id, filename=ic50_filename) }}")
@@ -437,7 +430,7 @@ fetch("{{ url_for('download_sigmoid', fitting_id=fitting_id, filename=ic50_filen
       return;
     }
 
-    let good = 0, unstable = 0, outsideLod = 0, r2Values = [];
+    let good = 0, unstable = 0, outsideLod = 0, poorFit = 0, r2Values = [];
 
     function parseCSVLine(line) {
       var result = [], cur = '', inQuote = false;
@@ -463,22 +456,29 @@ fetch("{{ url_for('download_sigmoid', fitting_id=fitting_id, filename=ic50_filen
       if (quality === 'Good') good++;
       else if (quality === 'Unstable') unstable++;
       else if (quality === 'Outside LOD') outsideLod++;
+      else if (quality === 'Poor Fit') poorFit++;
       
       const r2 = parseFloat(r2Str);
       if (!isNaN(r2)) r2Values.push(r2);
     });
     
     const avgR2 = r2Values.length > 0 ? (r2Values.reduce((a,b) => a+b, 0) / r2Values.length) : 0;
-    const total = good + unstable + outsideLod;
-    const goodPct = total > 0 ? ((good/total)*100).toFixed(0) : 0;
-    const unstPct = total > 0 ? ((unstable/total)*100).toFixed(0) : 0;
-    const lodPct = total > 0 ? ((outsideLod/total)*100).toFixed(0) : 0;
-    
-    let html = 
-      '<div class="col-md-3 text-center"><div style="font-size:2.5rem;color:#3498db;font-weight:700;line-height:1;">' + good + '</div><div style="color:var(--text-mid,#666);font-size:0.85rem;font-weight:600;margin-top:0.5rem;">Good Fits</div><div style="color:var(--text-dim,#888);font-size:0.75rem;margin-top:0.25rem;">' + goodPct + '% of total</div></div>' +
-      '<div class="col-md-3 text-center"><div style="font-size:2.5rem;color:#e74c3c;font-weight:700;line-height:1;">' + unstable + '</div><div style="color:var(--text-mid,#666);font-size:0.85rem;font-weight:600;margin-top:0.5rem;">Unstable Fits</div><div style="color:var(--text-dim,#888);font-size:0.75rem;margin-top:0.25rem;">' + unstPct + '% of total</div></div>' +
-      '<div class="col-md-3 text-center"><div style="font-size:2.5rem;color:#f39c12;font-weight:700;line-height:1;">' + outsideLod + '</div><div style="color:var(--text-mid,#666);font-size:0.85rem;font-weight:600;margin-top:0.5rem;">Outside LOD</div><div style="color:var(--text-dim,#888);font-size:0.75rem;margin-top:0.25rem;">' + lodPct + '% of total</div></div>' +
-      '<div class="col-md-3 text-center"><div style="font-size:2.5rem;color:' + (avgR2 >= 0.7 ? '#28a745' : avgR2 >= 0.5 ? '#ffc107' : '#e74c3c') + ';font-weight:700;line-height:1;">' + (r2Values.length > 0 ? avgR2.toFixed(3) : 'N/A') + '</div><div style="color:var(--text-mid,#666);font-size:0.85rem;font-weight:600;margin-top:0.5rem;">Average R²</div><div style="color:var(--text-dim,#888);font-size:0.75rem;margin-top:0.25rem;">' + (avgR2 >= 0.7 ? 'Excellent' : avgR2 >= 0.5 ? 'Good' : 'Poor') + ' fit quality</div></div>';
+    const total = good + unstable + outsideLod + poorFit;
+    const goodPct    = total > 0 ? ((good/total)*100).toFixed(0) : 0;
+    const unstPct    = total > 0 ? ((unstable/total)*100).toFixed(0) : 0;
+    const lodPct     = total > 0 ? ((outsideLod/total)*100).toFixed(0) : 0;
+    const poorFitPct = total > 0 ? ((poorFit/total)*100).toFixed(0) : 0;
+
+    const goodSubColor = goodPct >= 70 ? '#28a745' : goodPct >= 50 ? '#f39c12' : '#e74c3c';
+    const unstSubColor = unstPct <= 10 ? '#28a745' : unstPct <= 25 ? '#f39c12' : '#e74c3c';
+    const r2SubColor   = avgR2 >= 0.7  ? '#28a745' : avgR2 >= 0.5  ? '#f39c12' : '#e74c3c';
+
+    let html =
+      '<div class="col text-center"><div style="font-size:2.5rem;color:' + pc1 + ';font-weight:700;line-height:1;">' + good + '</div><div style="color:var(--text-mid,#666);font-size:0.85rem;font-weight:600;margin-top:0.5rem;">Good Fits</div><div style="color:' + goodSubColor + ';font-size:0.75rem;font-weight:600;margin-top:0.25rem;">' + goodPct + '% of total</div></div>' +
+      '<div class="col text-center"><div style="font-size:2.5rem;color:' + pc2 + ';font-weight:700;line-height:1;">' + unstable + '</div><div style="color:var(--text-mid,#666);font-size:0.85rem;font-weight:600;margin-top:0.5rem;">Unstable Fits</div><div style="color:' + unstSubColor + ';font-size:0.75rem;font-weight:600;margin-top:0.25rem;">' + unstPct + '% of total</div></div>' +
+      '<div class="col text-center"><div style="font-size:2.5rem;color:#28a745;font-weight:700;line-height:1;">' + outsideLod + '</div><div style="color:var(--text-mid,#666);font-size:0.85rem;font-weight:600;margin-top:0.5rem;">Outside LOD</div><div style="color:var(--text-dim,#888);font-size:0.75rem;margin-top:0.25rem;">' + lodPct + '% of total</div></div>' +
+      '<div class="col text-center"><div style="font-size:2.5rem;color:#9b59b6;font-weight:700;line-height:1;">' + poorFit + '</div><div style="color:var(--text-mid,#666);font-size:0.85rem;font-weight:600;margin-top:0.5rem;">Poor Fits</div><div style="color:var(--text-dim,#888);font-size:0.75rem;margin-top:0.25rem;">' + poorFitPct + '% of total</div></div>' +
+      '<div class="col text-center"><div style="font-size:2.5rem;color:' + pc4 + ';font-weight:700;line-height:1;">' + (r2Values.length > 0 ? avgR2.toFixed(3) : 'N/A') + '</div><div style="color:var(--text-mid,#666);font-size:0.85rem;font-weight:600;margin-top:0.5rem;">Average R²</div><div style="color:' + r2SubColor + ';font-size:0.75rem;font-weight:600;margin-top:0.25rem;">' + (avgR2 >= 0.7 ? 'Excellent' : avgR2 >= 0.5 ? 'Good' : 'Poor') + ' fit quality</div></div>';
     
     document.getElementById('qualityMetrics').innerHTML = html;
   })

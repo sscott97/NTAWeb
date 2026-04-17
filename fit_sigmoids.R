@@ -32,10 +32,11 @@ if (length(args) < 2) {
 input_csv <- args[1]
 output_dir <- args[2]
 
-# Optional: assay title, timestamp, R² threshold
+# Optional: assay title, timestamp, R² threshold, LOD censor mode
 assay_title <- if (length(args) >= 3 && args[3] != "") args[3] else NULL
 timestamp <- if (length(args) >= 4 && args[4] != "") args[4] else NULL
 r2_threshold <- if (length(args) >= 5 && args[5] != "") as.numeric(args[5]) else 0.5
+include_lod <- if (length(args) >= 6) tolower(args[6]) == "true" else FALSE
 
 # Create output directory if it doesn't exist
 if (!dir.exists(output_dir)) {
@@ -72,6 +73,10 @@ start_values <- list(Lower = 0,   Upper = 100, Slope = 1,   IC50 = -8)
 Lower_bounds <-    c(Lower = -50, Upper = 0,   Slope = 0.001, IC50 = -20)
 Upper_bounds <-    c(Lower = 80,  Upper = 100, Slope = 10,    IC50 = 0)
 
+# Pre-calculate dilution range for LOD boundary checks
+dil_min <- min(data$DilutionLog2, na.rm = TRUE)
+dil_max <- max(data$DilutionLog2, na.rm = TRUE)
+
 # ----- 1.4. Fit Sigmoids ------------------------------------------------------
 
 # Each unique Plate+Quadrant+Sample+Virus combination is fitted independently.
@@ -94,9 +99,6 @@ for (i in seq_len(nrow(combos))) {
     next
   }
 
-  # Get mean neutralisation (useful for failed curves)
-  u <- mean(current_data$Neutralisation)
-
   # Try to fit a sigmoid statistically
   fit <- try(nlsLM(Neutralisation ~ sigmoid(DilutionLog2, Lower, Upper, Slope, IC50),
                    data    = current_data,
@@ -111,8 +113,7 @@ for (i in seq_len(nrow(combos))) {
 
     results <- rbind(results,
       data.frame(Plate = p, Quadrant = q, Sample = s, Virus = v,
-                 u_Neutralisation = u, Lower = NA,
-                 Upper = NA, Slope = NA, IC50 = NA, R2 = NA))
+                 Lower = NA, Upper = NA, Slope = NA, IC50 = NA, R2 = NA))
 
   # Otherwise, add parameter estimates to results table
   } else {
@@ -128,64 +129,83 @@ for (i in seq_len(nrow(combos))) {
     # Append to results
     results <- rbind(results,
                      data.frame(Plate = p, Quadrant = q, Sample = s, Virus = v,
-                                u_Neutralisation = u, Lower = coefs["Lower"],
-                                Upper = coefs["Upper"], Slope = coefs["Slope"],
-                                IC50 = coefs["IC50"], R2 = R2))
+                                Lower = coefs["Lower"], Upper = coefs["Upper"],
+                                Slope = coefs["Slope"], IC50 = coefs["IC50"], R2 = R2))
   }
 }
 
-# ----- 1.5. Handle Flat Titrations (Outside Limit of Detection) ---------------
+# ----- 1.5. LOD Detection and Quality Flagging --------------------------------
 
-# Samples that failed to converge or yielded R² < 0.5 cannot support a
-# meaningful sigmoid fit. Rather than forcing IC50 = 0 (which produces a
-# misleading titre of 1), these are flagged as outside the limit of detection. 
-# REMOVED BY SAM, CHANGED TO R^2<0.5 = OUTSIDE LIMIT OF DETECTION
+# Outside LOD is determined by whether the fitted IC50 falls outside the
+# measured dilution range — directly analogous to the linear interpolation
+# approach where a titre outside the range is clamped to the boundary.
+#
+#   IC50 < dil_min → serum is too potent to bracket → >Upper LOD
+#   IC50 > dil_max → serum is too weak to bracket   → <Lower LOD
+#
+# Samples where the fit failed entirely (no IC50) or where the IC50 is within
+# range but R² is poor are classified as "Poor Fit" — we cannot determine
+# whether they are outside LOD, so they are not assigned a boundary value.
 
-# Determine LOD direction based on mean neutralisation:
-#   - If mean neutralisation > 50% → sample is highly neutralising but the curve
-#     shape couldn't be resolved → titre is above the upper LOD (> highest dilution)
-#   - If mean neutralisation ≤ 50% → sample shows little neutralisation →
-#     titre is below the lower LOD (< lowest dilution)
-
-for (i in seq_len(nrow(results))) {
-  
-  if (is.na(results$R2[i]) || results$R2[i] < r2_threshold) {
-    
-    mean_neut <- results$u_Neutralisation[i]
-    
-    if (mean_neut > 50) {
-      # High neutralisation but flat/failed curve → above upper LOD
-      results$Lower[i]  <- NA
-      results$Upper[i]  <- NA
-      results$Slope[i]  <- NA
-      results$IC50[i]   <- NA
-      results$R2[i]     <- NA
-    } else {
-      # Low neutralisation → below lower LOD
-      results$Lower[i]  <- NA
-      results$Upper[i]  <- NA
-      results$Slope[i]  <- NA
-      results$IC50[i]   <- NA
-      results$R2[i]     <- NA
-    }
-  }
-}
-
-# Add LOD flag column based on whether parameters are NA after the above step
-# (distinguishing from fits that simply failed to converge, which also have NAs)
 results$LOD_Flag <- NA_character_
 
 for (i in seq_len(nrow(results))) {
-  if (is.na(results$IC50[i])) {
-    mean_neut <- results$u_Neutralisation[i]
-    if (mean_neut > 50) {
-      results$LOD_Flag[i] <- ">Upper LOD"
-    } else {
-      results$LOD_Flag[i] <- "<Lower LOD"
+  ic50 <- results$IC50[i]
+
+  if (is.na(ic50)) {
+    # Fit failed entirely — cannot determine LOD
+    next
+  }
+
+  if (ic50 < dil_min) {
+    # IC50 is beyond the most-diluted well → above upper LOD
+    results$LOD_Flag[i] <- ">Upper LOD"
+    results$Lower[i]    <- NA
+    results$Upper[i]    <- NA
+    results$Slope[i]    <- NA
+    results$IC50[i]     <- NA
+    results$R2[i]       <- NA
+  } else if (ic50 > dil_max) {
+    # IC50 is before the least-diluted well → below lower LOD
+    results$LOD_Flag[i] <- "<Lower LOD"
+    results$Lower[i]    <- NA
+    results$Upper[i]    <- NA
+    results$Slope[i]    <- NA
+    results$IC50[i]     <- NA
+    results$R2[i]       <- NA
+  } else if (results$R2[i] < r2_threshold) {
+    # IC50 within range but poor fit quality — not LOD, just unreliable
+    results$Lower[i] <- NA
+    results$Upper[i] <- NA
+    results$Slope[i] <- NA
+    results$IC50[i]  <- NA
+    results$R2[i]    <- NA
+  }
+  # Otherwise: IC50 within range and R² acceptable — leave params as-is
+}
+
+
+# ----- 1.6. LOD Censoring (optional) -----------------------------------------
+# When include_lod = TRUE, samples flagged as outside LOD are assigned the
+# boundary dilution value as their IC50/Titre rather than being left as NA.
+# <Lower LOD → boundary = A5 dilution (max DilutionLog2, least negative)
+# >Upper LOD → boundary = A11 dilution (min DilutionLog2, most negative)
+# Lower/Upper/Slope remain NA to show no real sigmoid was fitted.
+
+if (include_lod) {
+  lod_lower_ic50 <- max(data$DilutionLog2, na.rm = TRUE)
+  lod_upper_ic50 <- min(data$DilutionLog2, na.rm = TRUE)
+
+  for (i in seq_len(nrow(results))) {
+    if (!is.na(results$LOD_Flag[i])) {
+      if (results$LOD_Flag[i] == "<Lower LOD") {
+        results$IC50[i] <- round(lod_lower_ic50, 4)
+      } else if (results$LOD_Flag[i] == ">Upper LOD") {
+        results$IC50[i] <- round(lod_upper_ic50, 4)
+      }
     }
   }
 }
-
 
 # ----- 1.8. Quality Call ------------------------------------------------------
 
@@ -196,22 +216,29 @@ for (i in seq_len(nrow(results))) {
 results$Quality <- NA
 
 for (i in seq_len(nrow(results))) {
-  
-  # Samples outside LOD get their own quality label
+
+  # Outside LOD: IC50 was outside the dilution range
   if (!is.na(results$LOD_Flag[i])) {
     results$Quality[i] <- "Outside LOD"
     next
   }
-  
+
+  # Poor Fit: fit failed entirely or IC50 within range but R² too low
+  # (these have NA IC50 but no LOD_Flag)
+  if (is.na(results$IC50[i])) {
+    results$Quality[i] <- "Poor Fit"
+    next
+  }
+
   checking <- results[i,]
-  
+
   failed <- any(c(checking$Lower == Lower_bounds["Lower"],
                   checking$Lower == Upper_bounds["Lower"],
                   checking$IC50 == Lower_bounds["IC50"],
                   checking$IC50 == Upper_bounds["IC50"],
                   checking$Slope == Lower_bounds["Slope"],
                   checking$Slope == Upper_bounds["Slope"]))
-  
+
   if (failed) {
     results$Quality[i] <- "Unstable"
   } else {
@@ -222,15 +249,12 @@ for (i in seq_len(nrow(results))) {
 # ----- 1.10. Write Output -----------------------------------------------------
 
 # Round all numbers in numeric columns to 4dp (only for non-NA values)
-numeric_cols <- c("u_Neutralisation", "Lower", "Upper", "Slope", "IC50", "R2")
+numeric_cols <- c("Lower", "Upper", "Slope", "IC50", "R2")
 for (col in numeric_cols) {
   results[[col]] <- round(results[[col]], 4)
 }
 
-# Mean neutralisation across dilutions now irrelevant
-results$u_Neutralisation <- NULL
-
-# Calculate titres from IC50 values (NA for LOD samples)
+# Calculate titres from IC50 values (NA for LOD and Poor Fit samples)
 results$Titre <- ifelse(is.na(results$IC50), NA, round(2^(-results$IC50), 2))
 
 # Reorder columns: Plate, Quadrant, Sample, Virus, Lower, Upper, Slope, IC50, Titre, R2, Quality, LOD_Flag
@@ -256,7 +280,9 @@ cat("Results saved to:", ic50_output_path, "\n")
 cat("Plots saved to:", output_dir, "\n")
 
 # Summary
-n_good <- sum(results$Quality == "Good", na.rm = TRUE)
-n_unstable <- sum(results$Quality == "Unstable", na.rm = TRUE)
-n_lod <- sum(results$Quality == "Outside LOD", na.rm = TRUE)
-cat(sprintf("  Good: %d | Unstable: %d | Outside LOD: %d\n", n_good, n_unstable, n_lod))
+n_good     <- sum(results$Quality == "Good",        na.rm = TRUE)
+n_unstable <- sum(results$Quality == "Unstable",    na.rm = TRUE)
+n_lod      <- sum(results$Quality == "Outside LOD", na.rm = TRUE)
+n_poor     <- sum(results$Quality == "Poor Fit",    na.rm = TRUE)
+cat(sprintf("  Good: %d | Unstable: %d | Outside LOD: %d | Poor Fit: %d\n",
+            n_good, n_unstable, n_lod, n_poor))

@@ -28,19 +28,10 @@
         </div>
       </div>
     </div>
-  </div>
-
-  <!-- Excel Results -->
-  <div class="card mb-4">
-    <div class="card-header d-flex align-items-center gap-2">
-      <span style="font-weight: 600;">Linear Interpolation Results</span>
-    </div>
-    <div class="card-body">
-      <p style="color: var(--text-mid, #666); font-size: 0.9rem; margin-bottom: 1rem;">
-        Results file contains all raw plate data and calculated titres, as well as dilution curve graphs for each plate and a summary graph of all plates.
-      </p>
-      <a href="{{ url_for('download_memory', file_id=excel_file_id) }}" class="btn btn-success">
-        Download Results
+    <div class="card-footer d-flex align-items-center justify-content-between flex-wrap gap-2" style="padding: 0.65rem 1.25rem;">
+      <span style="font-size: 0.82rem; color: var(--text-dim, #888);">Results file contains all raw plate data, calculated titres, dilution curve graphs and a summary graph.</span>
+      <a href="{{ url_for('download_memory', file_id=excel_file_id) }}" class="btn btn-success btn-sm">
+        ↓ Download Results
       </a>
     </div>
   </div>
@@ -118,9 +109,11 @@
 
   <!-- Method -->
   <div class="card mb-4">
-    <div class="card-header d-flex align-items-center gap-2">
+    <div class="card-header d-flex align-items-center gap-2" style="cursor:pointer;" onclick="toggleCard('method-body')">
+      <span class="card-chevron collapsed" id="chevron-method-body">▾</span>
       <span style="font-weight: 600;">Method</span>
     </div>
+    <div id="method-body" class="card-collapsible collapsed">
     <div class="card-body" style="font-size: 0.9rem; color: var(--text-mid, #444); line-height: 1.75;">
 
       <p style="margin-bottom: 0.8rem; font-weight: 600; color: var(--text-primary, #222);">
@@ -202,6 +195,7 @@
         Neutralising titres are compared for each pseudotype in a Tukey box plot (log<sub>10</sub>scale). Boxes span the interquartile range (Q1–Q3), the horizontal line is the median and whiskers reach the furthest data point within 1.5× IQR of the box. Points beyond the whiskers are plotted individually as outliers. All averaged titres are overlaid for transparency.
       </p>
 
+    </div>
     </div>
   </div>
 
@@ -700,6 +694,15 @@ function drawBoxplot(groups, titreLabel) {
    DATA SUMMARY
    ═══════════════════════════════════════════════════════ */
 
+// Preset colours from settings
+{% set _presets = settings.get('presets', {}) %}
+{% set _selected = settings.get('selected_preset', 'default') %}
+{% set _preset = _presets.get(_selected, _presets.get('default', {})) %}
+const pc1 = "{{ _preset.get('Q1', '#3498db') }}";
+const pc2 = "{{ _preset.get('Q2', '#28a745') }}";
+const pc3 = "{{ _preset.get('Q3', '#9b59b6') }}";
+const pc4 = "{{ _preset.get('Q4', '#e74c3c') }}";
+
 /* ── Data Summary: fetch metrics from API ── */
 (function loadDataSummary() {
   var metricsEl = document.getElementById('dataSummaryMetrics');
@@ -727,15 +730,15 @@ function drawBoxplot(groups, titreLabel) {
 
       var html =
         '<div class="' + colClass + ' text-center">' +
-          '<div style="font-size:2.5rem;color:#2196F3;font-weight:700;line-height:1;">' + data.num_plates + '</div>' +
+          '<div style="font-size:2.5rem;color:' + pc1 + ';font-weight:700;line-height:1;">' + data.num_plates + '</div>' +
           '<div style="color:var(--text-mid,#666);font-size:0.85rem;font-weight:600;margin-top:0.5rem;">Plates</div>' +
         '</div>' +
         '<div class="' + colClass + ' text-center">' +
-          '<div style="font-size:2.5rem;color:#9C27B0;font-weight:700;line-height:1;">' + data.num_pseudotypes + '</div>' +
+          '<div style="font-size:2.5rem;color:' + pc2 + ';font-weight:700;line-height:1;">' + data.num_pseudotypes + '</div>' +
           '<div style="color:var(--text-mid,#666);font-size:0.85rem;font-weight:600;margin-top:0.5rem;">Pseudotypes</div>' +
         '</div>' +
         '<div class="' + colClass + ' text-center">' +
-          '<div style="font-size:2.5rem;color:#FF9800;font-weight:700;line-height:1;">' + data.num_samples + '</div>' +
+          '<div style="font-size:2.5rem;color:' + pc3 + ';font-weight:700;line-height:1;">' + data.num_samples + '</div>' +
           '<div style="color:var(--text-mid,#666);font-size:0.85rem;font-weight:600;margin-top:0.5rem;">Samples</div>' +
           (labelText ? '<div style="color:' + labelColor + ';font-size:0.75rem;font-weight:600;margin-top:0.25rem;">' + labelText + '</div>' : '') +
         '</div>';
@@ -748,7 +751,7 @@ function drawBoxplot(groups, titreLabel) {
 
         html +=
           '<div class="' + colClass + ' text-center">' +
-            '<div style="font-size:2.5rem;color:' + errColor + ';font-weight:700;line-height:1;">' + errIcon + '</div>' +
+            '<div style="font-size:2.5rem;color:' + pc4 + ';font-weight:700;line-height:1;">' + errIcon + '</div>' +
             '<div style="color:var(--text-mid,#666);font-size:0.85rem;font-weight:600;margin-top:0.5rem;">Errors</div>' +
             '<div style="color:' + errColor + ';font-size:0.75rem;font-weight:600;margin-top:0.25rem;">' + errLabel + '</div>' +
           '</div>';

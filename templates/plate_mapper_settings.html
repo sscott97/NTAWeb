@@ -1,0 +1,278 @@
+{% extends 'layout.html' %}
+{% block title %}Plate Mapper Presets - NTA{% endblock %}
+
+{% block nav_left %}
+<a href="{{ url_for('plate_mapper') }}" class="nav-back-btn">← Plate Mapper</a>
+{% endblock %}
+
+{% block content %}
+<div style="max-width: 760px; margin: 0 auto;">
+
+  <div class="mb-4">
+    <h2 class="text-success mb-1" style="font-size: 1.75rem;">Plate Mapper Presets</h2>
+    <p style="color: var(--text-dim, #888); font-size: 0.85rem; margin: 0;">Save, load, and manage default settings for the Plate Mapper</p>
+  </div>
+
+  <!-- ── Preset management ──────────────────────────────────────── -->
+  <div class="card mb-4">
+    <div class="card-header"><span style="font-weight:600;">Saved Presets</span></div>
+    <div class="card-body">
+      <div class="row g-3 align-items-end mb-3">
+        <div class="col">
+          <label class="form-label" style="font-size:0.85rem;">Select preset</label>
+          <select class="form-select form-select-sm" id="presetSelector"></select>
+        </div>
+      </div>
+      <div class="d-flex flex-wrap gap-2 mb-3">
+        <button type="button" class="btn btn-sm btn-success" onclick="applyPreset()">Apply &amp; Go to Mapper</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="loadIntoForm()">Load into form below</button>
+        <button type="button" class="btn btn-sm btn-outline-danger" onclick="deletePreset()">Delete Selected</button>
+      </div>
+      <div id="statusMsg" style="font-size:0.85rem; font-weight:600; min-height:1.2rem; color: var(--text-dim, #888);"></div>
+    </div>
+  </div>
+
+  <!-- ── Default settings form ─────────────────────────────────── -->
+  <div class="card mb-4">
+    <div class="card-header"><span style="font-weight:600;">Settings</span></div>
+    <div class="card-body">
+
+      <div class="mb-4">
+        <div class="pm-section-label">Controls</div>
+        <div class="row g-3">
+          <div class="col-12 col-md-4">
+            <div class="d-flex align-items-center gap-2">
+              <input class="form-check-input" type="checkbox" name="include_pos" id="s_include_pos" style="width:1.25em;height:1.25em;flex-shrink:0;">
+              <label class="form-label mb-0" for="s_include_pos" style="font-size:0.88rem; white-space:nowrap;">Control 1</label>
+              <input type="text" class="form-control form-control-sm" name="pos_label" placeholder="Label">
+            </div>
+          </div>
+          <div class="col-12 col-md-4">
+            <div class="d-flex align-items-center gap-2">
+              <input class="form-check-input" type="checkbox" name="include_neg" id="s_include_neg" style="width:1.25em;height:1.25em;flex-shrink:0;">
+              <label class="form-label mb-0" for="s_include_neg" style="font-size:0.88rem; white-space:nowrap;">Control 2</label>
+              <input type="text" class="form-control form-control-sm" name="neg_label" placeholder="Label">
+            </div>
+          </div>
+          <div class="col-12 col-md-4">
+            <div class="d-flex align-items-center gap-2">
+              <input class="form-check-input" type="checkbox" name="include_ctrl3" id="s_include_ctrl3" style="width:1.25em;height:1.25em;flex-shrink:0;">
+              <label class="form-label mb-0" for="s_include_ctrl3" style="font-size:0.88rem; white-space:nowrap;">Control 3</label>
+              <input type="text" class="form-control form-control-sm" name="ctrl3_label" placeholder="Label">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <hr>
+
+      <div class="mb-4">
+        <div class="pm-section-label">Sample ID Settings</div>
+        <div class="row g-3">
+          <div class="col-6 col-md-3">
+            <label class="form-label" style="font-size:0.85rem;">Prefix</label>
+            <input type="text" class="form-control form-control-sm" name="prefix">
+          </div>
+          <div class="col-6 col-md-3">
+            <label class="form-label" style="font-size:0.85rem;">Suffix</label>
+            <input type="text" class="form-control form-control-sm" name="suffix">
+          </div>
+          <div class="col-6 col-md-3">
+            <label class="form-label" style="font-size:0.85rem;">ID Length</label>
+            <input type="number" class="form-control form-control-sm" name="id_length">
+          </div>
+          <div class="col-6 col-md-3">
+            <label class="form-label" style="font-size:0.85rem;">Pad Character</label>
+            <input type="text" class="form-control form-control-sm" name="pad_char" maxlength="1">
+          </div>
+        </div>
+      </div>
+
+      <hr>
+
+      <div class="mb-4">
+        <div class="pm-section-label">Layout Settings</div>
+        <div class="row g-3">
+          <div class="col-6 col-md-3">
+            <label class="form-label" style="font-size:0.85rem;">Replicates</label>
+            <input type="number" class="form-control form-control-sm" name="replicate_count">
+          </div>
+          <div class="col-6 col-md-4">
+            <label class="form-label" style="font-size:0.85rem;">Layout</label>
+            <select class="form-select form-select-sm" name="layout_mode">
+              <option value="vertical">Vertical</option>
+              <option value="horizontal">Horizontal</option>
+            </select>
+          </div>
+          <div class="col-6 col-md-3">
+            <label class="form-label" style="font-size:0.85rem;">Number of Plates</label>
+            <input type="number" class="form-control form-control-sm" name="plate_count">
+          </div>
+        </div>
+      </div>
+
+      <hr>
+
+      <div class="row g-3 align-items-end">
+        <div class="col">
+          <label class="form-label" style="font-size:0.85rem;">Preset name</label>
+          <input type="text" class="form-control form-control-sm" id="newPresetName" placeholder="Enter a name…">
+        </div>
+        <div class="col-auto">
+          <button type="button" class="btn btn-sm btn-primary" onclick="savePreset()">Save as Preset</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<style>
+.pm-section-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-dim, #888);
+  margin-bottom: 0.6rem;
+}
+</style>
+
+<script>
+var API = '/plate_mapper/api/presets';
+
+function showStatus(msg, ms) {
+    var el = document.getElementById('statusMsg');
+    el.textContent = msg;
+    clearTimeout(window._pmStatusTimer);
+    window._pmStatusTimer = setTimeout(function() { el.textContent = ''; }, ms || 3000);
+}
+
+function getAllSettings() {
+    function v(name) { return document.querySelector('[name="' + name + '"]').value; }
+    function c(name) { return document.querySelector('[name="' + name + '"]').checked; }
+    return {
+        include_pos:    c('include_pos'),
+        include_neg:    c('include_neg'),
+        include_ctrl3:  c('include_ctrl3'),
+        pos_label:      v('pos_label'),
+        neg_label:      v('neg_label'),
+        ctrl3_label:    v('ctrl3_label'),
+        prefix:         v('prefix'),
+        suffix:         v('suffix'),
+        id_length:      v('id_length'),
+        pad_char:       v('pad_char'),
+        replicate_count:v('replicate_count'),
+        layout_mode:    v('layout_mode'),
+        plate_count:    v('plate_count')
+    };
+}
+
+function setAllSettings(s) {
+    function set(name, val) { var el = document.querySelector('[name="' + name + '"]'); if(el) el.value = val || ''; }
+    function chk(name, val) { var el = document.querySelector('[name="' + name + '"]'); if(el) el.checked = !!val; }
+    chk('include_pos',   s.include_pos);
+    chk('include_neg',   s.include_neg);
+    chk('include_ctrl3', s.include_ctrl3);
+    set('pos_label',     s.pos_label);
+    set('neg_label',     s.neg_label);
+    set('ctrl3_label',   s.ctrl3_label);
+    set('prefix',        s.prefix);
+    set('suffix',        s.suffix);
+    set('id_length',     s.id_length);
+    set('pad_char',      s.pad_char);
+    set('replicate_count', s.replicate_count);
+    var lm = document.querySelector('[name="layout_mode"]'); if(lm) lm.value = s.layout_mode || 'vertical';
+    set('plate_count',   s.plate_count);
+}
+
+async function refreshSelector(selectName) {
+    var sel = document.getElementById('presetSelector');
+    var prev = sel.value;
+    sel.innerHTML = '';
+    try {
+        var res = await fetch(API);
+        var presets = await res.json();
+        Object.keys(presets).forEach(function(name) {
+            var opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            sel.appendChild(opt);
+        });
+        if (prev && presets[prev]) sel.value = prev;
+        return presets;
+    } catch(e) {
+        showStatus('Error loading presets.');
+        return {};
+    }
+}
+
+async function loadIntoForm() {
+    var name = document.getElementById('presetSelector').value;
+    if (!name) { showStatus('Select a preset first.'); return; }
+    var res = await fetch(API);
+    var presets = await res.json();
+    if (presets[name]) {
+        setAllSettings(presets[name]);
+        showStatus('Loaded "' + name + '" into form.');
+    }
+}
+
+async function applyPreset() {
+    var name = document.getElementById('presetSelector').value;
+    if (!name) { showStatus('Select a preset first.'); return; }
+    var res = await fetch(API);
+    var presets = await res.json();
+    if (presets[name]) {
+        localStorage.setItem('pmCurrentPreset', JSON.stringify(presets[name]));
+        window.location.href = '/plate_mapper';
+    }
+}
+
+async function savePreset() {
+    var name = document.getElementById('newPresetName').value.trim();
+    if (!name) { ntaToast('Enter a name for the preset.', 'warning'); return; }
+    var res = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name, settings: getAllSettings() })
+    });
+    var result = await res.json();
+    if (res.ok) {
+        document.getElementById('newPresetName').value = '';
+        await refreshSelector();
+        document.getElementById('presetSelector').value = name;
+        ntaToast('Preset "' + name + '" saved.', 'success');
+    } else {
+        ntaToast('Error saving preset.', 'danger');
+    }
+}
+
+async function deletePreset() {
+    var name = document.getElementById('presetSelector').value;
+    if (!name) { showStatus('Select a preset first.'); return; }
+    if (!confirm('Delete preset "' + name + '"?')) return;
+    var res = await fetch(API + '/' + encodeURIComponent(name), { method: 'DELETE' });
+    if (res.ok) {
+        await refreshSelector();
+        ntaToast('Preset "' + name + '" deleted.', 'success');
+    } else {
+        ntaToast('Error deleting preset.', 'danger');
+    }
+}
+
+window.addEventListener('DOMContentLoaded', async function() {
+    var presets = await refreshSelector();
+    // If a preset was last selected, load it into the form
+    var last = localStorage.getItem('pmSelectedPreset');
+    if (last && presets[last]) {
+        document.getElementById('presetSelector').value = last;
+        setAllSettings(presets[last]);
+    }
+    document.getElementById('presetSelector').addEventListener('change', function() {
+        localStorage.setItem('pmSelectedPreset', this.value);
+    });
+});
+</script>
+{% endblock %}

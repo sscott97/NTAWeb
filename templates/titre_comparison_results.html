@@ -15,6 +15,14 @@
     <p style="color: var(--text-dim, #888); font-size: 0.85rem; margin: 0;">Linear Interpolation and Curve Fitting titre comparison</p>
   </div>
 
+{% set _presets = settings.get('presets', {}) %}
+{% set _selected = settings.get('selected_preset', 'default') %}
+{% set _preset = _presets.get(_selected, _presets.get('default', {})) %}
+{% set c1 = _preset.get('Q1', '#3498db') %}
+{% set c2 = _preset.get('Q2', '#28a745') %}
+{% set c3 = _preset.get('Q3', '#9b59b6') %}
+{% set c4 = _preset.get('Q4', '#e74c3c') %}
+
   <!-- Summary Statistics -->
   <div class="card mb-4">
     <div class="card-header d-flex align-items-center gap-2">
@@ -23,11 +31,17 @@
     <div class="card-body">
       <div class="row g-3">
         <div class="col-md-3 text-center">
-          <div style="font-size: 2.5rem; color: #3498db; font-weight: 700; line-height: 1;">{{ stats.n_samples }}</div>
+          <div style="font-size: 2.5rem; color: {{ c1 }}; font-weight: 700; line-height: 1;">{{ stats.n_samples }}</div>
           <div style="color: var(--text-mid, #666); font-size: 0.85rem; font-weight: 600; margin-top: 0.5rem;">Matched Samples</div>
+          {% if stats.n_excluded_poor_fit is defined and stats.n_excluded_poor_fit|int > 0 %}
+          <div style="color: var(--text-dim, #aaa); font-size: 0.75rem; margin-top: 0.25rem;">{{ stats.n_excluded_poor_fit|int }} excluded (poor fit)</div>
+          {% endif %}
+          {% if stats.n_excluded_lod is defined and stats.n_excluded_lod|int > 0 %}
+          <div style="color: var(--text-dim, #aaa); font-size: 0.75rem; margin-top: 0.1rem;">{{ stats.n_excluded_lod|int }} excluded (LOD)</div>
+          {% endif %}
         </div>
         <div class="col-md-3 text-center">
-          <div style="font-size: 2.5rem; color: #28a745; font-weight: 700; line-height: 1;">{{ "%.3f"|format(stats.correlation|float) }}</div>
+          <div style="font-size: 2.5rem; color: {{ c2 }}; font-weight: 700; line-height: 1;">{{ "%.3f"|format(stats.correlation|float) }}</div>
           <div style="color: var(--text-mid, #666); font-size: 0.85rem; font-weight: 600; margin-top: 0.5rem;">Correlation (r)</div>
           <div style="font-size: 0.75rem; margin-top: 0.25rem;">
             {% set r_abs = stats.correlation|float|abs %}
@@ -44,7 +58,7 @@
           </div>
         </div>
         <div class="col-md-3 text-center">
-          <div style="font-size: 2.5rem; color: #9b59b6; font-weight: 700; line-height: 1;">{{ "%.3f"|format(stats.r_squared|float) }}</div>
+          <div style="font-size: 2.5rem; color: {{ c3 }}; font-weight: 700; line-height: 1;">{{ "%.3f"|format(stats.r_squared|float) }}</div>
           <div style="color: var(--text-mid, #666); font-size: 0.85rem; font-weight: 600; margin-top: 0.5rem;">R² Value</div>
           <div style="font-size: 0.75rem; margin-top: 0.25rem;">
             {% set r2 = stats.r_squared|float %}
@@ -64,13 +78,20 @@
         </div>
         <div class="col-md-3 text-center">
           {% set pct = stats.percent_disagreement|float %}
-          <div style="font-size: 2.5rem; color: {{ '#e74c3c' if pct > 20 else '#f39c12' if pct > 10 else '#28a745' }}; font-weight: 700; line-height: 1;">
+          <div style="font-size: 2.5rem; color: {{ c4 }}; font-weight: 700; line-height: 1;">
             {{ "%.1f"|format(pct) }}%
           </div>
           <div style="color: var(--text-mid, #666); font-size: 0.85rem; font-weight: 600; margin-top: 0.5rem;">Disagreements</div>
           <div style="color: var(--text-dim, #888); font-size: 0.75rem; margin-top: 0.25rem;">&gt;2-fold difference</div>
         </div>
       </div>
+    </div>
+    <div class="card-footer d-flex align-items-center justify-content-between flex-wrap gap-2" style="padding: 0.65rem 1.25rem;">
+      <span style="font-size: 0.82rem; color: var(--text-dim, #888);">NT50, IC50 titres, log₂ fold differences and quality flags for all matched samples.</span>
+      <a href="{{ url_for('download_comparison', comparison_id=comparison_id, filename='merged_titres.csv') }}"
+         class="btn btn-success btn-sm">
+        ↓ Merged Titres (CSV)
+      </a>
     </div>
   </div>
 
@@ -151,29 +172,13 @@
   </div>
   {% endif %}
 
-  <!-- Download All Data -->
-  <div class="card mb-4">
-    <div class="card-header d-flex align-items-center gap-2">
-      <span style="font-weight: 600;">Download Data Files</span>
-    </div>
-    <div class="card-body">
-      <p style="color: var(--text-mid, #666); font-size: 0.9rem; margin-bottom: 1rem;">
-        Contains titre comparison data for all matched samples including NT50, IC50 titres, log₂ fold differences, and quality flags.
-      </p>
-      <div class="d-flex flex-wrap gap-2">
-        <a href="{{ url_for('download_comparison', comparison_id=comparison_id, filename='merged_titres.csv') }}"
-           class="btn btn-success">
-          Merged Titres (CSV)
-        </a>
-      </div>
-    </div>
-  </div>
-
   <!-- Methods -->
   <div class="card mb-4">
-    <div class="card-header d-flex align-items-center gap-2">
+    <div class="card-header d-flex align-items-center gap-2" style="cursor:pointer;" onclick="toggleCard('methods-body')">
+      <span class="card-chevron collapsed" id="chevron-methods-body">▾</span>
       <span style="font-weight: 600;">Methods</span>
     </div>
+    <div id="methods-body" class="card-collapsible collapsed">
     <div class="card-body" style="font-size: 0.9rem; color: var(--text-mid, #444); line-height: 1.75;">
 
       <h6 style="color: var(--text-primary, #222); font-weight: 700; margin-bottom: 0.5rem; margin-top: 0;">
@@ -235,6 +240,7 @@
         All samples with an absolute log₂ fold difference ≥ 2 (i.e. a ≥ 4-fold difference) are reported in the Mismatches table, sorted by magnitude. All data is available for download from the "Download Data Files" section above for further review and analysis.
       </p>
 
+    </div>
     </div>
   </div>
 

@@ -1,0 +1,130 @@
+{% extends 'layout.html' %}
+{% block title %}Plate Map Results - NTA{% endblock %}
+
+{% block nav_left %}
+<a href="{{ url_for('plate_mapper') }}" class="nav-back-btn">← Plate Mapper</a>
+{% endblock %}
+
+{% block content %}
+<style>
+.pm-well-control { background-color: #d3e5ff !important; color: #1a3a6e !important; font-size: 0.7rem; }
+.pm-well-sample  { background-color: #c8f7c5 !important; color: #1a4a18 !important; font-size: 0.7rem; }
+.pm-well-empty   { background-color: var(--bg-raised, #f9f9f9) !important; }
+
+.pm-plate-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+.pm-plate-table th,
+.pm-plate-table td {
+  border: 1px solid var(--border, #dee2e6);
+  text-align: center;
+  padding: 3px 2px;
+  height: 28px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 0.7rem;
+}
+.pm-plate-table th {
+  background: var(--bg-raised, #e9ecf3);
+  font-weight: 600;
+  font-size: 0.72rem;
+  color: var(--text-dim, #555);
+}
+</style>
+
+<div style="max-width: 1060px; margin: 0 auto;">
+
+  <div class="mb-4">
+    <h2 class="text-success mb-1" style="font-size: 1.75rem;">Plate Map Results</h2>
+    <p style="color: var(--text-dim, #888); font-size: 0.85rem; margin: 0;">
+      <span style="display:inline-block; width:12px; height:12px; background:#d3e5ff; border-radius:2px; vertical-align:middle; margin-right:4px;"></span>Control &nbsp;
+      <span style="display:inline-block; width:12px; height:12px; background:#c8f7c5; border-radius:2px; vertical-align:middle; margin-right:4px;"></span>Sample &nbsp;
+      <span style="display:inline-block; width:12px; height:12px; background:var(--bg-raised,#f9f9f9); border:1px solid #ccc; border-radius:2px; vertical-align:middle; margin-right:4px;"></span>Empty
+    </p>
+  </div>
+
+  {% for i in range(plates|length) %}
+  <div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span style="font-weight:600;">{{ plate_labels[i] if plate_labels[i]|trim else 'Plate ' ~ (i + 1) }}</span>
+      <div class="d-flex gap-2">
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="copyPlateLayout(this)">Copy 8×12 Layout</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="copyPlateCSV(this)">Copy CSV</button>
+      </div>
+    </div>
+    <div class="card-body p-2" style="overflow-x: auto;">
+      <table class="pm-plate-table" data-plate-index="{{ i }}">
+        <thead>
+          <tr>
+            <th style="width:28px;"></th>
+            {% for col in range(1, 13) %}
+            <th>{{ col }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in range(8) %}
+          <tr>
+            <th>{{ 'ABCDEFGH'[row] }}</th>
+            {% for col in range(12) %}
+              {% set well = plates[i][row][col] %}
+              {% if well == '' %}
+                <td class="pm-well-empty"></td>
+              {% elif well in control_labels %}
+                <td class="pm-well-control">{{ well }}</td>
+              {% else %}
+                <td class="pm-well-sample">{{ well }}</td>
+              {% endif %}
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endfor %}
+
+</div>
+
+<script>
+function copyPlateLayout(btn) {
+    var table = btn.closest('.card').querySelector('table');
+    var rows = [];
+    for (var i = 1; i < table.rows.length; i++) {
+        var cells = [];
+        for (var j = 1; j < table.rows[i].cells.length; j++) {
+            cells.push(table.rows[i].cells[j].innerText.trim());
+        }
+        rows.push(cells.join('\t'));
+    }
+    navigator.clipboard.writeText(rows.join('\n')).then(function() {
+        ntaToast('8×12 layout copied to clipboard.', 'success');
+    }).catch(function() {
+        ntaToast('Failed to copy. Please try manually.', 'danger');
+    });
+}
+
+function copyPlateCSV(btn) {
+    var table = btn.closest('.card').querySelector('table');
+    var values = [];
+    // Column-major order (down each column)
+    var numCols = 12;
+    var numRows = 8;
+    for (var col = 1; col <= numCols; col++) {
+        for (var row = 1; row <= numRows; row++) {
+            var cell = table.rows[row].cells[col];
+            var text = cell.innerText.trim();
+            if (text) values.push(text);
+        }
+    }
+    navigator.clipboard.writeText(values.join(',')).then(function() {
+        ntaToast('CSV list copied to clipboard.', 'success');
+    }).catch(function() {
+        ntaToast('Failed to copy. Please try manually.', 'danger');
+    });
+}
+</script>
+{% endblock %}

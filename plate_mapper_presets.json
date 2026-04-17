@@ -1,0 +1,17 @@
+{
+    "837S TEST": {
+        "include_pos": true,
+        "include_neg": true,
+        "include_ctrl3": false,
+        "pos_label": "KIOVIG",
+        "neg_label": "NSC",
+        "ctrl3_label": "",
+        "prefix": "837S",
+        "suffix": "",
+        "id_length": "4",
+        "pad_char": "0",
+        "replicate_count": "2",
+        "layout_mode": "vertical",
+        "plate_count": ""
+    }
+}

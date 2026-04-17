@@ -33,23 +33,23 @@ link.href = link.href.replace(/\/[^\/]+\.css(\?.*)?$/, '/' + css);
   align-items: center;
   gap: 0.35rem;
   font-family: 'JetBrains Mono', 'Courier New', monospace;
-  font-size: 0.70rem;
-  font-weight: 600;
+  font-size: 0.72rem;
+  font-weight: 700;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  color: var(--text-dim, #888);
+  color: var(--text-mid, #aaa);
   background: transparent;
-  border: 1.5px solid var(--border-sharp, rgba(120,100,65,0.26));
+  border: 1.5px solid var(--border-sharp, rgba(160,160,160,0.4));
   border-radius: var(--radius, 3px);
-  padding: 0.28rem 0.7rem;
+  padding: 0.3rem 0.8rem;
   text-decoration: none;
   white-space: nowrap;
   transition: color 0.18s, border-color 0.18s, background 0.18s;
 }
 .nav-back-btn:hover {
-  color: var(--teal-dim, #1e4f5e);
-  border-color: var(--teal, #2e6b7b);
-  background: var(--teal-pale, rgba(46,107,123,0.07));
+  color: var(--teal, #2e9bae);
+  border-color: var(--teal, #2e9bae);
+  background: var(--teal-pale, rgba(46,155,174,0.08));
   text-decoration: none;
 }
 
@@ -182,7 +182,7 @@ link.href = link.href.replace(/\/[^\/]+\.css(\?.*)?$/, '/' + css);
   <div class="d-flex align-items-center justify-content-end" style="gap: 0.1rem;">
     <a class="nav-link" href="{{ url_for('settings') }}">Settings</a>
     <a class="nav-link" href="{{ url_for('help_page') }}">Help</a>
-    <a class="nav-link" href="https://platemap.onrender.com" target="_blank" style="color: #388bfd;">Plate Mapper</a>
+    <a class="nav-link" href="{{ url_for('plate_mapper') }}" style="color: #388bfd;">Plate Mapper</a>
   </div>
 </div>
 </nav>

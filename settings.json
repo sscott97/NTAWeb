@@ -1,5 +1,5 @@
 {
-    "timestamp_in_filename": true,
+    "timestamp_in_filename": false,
     "presets": {
         "Default": {
             "Q1": "#ff7e79",
@@ -13,27 +13,39 @@
             "Q3": "#ff6251",
             "Q4": "#fecb3e"
         },
-        "2": {
-            "Q1": "#d783ff",
-            "Q2": "#73fa79",
-            "Q3": "#d95000",
-            "Q4": "#0096ff"
+        "Different Saturation (works Greyscale)": {
+            "Q1": "#0f7e88",
+            "Q2": "#f35f73",
+            "Q3": "#8dc5e4",
+            "Q4": "#4b2276"
         },
-        "Bright": {
-            "Q1": "#ff9300",
-            "Q2": "#fffb00",
-            "Q3": "#00f900",
-            "Q4": "#00fdff"
+        "Contrasting": {
+            "Q1": "#a659a9",
+            "Q2": "#59a99b",
+            "Q3": "#f0c472",
+            "Q4": "#e02b34"
+        },
+        "Diverging": {
+            "Q1": "#a6611a",
+            "Q2": "#dfc27d",
+            "Q3": "#80cdc1",
+            "Q4": "#018571"
+        },
+        "IBM Colour-blind Safe": {
+            "Q1": "#ffb000",
+            "Q2": "#fe6100",
+            "Q3": "#dc267f",
+            "Q4": "#785ef0"
         }
     },
-    "selected_preset": "Sam Alt",
+    "selected_preset": "Diverging",
     "quadrants": {
         "Q1": true,
         "Q2": true,
         "Q3": true,
         "Q4": true
     },
-    "error_flagging": true,
+    "error_flagging": false,
     "default_data_mode": "standard",
     "default_num_pseudotypes": 1,
     "outlier_threshold_log2": 1.0,
@@ -41,5 +53,6 @@
     "comparison_disagreement_threshold": 1.0,
     "custom_templates": {
         "test2": "excel_templates/test2.xlsx"
-    }
+    },
+    "lod_censor_include": true
 }

@@ -152,6 +152,21 @@
           </div>
         </div>
 
+        <!-- LOD censoring -->
+        <div class="mb-4">
+          <label class="form-label" style="font-weight: 500;">Include Outside LOD samples</label>
+          <small style="display: block; color: var(--text-mid, #888); margin-bottom: 0.75rem;">
+            When enabled, samples classified as <em>Outside LOD</em> are assigned the upper or lower dilution point
+            (A5 for &lt;LOD, A11 for &gt;LOD) instead of being excluded as non-numerical values. They are included all in sigmoid curve fitting and titre comparison graphs and files. They will be excluded if this switch is turned off. 
+          </small>
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" role="switch"
+                   name="lod_censor_include" id="lod_censor_include"
+                   {% if settings.get('lod_censor_include', False) %}checked{% endif %}>
+            <label class="form-check-label" for="lod_censor_include">Enabled</label>
+          </div>
+        </div>
+
         <!-- Titre comparison disagreement threshold -->
         <div class="mb-2">
           <label for="comparison_disagreement_threshold" class="form-label" style="font-weight: 500;">
@@ -175,8 +190,11 @@
       </div>
     </div>
 
-    <!-- Save button -->
-    <div class="text-end mb-4">
+    <!-- Save / Reset buttons -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <form action="{{ url_for('reset_settings') }}" method="post" onsubmit="return confirm('Reset all thresholds and toggles to their default values? Your colour presets and custom templates will not be affected.');">
+        <button type="submit" class="btn btn-outline-secondary btn-sm">Reset to Defaults</button>
+      </form>
       <button type="submit" class="btn btn-success px-4">Save Settings</button>
     </div>
 

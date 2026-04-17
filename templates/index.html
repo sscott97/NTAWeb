@@ -113,23 +113,37 @@
 
       <!-- ── Pseudotypes per plate — pill selector ───── -->
       <div class="mb-3">
-        <label class="form-label d-block mb-2">Pseudotypes per Plate</label>
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <label class="form-label mb-0">Pseudotypes per Plate</label>
+          <div class="d-flex align-items-center gap-2" id="customPerPlateWrap" style="display:none !important;">
+            <button type="button" id="copyRow1Btn" class="btn btn-sm" style="display:none; font-size:0.75rem; padding:0.2rem 0.65rem; border:1.5px solid var(--border-sharp); background:var(--bg-surface);">Copy row 1 to all</button>
+            <div class="form-check form-switch mb-0">
+              <input type="checkbox" id="customPerPlateToggle" class="form-check-input" role="switch" style="cursor:pointer;">
+              <label class="form-check-label" for="customPerPlateToggle" style="font-size:0.82rem; color:var(--text-mid);">Custom</label>
+            </div>
+          </div>
+        </div>
         <input type="hidden" name="num_pseudotypes" id="num_pseudotypes" value="{{ settings.get('default_num_pseudotypes', 1) }}">
         <div class="d-flex gap-2" id="pseudotypePills">
           {% set _defn = settings.get('default_num_pseudotypes', 1) %}
           <button type="button" class="pt-pill{% if _defn == 1 %} pt-pill--active{% endif %}" data-n="1" onclick="setPseudotypes(1)">1</button>
           <button type="button" class="pt-pill{% if _defn == 2 %} pt-pill--active{% endif %}" data-n="2" onclick="setPseudotypes(2)">2</button>
+          <button type="button" class="pt-pill{% if _defn == '2alt' %} pt-pill--active{% endif %}" data-n="2alt" onclick="setPseudotypes('2alt')">2 (alt)</button>
           <button type="button" class="pt-pill{% if _defn == 3 %} pt-pill--active{% endif %}" data-n="3" onclick="setPseudotypes(3)">3</button>
           <button type="button" class="pt-pill{% if _defn == 4 %} pt-pill--active{% endif %}" data-n="4" onclick="setPseudotypes(4)">4</button>
         </div>
+        <div id="perPlateTableWrap" class="mt-2" style="display:none; max-height:300px; overflow-y:auto; border:1px solid var(--border-sharp, rgba(0,0,0,0.1)); border-radius:8px; padding:0.4rem;">
+          <div id="perPlateTable"></div>
+        </div>
       </div>
+      <input type="hidden" name="plate_configs" id="plate_configs" value="">
 
       <div class="mb-3">
         <label for="pseudotype_text" class="form-label">Pseudotype(s)</label>
         <input type="text" name="pseudotype_text" id="pseudotype_text" class="form-control" placeholder="e.g. Alpha, Beta — comma-separated (required)" required>
       </div>
 
-      <div class="mb-4">
+      <div class="mb-3">
         <label for="sample_id_text" class="form-label">Sample ID(s)</label>
         <input type="text" name="sample_id_text" id="sample_id_text" class="form-control" placeholder="e.g. Sample 1, Sample 2 — comma-separated (optional)">
       </div>
@@ -319,7 +333,8 @@
 
     // ── Form input helpers ────────────────────────────────────
     function getInputs() {
-      const num = parseInt(document.getElementById('num_pseudotypes').value) || 1;
+      const rawVal = document.getElementById('num_pseudotypes').value;
+      const num = rawVal === '2alt' ? '2alt' : (parseInt(rawVal) || 1);
       const ptRaw = document.getElementById('pseudotype_text').value;
       const sidRaw = document.getElementById('sample_id_text').value;
       const pts = ptRaw.split(',').map(s => s.trim()).filter(Boolean);
@@ -338,6 +353,12 @@
         quadrants[2].pseudotype = get(pts, 1, 'Unlabelled'); quadrants[3].pseudotype = get(pts, 1, 'Unlabelled');
         const s1 = get(sids, 0, '—'), s2 = get(sids, 1, '—');
         quadrants[0].sampleId = s1; quadrants[2].sampleId = s1; quadrants[1].sampleId = s2; quadrants[3].sampleId = s2;
+        [0,1,2,3].forEach(i => quadrants[i].active = true);
+      } else if (num === '2alt') {
+        quadrants[0].pseudotype = get(pts, 0, 'Unlabelled'); quadrants[1].pseudotype = get(pts, 1, 'Unlabelled');
+        quadrants[2].pseudotype = get(pts, 0, 'Unlabelled'); quadrants[3].pseudotype = get(pts, 1, 'Unlabelled');
+        const s1 = get(sids, 0, '—'), s2 = get(sids, 1, '—');
+        quadrants[0].sampleId = s1; quadrants[1].sampleId = s1; quadrants[2].sampleId = s2; quadrants[3].sampleId = s2;
         [0,1,2,3].forEach(i => quadrants[i].active = true);
       } else if (num === 3) {
         [0,1,2].forEach(i => { quadrants[i].pseudotype = get(pts, i, 'Unlabelled'); quadrants[i].sampleId = get(sids, 0, '—'); quadrants[i].active = true; });
@@ -374,7 +395,7 @@
 
       // Offset sample IDs per plate:
       // num=1 → 4 samples/plate; num=2 → 2 samples/plate; num=3,4 → 1 sample/plate
-      const samplesPerPlate = num <= 2 ? (4 / num) : 1;
+      const samplesPerPlate = (num === 2 || num === '2alt') ? 2 : (num === 1 ? 4 : 1);
       const sidsOffset = currentPlateIndex * samplesPerPlate;
       const plateSids = sids.slice(sidsOffset, sidsOffset + samplesPerPlate);
 
@@ -607,20 +628,6 @@
     </div>
   </div>
 
-  <!-- ══════════════════════════════════════════════════
-       RECENT RESULTS STRIP
-       ══════════════════════════════════════════════════ -->
-  <div id="recentResultsCard" class="card mt-4" style="display: none;">
-    <div class="card-header d-flex align-items-center justify-content-between">
-      <div class="d-flex align-items-center gap-2">
-        <span>Recent Results</span>
-      </div>
-      <button type="button" id="clearRecentBtn" class="btn btn-sm btn-outline-secondary" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;">Clear</button>
-    </div>
-    <div class="card-body" style="padding: 0.75rem 1rem;">
-      <div id="recentResultsList"></div>
-    </div>
-  </div>
 
 </div><!-- end container -->
 
@@ -651,13 +658,121 @@ document.addEventListener('DOMContentLoaded', function() {
   // ── Pseudotype pill selector ────────────────────────────────
   window.setPseudotypes = function(n) {
     numPseudotypesSelect.value = n;
-    document.querySelectorAll('.pt-pill').forEach(function(btn) {
-      btn.classList.toggle('pt-pill--active', parseInt(btn.dataset.n) === n);
+    document.querySelectorAll('#pseudotypePills .pt-pill').forEach(function(btn) {
+      btn.classList.toggle('pt-pill--active', String(btn.dataset.n) === String(n));
     });
     window.renderPreview && window.renderPreview();
     saveFormData && saveFormData();
   };
   const pseudotypeInput = document.getElementById('pseudotype_text');
+
+  // ── Per-plate configuration ──────────────────────────────────
+  let _perPlateBuiltForN = 0;
+
+  function buildPlateRow(plateNum, defaultN, defaultPT, defaultSID) {
+    const div = document.createElement('div');
+    div.className = 'per-plate-row';
+    div.dataset.plate = plateNum;
+    const pillDefs = [['1','1'],['2','2'],['2alt','2(alt)'],['3','3'],['4','4']];
+    const pillsHTML = pillDefs.map(([v, lbl]) =>
+      `<button type="button" class="pt-pill pt-pill--sm${String(v) === String(defaultN) ? ' pt-pill--active' : ''}" data-n="${v}" onclick="window.setRowPseudotypes(this)">${lbl}</button>`
+    ).join('');
+    const escapedPT  = defaultPT.replace(/"/g, '&quot;');
+    const escapedSID = defaultSID.replace(/"/g, '&quot;');
+    div.innerHTML =
+      `<span class="per-plate-row__label">Plate ${plateNum}</span>` +
+      `<div class="per-plate-row__pills">${pillsHTML}</div>` +
+      `<input type="text" class="form-control form-control-sm per-plate-pt" placeholder="Pseudotypes" value="${escapedPT}" style="flex:2; min-width:0;">` +
+      `<input type="text" class="form-control form-control-sm per-plate-sid" placeholder="Sample IDs" value="${escapedSID}" style="flex:1.5; min-width:0;">`;
+    return div;
+  }
+
+  window.setRowPseudotypes = function(btn) {
+    const row = btn.closest('.per-plate-row');
+    row.querySelectorAll('.pt-pill').forEach(b => b.classList.remove('pt-pill--active'));
+    btn.classList.add('pt-pill--active');
+  };
+
+  function buildPerPlateTable(n) {
+    const table = document.getElementById('perPlateTable');
+    if (_perPlateBuiltForN === n) return;
+    _perPlateBuiltForN = n;
+    table.innerHTML = '';
+    const defaultN   = numPseudotypesSelect.value || '1';
+    const defaultPT  = pseudotypeInput.value || '';
+    const defaultSID = sampleIdInput.value || '';
+    for (let i = 0; i < n; i++) {
+      table.appendChild(buildPlateRow(i + 1, defaultN, defaultPT, defaultSID));
+    }
+  }
+
+  function serializePlateConfigs() {
+    const rows = document.querySelectorAll('.per-plate-row');
+    const configs = Array.from(rows).map(function(row) {
+      const activeBtn = row.querySelector('.pt-pill--active');
+      const np = activeBtn ? activeBtn.dataset.n : '1';
+      const ptText  = row.querySelector('.per-plate-pt').value.trim();
+      const sidText = row.querySelector('.per-plate-sid').value.trim();
+      return {
+        num_pseudotypes: np === '2alt' ? '2alt' : parseInt(np),
+        pseudotypes: ptText  ? ptText.split(',').map(function(s){return s.trim();}).filter(Boolean) : [],
+        sample_ids:  sidText ? sidText.split(',').map(function(s){return s.trim();}).filter(Boolean) : [],
+      };
+    });
+    document.getElementById('plate_configs').value = JSON.stringify(configs);
+  }
+
+  window.updatePerPlateSection = function() {
+    const n = (window.csvBlocks && window.csvBlocks.length) || 0;
+    const wrap    = document.getElementById('customPerPlateWrap');
+    const toggle  = document.getElementById('customPerPlateToggle');
+    const table   = document.getElementById('perPlateTable');
+    const copyBtn = document.getElementById('copyRow1Btn');
+
+    if (n <= 1) {
+      wrap.style.display = 'none';
+      toggle.checked = false;
+      document.getElementById('perPlateTableWrap').style.display = 'none';
+      copyBtn.style.display = 'none';
+      document.getElementById('plate_configs').value = '';
+      return;
+    }
+
+    wrap.style.display = 'flex';
+
+    if (!toggle.checked) {
+      document.getElementById('perPlateTableWrap').style.display = 'none';
+      copyBtn.style.display = 'none';
+      document.getElementById('plate_configs').value = '';
+      return;
+    }
+
+    buildPerPlateTable(n);
+    document.getElementById('perPlateTableWrap').style.display = 'block';
+    copyBtn.style.display = '';
+  };
+
+  document.getElementById('customPerPlateToggle').addEventListener('change', function() {
+    _perPlateBuiltForN = 0; // force rebuild to pick up current global values
+    window.updatePerPlateSection();
+  });
+
+  document.getElementById('copyRow1Btn').addEventListener('click', function() {
+    const rows = document.querySelectorAll('.per-plate-row');
+    if (rows.length < 2) return;
+    const firstRow = rows[0];
+    const firstN   = (firstRow.querySelector('.pt-pill--active') || {}).dataset.n || '1';
+    const firstPT  = firstRow.querySelector('.per-plate-pt').value;
+    const firstSID = firstRow.querySelector('.per-plate-sid').value;
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      row.querySelectorAll('.pt-pill').forEach(function(b) {
+        b.classList.toggle('pt-pill--active', b.dataset.n === firstN);
+      });
+      row.querySelector('.per-plate-pt').value = firstPT;
+      row.querySelector('.per-plate-sid').value = firstSID;
+    }
+  });
   const assayTitleInput = document.getElementById('assay_title');
   const sampleIdInput = document.getElementById('sample_id_text');
 
@@ -822,7 +937,10 @@ document.addEventListener('DOMContentLoaded', function() {
         const cells = line.split(',').map(c => c.trim()).filter(c => c);
         if (cells.length >= 12) {
           const allNumeric = cells.slice(0, 12).every(c => !isNaN(parseFloat(c)));
-          if (allNumeric) { currentBlock.push(cells.slice(0, 12)); }
+          if (allNumeric) {
+            currentBlock.push(cells.slice(0, 12));
+            if (currentBlock.length === 8) { blocks.push(currentBlock); currentBlock = []; }
+          }
           else if (currentBlock.length > 0) {
             if (currentBlock.length === 8) blocks.push(currentBlock);
             currentBlock = [];
@@ -875,6 +993,7 @@ document.addEventListener('DOMContentLoaded', function() {
         window.csvBlocks = (blocks && blocks.length > 0) ? blocks : null;
         if (window.resetPlateIndex) window.resetPlateIndex();
         window.renderPreview();   // re-render plate grid with actual values
+        if (window.updatePerPlateSection) window.updatePerPlateSection();
       };
       reader.readAsText(file);
     } else {
@@ -883,6 +1002,7 @@ document.addEventListener('DOMContentLoaded', function() {
       dataModeInput.value = '';
       window.csvBlocks = null;
       window.renderPreview();
+      if (window.updatePerPlateSection) window.updatePerPlateSection();
     }
   });
 
@@ -931,7 +1051,7 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
       const data = JSON.parse(savedData);
       if (data.assay_title) assayTitleInput.value = data.assay_title;
-      if (data.num_pseudotypes) window.setPseudotypes(parseInt(data.num_pseudotypes));
+      if (data.num_pseudotypes) { const sn = data.num_pseudotypes; window.setPseudotypes(sn === '2alt' ? '2alt' : parseInt(sn)); }
       if (data.pseudotype_text) pseudotypeInput.value = data.pseudotype_text;
       if (data.sample_id_text) sampleIdInput.value = data.sample_id_text;
       window.renderPreview && window.renderPreview();
@@ -956,6 +1076,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const blocks = parseCSVBlocks(savedCSV);
       window.csvBlocks = (blocks && blocks.length > 0) ? blocks : null;
       window.renderPreview();
+      if (window.updatePerPlateSection) window.updatePerPlateSection();
     } catch(err) { /* DataTransfer not supported — skip restore */ }
   }
 
@@ -973,35 +1094,6 @@ document.addEventListener('DOMContentLoaded', function() {
   sampleIdInput.addEventListener('input', saveFormData);
 
   // ═══════════════════════════════════════════════════════
-  // RECENT RESULTS
-  // ═══════════════════════════════════════════════════════
-  function loadRecentResults() {
-    const raw = sessionStorage.getItem('recentResults');
-    return raw ? JSON.parse(raw) : [];
-  }
-
-  function renderRecentResults() {
-    const results = loadRecentResults();
-    const card = document.getElementById('recentResultsCard');
-    const list = document.getElementById('recentResultsList');
-    if (results.length === 0) { card.style.display = 'none'; return; }
-    card.style.display = 'block';
-    list.innerHTML = results.map(r => `
-      <a href="/hub/${r.id}" class="d-flex align-items-center justify-content-between text-decoration-none recent-result-item" style="padding: 0.5rem 0.25rem; border-bottom: 1px solid var(--border, #eee);">
-        <div><span style="font-weight: 600; color: var(--text-primary, #333); font-size: 0.88rem;">${r.name}</span></div>
-        <span style="font-size: 0.72rem; color: var(--text-dim, #888);">${r.time}</span>
-      </a>
-    `).join('');
-  }
-
-  document.getElementById('clearRecentBtn').addEventListener('click', () => {
-    sessionStorage.removeItem('recentResults');
-    renderRecentResults();
-  });
-
-  renderRecentResults();
-
-  // ═══════════════════════════════════════════════════════
   // FORM VALIDATION (toasts & confirm dialogs)
   // ═══════════════════════════════════════════════════════
   let csvValidationPassed = false;
@@ -1011,23 +1103,48 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (!dataModeInput.value) dataModeInput.value = 'standard';
 
-    const numPseudotypes = parseInt(numPseudotypesSelect.value);
-    const pseudotypeText = pseudotypeInput.value.trim();
+    const customToggle = document.getElementById('customPerPlateToggle');
+    const isCustomPerPlate = customToggle && customToggle.checked;
 
-    if (!pseudotypeText) {
-      showToast('Please enter at least one pseudotype name.', 'warning');
-      pseudotypeInput.focus();
-      return;
-    }
+    if (isCustomPerPlate) {
+      // Custom per-plate mode: validate each row has at least one pseudotype
+      const rows = document.querySelectorAll('.per-plate-row');
+      let valid = true;
+      rows.forEach(function(row, idx) {
+        const pt = row.querySelector('.per-plate-pt').value.trim();
+        if (!pt) {
+          showToast(`Plate ${idx + 1}: please enter at least one pseudotype name.`, 'warning');
+          row.querySelector('.per-plate-pt').focus();
+          valid = false;
+        }
+      });
+      if (!valid) return;
+      serializePlateConfigs();
+      // Ensure global pseudotype_text is non-empty for backend fallback validation
+      if (!pseudotypeInput.value.trim()) {
+        pseudotypeInput.value = rows[0].querySelector('.per-plate-pt').value;
+      }
+    } else {
+      document.getElementById('plate_configs').value = '';
 
-    const pseudotypes = pseudotypeText.split(',').map(pt => pt.trim()).filter(pt => pt);
+      const numPseudotypes = parseInt(numPseudotypesSelect.value);
+      const pseudotypeText = pseudotypeInput.value.trim();
 
-    if (pseudotypes.length < numPseudotypes) {
-      const proceed = await showConfirm(
-        `You selected <strong>${numPseudotypes} pseudotype(s)</strong> but only entered <strong>${pseudotypes.length}</strong>.<br>Missing pseudotypes will be labelled as "Unlabelled".`,
-        'Continue anyway', 'Go back'
-      );
-      if (!proceed) { pseudotypeInput.focus(); return; }
+      if (!pseudotypeText) {
+        showToast('Please enter at least one pseudotype name.', 'warning');
+        pseudotypeInput.focus();
+        return;
+      }
+
+      const pseudotypes = pseudotypeText.split(',').map(pt => pt.trim()).filter(pt => pt);
+
+      if (pseudotypes.length < numPseudotypes) {
+        const proceed = await showConfirm(
+          `You selected <strong>${numPseudotypes} pseudotype(s)</strong> but only entered <strong>${pseudotypes.length}</strong>.<br>Missing pseudotypes will be labelled as "Unlabelled".`,
+          'Continue anyway', 'Go back'
+        );
+        if (!proceed) { pseudotypeInput.focus(); return; }
+      }
     }
 
     // CSV mode validation (async server check)
@@ -1092,6 +1209,37 @@ document.addEventListener('DOMContentLoaded', function() {
   background: var(--teal-pale, rgba(74,122,155,0.07));
   box-shadow: 0 0 0 1px var(--teal, #4a7a9b);
   color: var(--teal-dim, #3a6280);
+}
+/* ── Per-plate config table ── */
+.per-plate-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.4rem;
+  border-bottom: 1px solid var(--border-sharp, rgba(0,0,0,0.07));
+}
+.per-plate-row:last-child { border-bottom: none; }
+.per-plate-row__label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-mid);
+  white-space: nowrap;
+  min-width: 52px;
+}
+.per-plate-row__pills {
+  display: flex;
+  gap: 0.2rem;
+}
+.pt-pill--sm {
+  padding: 0.15rem 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  flex: none;
+}
+.per-plate-row .form-control-sm {
+  font-size: 0.78rem;
+  padding: 0.2rem 0.4rem;
+  height: auto;
 }
 </style>
 
