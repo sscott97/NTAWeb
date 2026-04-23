@@ -478,7 +478,11 @@ function loadCachedGraph() {
       dlBtn.download = '{{ filename }}'.replace('.xlsx', '.png');
       dlBtn.style.display = 'inline-flex';
       var elapsed = ((Date.now() - t0) / 1000).toFixed(1);
-      ntaToast('Summary graph loaded in <strong>' + elapsed + 's</strong>', 'info', {duration: 5000});
+      var _graphToastKey = 'toast_graph_{{ excel_file_id }}';
+      if (!sessionStorage.getItem(_graphToastKey)) {
+        ntaToast('Summary graph loaded in <strong>' + elapsed + 's</strong>', 'info', {duration: 5000});
+        sessionStorage.setItem(_graphToastKey, '1');
+      }
     })
     .catch(function() {
       // Fallback to R regeneration if cached plot unavailable

@@ -36,9 +36,15 @@
             "Q2": "#fe6100",
             "Q3": "#dc267f",
             "Q4": "#785ef0"
+        },
+        "IBM Colour-blind Safe 2": {
+            "Q1": "#88ccee",
+            "Q2": "#ddcc77",
+            "Q3": "#cc6677",
+            "Q4": "#aa4499"
         }
     },
-    "selected_preset": "Diverging",
+    "selected_preset": "IBM Colour-blind Safe 2",
     "quadrants": {
         "Q1": true,
         "Q2": true,
@@ -54,5 +60,5 @@
     "custom_templates": {
         "test2": "excel_templates/test2.xlsx"
     },
-    "lod_censor_include": true
+    "lod_censor_include": false
 }

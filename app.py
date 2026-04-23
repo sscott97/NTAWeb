@@ -473,6 +473,31 @@ def boxplot_data(file_id):
         file_info = in_memory_files[file_id]
         file_bytes = file_info["data"]
 
+        # ── Cache hit: return stored R result without re-running R ──
+        bp_cache = file_info.get("boxplot_cache", {})
+        if threshold in bp_cache:
+            cached = bp_cache[threshold]
+            r_result = {
+                "status":      cached["status"],
+                "titre_label": cached.get("titre_label"),
+                "data":        dict(cached["data"]),  # copy — will be mutated by filter
+            }
+            if r_result["status"] == "success" and "data" in r_result:
+                q_pt_cells = {"Q1": "B3", "Q2": "E3", "Q3": "H3", "Q4": "K3"}
+                wb_f = load_workbook(BytesIO(file_bytes), data_only=True)
+                allowed = set()
+                for sheet in [s for s in wb_f.sheetnames if s.startswith("Plate")]:
+                    ws_f = wb_f[sheet]
+                    for q, cell in q_pt_cells.items():
+                        if q_active[q]:
+                            val = ws_f[cell].value
+                            if val and str(val).strip():
+                                allowed.add(str(val).strip())
+                if allowed:
+                    r_result["data"] = {k: v for k, v in r_result["data"].items() if k in allowed}
+            return jsonify(r_result)
+        # ── End cache hit ───────────────────────────────────────────
+
         # Write Excel to a temp file so R can read it
         with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp_xl:
             tmp_xl.write(file_bytes)
@@ -499,6 +524,15 @@ def boxplot_data(file_id):
         # Clean up temp files
         os.remove(excel_path)
         os.remove(json_path)
+
+        # ── Store unfiltered result in cache for future requests ──
+        if r_result.get("status") == "success":
+            file_info.setdefault("boxplot_cache", {})[threshold] = {
+                "status":      r_result["status"],
+                "titre_label": r_result.get("titre_label"),
+                "data":        dict(r_result.get("data", {})),
+            }
+        # ─────────────────────────────────────────────────────────
 
         # Filter pseudotypes to only those belonging to active quadrants
         if r_result.get('status') == 'success' and 'data' in r_result:
@@ -547,6 +581,7 @@ def curve_fitting_results(fitting_id):
         excel_file_id=excel_file_id,
         output_files=list(info["data"].keys()),
         ic50_filename=info["ic50_filename"],
+        lod_used=info.get("include_lod", load_settings().get("lod_censor_include", False)),
         settings=load_settings(),
         processing_time=None,
     )
@@ -901,20 +936,13 @@ def set_active_preset():
     return "Preset updated", 200
 
 
-@app.route("/perform_curve_fitting", methods=["POST"])
-def perform_curve_fitting():
-    file_id = request.form.get("file_id")
-    if not file_id or file_id not in in_memory_files:
-        flash("No Excel file found for curve fitting.", "danger")
-        return redirect(url_for("index"))
-
+def _run_fitting(file_id, include_lod_override=None):
+    """
+    Run fit_sigmoids.R for the given file_id and store results in memory.
+    include_lod_override: True/False to override settings, None to use settings.
+    Returns a Flask response.
+    """
     file_info = in_memory_files[file_id]
-
-    # Return cached results immediately if already computed for this file
-    existing_fitting_id = file_info.get("fitting_id")
-    if existing_fitting_id and existing_fitting_id in in_memory_files:
-        return redirect(url_for("curve_fitting_results", fitting_id=existing_fitting_id))
-
     file_bytes = file_info["data"]
     filename = file_info["name"]
 
@@ -927,16 +955,16 @@ def perform_curve_fitting():
             excel_path = tmp_excel.name
 
         output_dir = tempfile.mkdtemp(prefix="sigmoid_")
-        
+
         sigmoid_csv_path = os.path.join(output_dir, "sigmoidData.csv")
         generate_sigmoid_csv(excel_path, sigmoid_csv_path)
 
         settings = load_settings()
         include_timestamp = settings.get("timestamp_in_filename", True)
-        
+
         assay_title = os.path.splitext(filename)[0]
         assay_title = re.sub(r'_\d{4}-\d{2}-\d{2}$', '', assay_title)
-        
+
         if include_timestamp:
             timestamp = datetime.now().strftime("%Y-%m-%d")
         else:
@@ -944,10 +972,15 @@ def perform_curve_fitting():
 
         r_script = os.path.join(os.getcwd(), "fit_sigmoids.R")
         r2_threshold = str(settings.get("sigmoid_r2_threshold", 0.5))
-        include_lod = "TRUE" if settings.get("lod_censor_include", False) else "FALSE"
+
+        if include_lod_override is not None:
+            lod_bool = include_lod_override
+        else:
+            lod_bool = settings.get("lod_censor_include", False)
+        include_lod = "TRUE" if lod_bool else "FALSE"
 
         _proc_start = time.time()
-        result = subprocess.run(
+        subprocess.run(
             ["Rscript", r_script, sigmoid_csv_path, output_dir, assay_title, timestamp, r2_threshold, include_lod],
             check=True,
             stdout=subprocess.PIPE,
@@ -963,31 +996,27 @@ def perform_curve_fitting():
             ic50_filename = f"IC50s_{timestamp}.csv"
         else:
             ic50_filename = "IC50s.csv"
-        
+
         ic50_path = os.path.join(output_dir, ic50_filename)
-        
         plot_files = [f for f in os.listdir(output_dir) if f.endswith('.png')]
-        
+
         output_files = {}
-        
         if os.path.exists(ic50_path):
             with open(ic50_path, 'rb') as f:
                 output_files[ic50_filename] = f.read()
-        
         if os.path.exists(sigmoid_csv_path):
             with open(sigmoid_csv_path, 'rb') as f:
                 output_files['sigmoidData.csv'] = f.read()
-        
         for plot_file in plot_files:
             plot_path = os.path.join(output_dir, plot_file)
             with open(plot_path, 'rb') as f:
                 output_files[plot_file] = f.read()
-        
+
         os.remove(excel_path)
         for f in os.listdir(output_dir):
             os.remove(os.path.join(output_dir, f))
         os.rmdir(output_dir)
-        
+
         fitting_id = uuid.uuid4().hex
         in_memory_files[fitting_id] = {
             "data": output_files,
@@ -995,10 +1024,13 @@ def perform_curve_fitting():
             "type": "sigmoid_results",
             "ic50_filename": ic50_filename,
             "excel_file_id": file_id,
+            "include_lod": lod_bool,
         }
         # Store fitting_id server-side so analysis hub can unlock comparison card
+        # Also clear any cached comparison since the IC50s have changed
         in_memory_files[file_id]["fitting_id"] = fitting_id
-        
+        in_memory_files[file_id].pop("comparison_id", None)
+
         _proc_elapsed = round(time.time() - _proc_start, 1)
         return render_template(
             "curve_fitting_results.html",
@@ -1006,6 +1038,7 @@ def perform_curve_fitting():
             excel_file_id=file_id,
             output_files=list(output_files.keys()),
             ic50_filename=ic50_filename,
+            lod_used=lod_bool,
             settings=load_settings(),
             processing_time=_proc_elapsed,
         )
@@ -1016,6 +1049,37 @@ def perform_curve_fitting():
     except Exception as e:
         flash(f"Curve fitting error: {str(e)}", "danger")
         return redirect(url_for("analysis_hub", file_id=file_id))
+
+
+@app.route("/perform_curve_fitting", methods=["POST"])
+def perform_curve_fitting():
+    file_id = request.form.get("file_id")
+    if not file_id or file_id not in in_memory_files:
+        flash("No Excel file found for curve fitting.", "danger")
+        return redirect(url_for("index"))
+
+    file_info = in_memory_files[file_id]
+
+    # Return cached results immediately if already computed for this file
+    existing_fitting_id = file_info.get("fitting_id")
+    if existing_fitting_id and existing_fitting_id in in_memory_files:
+        return redirect(url_for("curve_fitting_results", fitting_id=existing_fitting_id))
+
+    return _run_fitting(file_id)
+
+
+@app.route("/refit_sigmoids", methods=["POST"])
+def refit_sigmoids():
+    """Re-run fitting with a toggled LOD setting, bypassing the cache."""
+    file_id = request.form.get("file_id")
+    if not file_id or file_id not in in_memory_files:
+        flash("No Excel file found for curve fitting.", "danger")
+        return redirect(url_for("index"))
+
+    raw = request.form.get("include_lod", "false").strip().lower()
+    include_lod_override = raw == "true"
+
+    return _run_fitting(file_id, include_lod_override=include_lod_override)
 
 @app.route("/download_sigmoid/<fitting_id>/<filename>")
 def download_sigmoid(fitting_id, filename):
@@ -1059,6 +1123,17 @@ def download_sigmoid(fitting_id, filename):
     )
 
 
+@app.route("/cached_sigmoid_graph/<fitting_id>")
+def cached_sigmoid_graph(fitting_id):
+    """Serve the last-generated sigmoid PNG from in-memory cache (no R re-run)."""
+    if fitting_id not in in_memory_files:
+        return "", 404
+    png_bytes = in_memory_files[fitting_id].get("data", {}).get("sigmoid_combined.png")
+    if not png_bytes:
+        return "", 404
+    return send_file(BytesIO(png_bytes), mimetype="image/png")
+
+
 @app.route("/generate_sigmoid_graph/<fitting_id>")
 def generate_sigmoid_graph(fitting_id):
     if fitting_id not in in_memory_files:
@@ -1071,6 +1146,13 @@ def generate_sigmoid_graph(fitting_id):
     show_good     = request.args.get("good",     "true").lower() == "true"
     show_unstable = request.args.get("unstable", "true").lower() == "true"
     show_poor_fit = request.args.get("poor_fit", "true").lower() == "true"
+    # show_lod: page toggle overrides settings when explicitly provided
+    _lod_param = request.args.get("show_lod", None)
+    if _lod_param is not None:
+        show_lod_bool = _lod_param.lower() == "true"
+    else:
+        _plot_settings_lod = load_settings()
+        show_lod_bool = _plot_settings_lod.get("lod_censor_include", False)
 
     tmp_dir = None
     try:
@@ -1088,12 +1170,10 @@ def generate_sigmoid_graph(fitting_id):
         output_png = os.path.join(tmp_dir, "sigmoid_combined.png")
 
         r_script = os.path.join(os.getcwd(), "plot_sigmoids.R")
-        _plot_settings = load_settings()
-        show_lod = "true" if _plot_settings.get("lod_censor_include", False) else "false"
         subprocess.run(
             ["Rscript", r_script, raw_csv, ic50_csv, output_png,
-             str(show_good).lower(), str(show_unstable).lower(), show_lod,
-             str(show_poor_fit).lower()],
+             str(show_good).lower(), str(show_unstable).lower(),
+             str(show_lod_bool).lower(), str(show_poor_fit).lower()],
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,

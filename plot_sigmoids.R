@@ -112,11 +112,11 @@ if (nrow(lod_vlines) > 0) {
 }
 
 lod_color_values <- c(
-  "Good"         = "#3498db",
-  "Unstable"     = "#e74c3c",
-  "<Lower LOD"   = "#28a745",
-  ">Upper LOD"   = "#f39c12",
-  "Poor Fit"     = "#9b59b6"
+  "Good"         = "#648fff",
+  "Unstable"     = "#ffb000",
+  "<Lower LOD"   = "#785ef0",
+  ">Upper LOD"   = "#fe6100",
+  "Poor Fit"     = "#dc267f"
 )
 lod_color_labels <- c(
   "Good"         = "Good",
@@ -128,8 +128,8 @@ lod_color_labels <- c(
 
 p <- p +
   facet_wrap(~Facet_Label, ncol = ncol_facets) +
-  scale_x_continuous(name = "Dilution (log\u2082)") +
-  scale_y_continuous(name = "Neutralisation (%)", limits = c(NA, 105)) +
+  scale_x_reverse(name = "Dilution (log\u2082)") +
+  scale_y_reverse(name = "Neutralisation (%)", limits = c(105, NA)) +
   scale_color_manual(name   = "Fit quality",
                      values = lod_color_values,
                      labels = lod_color_labels) +
