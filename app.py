@@ -842,6 +842,11 @@ def download_memory(file_id):
         flash("File not found in memory.", "danger")
         return redirect(url_for("index"))
 
+    # Block until background R thread finishes embedding plots (max 120s)
+    deadline = time.time() + 120
+    while not file_info.get("plots_ready") and time.time() < deadline:
+        time.sleep(1)
+
     file_stream = BytesIO(file_info["data"])
     file_stream.seek(0)
 
