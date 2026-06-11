@@ -4,6 +4,7 @@ import uuid
 import json
 import logging
 import subprocess
+import threading
 import time
 from datetime import datetime
 from io import BytesIO
@@ -180,6 +181,66 @@ def save_template_selection():
     return redirect(url_for("settings"))
 
 
+def _run_r_in_background(file_id, excel_path, output_plot_path, r_cmd):
+    """Run process_data.R in a background thread, then embed plots into the stored Excel."""
+    try:
+        subprocess.run(r_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        logger.info("R SCRIPT (background) complete for %s", file_id)
+
+        with open(output_plot_path, "rb") as f:
+            summary_plot_bytes = f.read()
+
+        # Embed plots into the stored Excel bytes
+        file_info = in_memory_files.get(file_id)
+        if file_info:
+            wb = load_workbook(BytesIO(file_info["data"]))
+            ws_summary = wb.create_sheet("Summary Plots")
+            ws_summary.add_image(XLImage(output_plot_path), "A1")
+
+            plate_dir = os.path.dirname(output_plot_path)
+            _plates_embedded = 0
+            for sheet_name in wb.sheetnames:
+                if not sheet_name.startswith("Plate"):
+                    continue
+                plate_png = os.path.join(plate_dir, f"{sheet_name}.png")
+                if os.path.exists(plate_png):
+                    ws_plate = wb[sheet_name]
+                    temp_png = os.path.join(plate_dir, f"temp_{sheet_name}.png")
+                    PILImage.open(plate_png).save(temp_png, "PNG")
+                    img_plate = XLImage(temp_png)
+                    img_plate.anchor = "B33"
+                    ws_plate.add_image(img_plate)
+                    _plates_embedded += 1
+            logger.info("IMAGES   (background) %d plate PNG(s) embedded", _plates_embedded)
+
+            out = BytesIO()
+            wb.save(out)
+            file_info["data"] = out.getvalue()
+            file_info["summary_plot"] = summary_plot_bytes
+            file_info["plots_ready"] = True
+            logger.info("PLOTS    stored for %s", file_id)
+    except Exception:
+        logger.exception("R SCRIPT (background) failed for %s", file_id)
+        if file_id in in_memory_files:
+            in_memory_files[file_id]["plots_ready"] = True  # stop polling, fall back to on-demand
+    finally:
+        try:
+            os.remove(excel_path)
+        except OSError:
+            pass
+        try:
+            os.remove(output_plot_path)
+        except OSError:
+            pass
+        plate_dir = os.path.dirname(output_plot_path)
+        for f in os.listdir(plate_dir):
+            if f.endswith(".png"):
+                try:
+                    os.remove(os.path.join(plate_dir, f))
+                except OSError:
+                    pass
+
+
 @app.route("/process", methods=["POST"])
 def process():
     file = request.files["csv_file"]
@@ -273,10 +334,17 @@ def process():
     else:
         logger.info("FLAGS    disabled")
 
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp_excel:
-        tmp_excel.write(output_bytes.getvalue())
-        excel_path = tmp_excel.name
+    # Store Excel immediately (no plots yet) so we can respond without waiting for R
+    file_id = uuid.uuid4().hex
+    in_memory_files[file_id] = {
+        "data": output_bytes.getvalue(),
+        "name": filename,
+        "summary_plot": None,
+        "plots_ready": False,
+    }
+    session["file_id"] = file_id
 
+    # Build R command args \u2014 R runs in background so temp files must persist until it finishes
     r_script = os.path.join(os.getcwd(), "process_data.R")
     presets = settings.get("presets", {})
     active_preset_name = settings.get("selected_preset", None)
@@ -295,64 +363,32 @@ def process():
     q4_flag = str(quadrants.get("Q4", True)).lower()
 
     plot_title = os.path.splitext(filename)[0]
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp_excel:
+        tmp_excel.write(output_bytes.getvalue())
+        excel_path = tmp_excel.name
+
     with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp_png:
         output_plot_path = tmp_png.name
 
-    logger.info("R SCRIPT starting process_data.R \u2026")
-    _t = time.time()
-    subprocess.run(
-        [
-            "Rscript", r_script,
-            excel_path, output_plot_path,
-            str(settings.get("timestamp_in_filename", True)).lower(),
-            q1_colour, q2_colour, q3_colour, q4_colour,
-            plot_title,
-            q1_flag, q2_flag, q3_flag, q4_flag
-        ],
-        check=True
-    )
-    logger.info("R SCRIPT complete in %.1fs", time.time() - _t)
+    r_cmd = [
+        "Rscript", r_script,
+        excel_path, output_plot_path,
+        str(settings.get("timestamp_in_filename", True)).lower(),
+        q1_colour, q2_colour, q3_colour, q4_colour,
+        plot_title,
+        q1_flag, q2_flag, q3_flag, q4_flag,
+    ]
 
-    wb = load_workbook(excel_path)
-
-    ws = wb.create_sheet("Summary Plots")
-    img = XLImage(output_plot_path)
-    ws.add_image(img, "A1")
-
-    plate_dir = os.path.dirname(output_plot_path)
-    _plates_embedded = 0
-    for sheet_name in wb.sheetnames:
-        if not sheet_name.startswith("Plate"):
-            continue
-        plate_png = os.path.join(plate_dir, f"{sheet_name}.png")
-        if os.path.exists(plate_png):
-            ws_plate = wb[sheet_name]
-            pil_img = PILImage.open(plate_png)
-            temp_png = os.path.join(plate_dir, f"temp_{sheet_name}.png")
-            pil_img.save(temp_png, "PNG")
-            img_plate = XLImage(temp_png)
-            img_plate.anchor = "B33"
-            ws_plate.add_image(img_plate)
-            _plates_embedded += 1
-    logger.info("IMAGES   %d plate PNG(s) embedded", _plates_embedded)
-
-    wb.save(excel_path)
-
-    with open(excel_path, "rb") as f:
-        final_bytes = BytesIO(f.read())
-
-    with open(output_plot_path, "rb") as f:
-        summary_plot_bytes = f.read()
-
-    os.remove(excel_path)
-    os.remove(output_plot_path)
-
-    file_id = uuid.uuid4().hex
-    in_memory_files[file_id] = {"data": final_bytes.getvalue(), "name": filename, "summary_plot": summary_plot_bytes}
-    session["file_id"] = file_id
+    logger.info("R SCRIPT launching in background for %s", file_id)
+    threading.Thread(
+        target=_run_r_in_background,
+        args=(file_id, excel_path, output_plot_path, r_cmd),
+        daemon=True,
+    ).start()
 
     _proc_elapsed = round(time.time() - _proc_start, 1)
-    logger.info("DONE     \u2713 %r ready \u00b7 total %.1fs", filename, _proc_elapsed)
+    logger.info("DONE     \u2713 %r ready (plots pending) \u00b7 %.1fs", filename, _proc_elapsed)
     return render_template(
         "analysis_hub.html",
         excel_file_id=file_id,
@@ -923,7 +959,10 @@ def generate_graphs():
 def summary_plot(file_id):
     if file_id not in in_memory_files:
         return "", 404
-    plot_bytes = in_memory_files[file_id].get("summary_plot")
+    info = in_memory_files[file_id]
+    if not info.get("plots_ready"):
+        return "", 202  # still processing in background
+    plot_bytes = info.get("summary_plot")
     if not plot_bytes:
         return "", 404
     return send_file(BytesIO(plot_bytes), mimetype="image/png")

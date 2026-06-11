@@ -481,26 +481,34 @@ function loadCachedGraph() {
   dlBtn.style.display = 'none';
 
   var t0 = Date.now();
-  fetch('/summary_plot/{{ excel_file_id }}')
-    .then(function(r) { if (!r.ok) throw new Error('not found'); return r.blob(); })
-    .then(function(blob) {
-      var url = URL.createObjectURL(blob);
-      area.innerHTML = '<img src="' + url + '" style="max-width:100%;display:block;" alt="Summary Graph">';
-      area.style.display = 'block';
-      dlBtn.href = url;
-      dlBtn.download = '{{ filename }}'.replace('.xlsx', '.png');
-      dlBtn.style.display = 'inline-flex';
-      var elapsed = ((Date.now() - t0) / 1000).toFixed(1);
-      var _graphToastKey = 'toast_graph_{{ excel_file_id }}';
-      if (!sessionStorage.getItem(_graphToastKey)) {
-        ntaToast('Summary graph loaded in <strong>' + elapsed + 's</strong>', 'info', {duration: 5000});
-        sessionStorage.setItem(_graphToastKey, '1');
-      }
-    })
-    .catch(function() {
-      // Fallback to R regeneration if cached plot unavailable
-      generateGraph();
-    });
+  function _pollPlot(retries) {
+    fetch('/summary_plot/{{ excel_file_id }}')
+      .then(function(r) {
+        if (r.status === 202 && retries > 0) {
+          // R still running in background — check again shortly
+          setTimeout(function() { _pollPlot(retries - 1); }, 4000);
+        } else if (r.ok) {
+          return r.blob().then(function(blob) {
+            var url = URL.createObjectURL(blob);
+            area.innerHTML = '<img src="' + url + '" style="max-width:100%;display:block;" alt="Summary Graph">';
+            area.style.display = 'block';
+            dlBtn.href = url;
+            dlBtn.download = '{{ filename }}'.replace('.xlsx', '.png');
+            dlBtn.style.display = 'inline-flex';
+            var elapsed = ((Date.now() - t0) / 1000).toFixed(1);
+            var _graphToastKey = 'toast_graph_{{ excel_file_id }}';
+            if (!sessionStorage.getItem(_graphToastKey)) {
+              ntaToast('Summary graph loaded in <strong>' + elapsed + 's</strong>', 'info', {duration: 5000});
+              sessionStorage.setItem(_graphToastKey, '1');
+            }
+          });
+        } else {
+          generateGraph();
+        }
+      })
+      .catch(function() { generateGraph(); });
+  }
+  _pollPlot(15);
 }
 
 function generateGraph() {
