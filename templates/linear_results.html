@@ -30,8 +30,8 @@
     </div>
     <div class="card-footer d-flex align-items-center justify-content-between flex-wrap gap-2" style="padding: 0.65rem 1.25rem;">
       <span style="font-size: 0.82rem; color: var(--text-dim, #888);">Results file contains all raw plate data, calculated titres, dilution curve graphs and a summary graph.</span>
-      <a href="{{ url_for('download_memory', file_id=excel_file_id) }}" class="btn btn-success btn-sm">
-        ↓ Download Results
+      <a id="dlResultsBtn" href="{{ url_for('download_memory', file_id=excel_file_id) }}" class="btn btn-secondary btn-sm disabled" style="pointer-events: none;" title="Preparing graphs…">
+        <span class="spinner-border spinner-border-sm me-1" role="status" style="width: 0.7rem; height: 0.7rem; border-width: 2px;"></span>Preparing…
       </a>
     </div>
   </div>
@@ -872,6 +872,27 @@ const pc4 = "{{ _preset.get('Q4', '#e74c3c') }}";
       metricsEl.innerHTML =
         '<div class="col-12 text-center"><span class="text-muted" style="font-size:0.85rem;">Summary data unavailable</span></div>';
     });
+})();
+
+(function pollDownloadReady() {
+  var btn = document.getElementById('dlResultsBtn');
+  function check() {
+    fetch('/plots_ready/{{ excel_file_id }}')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.ready) {
+          btn.innerHTML = '↓ Download Results';
+          btn.classList.remove('btn-secondary', 'disabled');
+          btn.classList.add('btn-success');
+          btn.style.pointerEvents = '';
+          btn.title = '';
+        } else if (!data.missing) {
+          setTimeout(check, 3000);
+        }
+      })
+      .catch(function() { setTimeout(check, 5000); });
+  }
+  check();
 })();
 
 </script>
