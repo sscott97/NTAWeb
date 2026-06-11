@@ -26,4 +26,4 @@ COPY . .
 EXPOSE 10000
 
 # Run with gunicorn (2 workers, 300s timeout for long R scripts)
-CMD ["gunicorn", "--workers", "2", "--timeout", "300", "--bind", "0.0.0.0:10000", "app:app"]
+CMD ["gunicorn", "--workers", "1", "--timeout", "300", "--bind", "0.0.0.0:10000", "app:app"]
