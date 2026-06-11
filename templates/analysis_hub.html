@@ -24,8 +24,8 @@
       <div class="d-flex align-items-center gap-2" style="flex-shrink: 0;">
         <span style="font-size: 0.78rem; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; color: var(--text-dim, #888);">Processed File</span>
         <span style="color: var(--text-primary, #333); font-size: 0.88rem; font-weight: 600; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ filename }}">{{ filename }}</span>
-        <a href="{{ url_for('download_memory', file_id=excel_file_id) }}" class="btn btn-success btn-sm" style="padding: 0.25rem 0.75rem; font-size: 0.8rem;">
-          ↓ Download
+        <a id="dlBtn" href="{{ url_for('download_memory', file_id=excel_file_id) }}" class="btn btn-secondary btn-sm disabled" style="padding: 0.25rem 0.75rem; font-size: 0.8rem; pointer-events: none;" title="Preparing graphs…">
+          <span class="spinner-border spinner-border-sm me-1" role="status" style="width: 0.7rem; height: 0.7rem; border-width: 2px;"></span>Preparing…
         </a>
       </div>
 
@@ -364,6 +364,28 @@ const pc4 = "{{ _preset.get('Q4', '#e74c3c') }}";
       document.getElementById('hubSummaryChips').innerHTML =
         '<span class="text-muted" style="font-size:0.8rem;">Summary unavailable</span>';
     });
+})();
+
+// Poll until R background thread has embedded plots, then unlock the download button
+(function pollDownloadReady() {
+  var btn = document.getElementById('dlBtn');
+  function check() {
+    fetch('/plots_ready/{{ excel_file_id }}')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.ready) {
+          btn.innerHTML = '↓ Download';
+          btn.classList.remove('btn-secondary', 'disabled');
+          btn.classList.add('btn-success');
+          btn.style.pointerEvents = '';
+          btn.title = '';
+        } else if (!data.missing) {
+          setTimeout(check, 3000);
+        }
+      })
+      .catch(function() { setTimeout(check, 5000); });
+  }
+  check();
 })();
 
 </script>

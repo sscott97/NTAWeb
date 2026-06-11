@@ -960,6 +960,14 @@ def generate_graphs():
         return redirect(url_for("index"))
 
 
+@app.route("/plots_ready/<file_id>")
+def plots_ready(file_id):
+    info = in_memory_files.get(file_id)
+    if not info:
+        return jsonify({"ready": False, "missing": True})
+    return jsonify({"ready": bool(info.get("plots_ready"))})
+
+
 @app.route("/summary_plot/<file_id>")
 def summary_plot(file_id):
     if file_id not in in_memory_files:
