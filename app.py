@@ -2,15 +2,24 @@ from flask import Flask, render_template, request, redirect, url_for, send_file,
 import os
 import uuid
 import json
+import logging
 import subprocess
 import time
 from datetime import datetime
 from io import BytesIO
 import re
 import tempfile
-from openpyxl import load_workbook
-from openpyxl.drawing.image import Image as XLImage 
-from PIL import Image as PILImage  
+from itertools import combinations
+from openpyxl import load_workbook, Workbook
+from openpyxl.drawing.image import Image as XLImage
+from openpyxl.chart import ScatterChart, Reference, Series
+from openpyxl.chart.marker import Marker
+from openpyxl.chart.shapes import GraphicalProperties
+from openpyxl.drawing.line import LineProperties
+from openpyxl.utils import get_column_letter
+from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+from openpyxl.formatting.rule import ColorScaleRule, CellIsRule
+from PIL import Image as PILImage
 
 
 from nta_utils import (
@@ -32,6 +41,13 @@ in_memory_files = {}  # Key: UUID, Value: BytesIO
 app = Flask(__name__)
 app.secret_key = "your-secret-key"
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB upload limit
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%H:%M:%S",
+)
+logger = logging.getLogger("ntaweb")
 
 
 
@@ -220,7 +236,12 @@ def process():
         flash(str(e), "danger")
         return redirect(url_for("index"))
 
+    csv_size_kb = round(csv_bytes.getbuffer().nbytes / 1024, 1)
+    logger.info("PROCESS  \u2190 %r  mode=%s  pseudotypes=%s", assay_title, data_mode, pseudotypes.replace("\n", ","))
+    logger.info("CSV      read %.1f KB", csv_size_kb)
+
     _proc_start = time.time()
+    _t = time.time()
     output_bytes = BytesIO()
     process_csv_to_template(
         csv_path=csv_bytes,
@@ -233,15 +254,24 @@ def process():
         data_mode=data_mode,
         plate_configs=plate_configs,
     )
+    logger.info("EXCEL    workbook built in %.1fs", time.time() - _t)
 
+    _t = time.time()
     extract_final_titres_xlwings(output_bytes)
 
     from nta_utils import add_default_to_final_titres
     add_default_to_final_titres(output_bytes)
+    logger.info("EXTRACT  final titres written in %.1fs", time.time() - _t)
 
     # ── Error flagging (if enabled in settings) ──
     if settings.get("error_flagging", False):
+        _t = time.time()
         flag_triplicate_errors(output_bytes, threshold_log2=settings.get("outlier_threshold_log2", 1.0))
+        from nta_utils import count_errors_from_workbook
+        _err_count, _ = count_errors_from_workbook(output_bytes.getvalue())
+        logger.info("FLAGS    error flagging complete in %.1fs (%d flagged)", time.time() - _t, _err_count)
+    else:
+        logger.info("FLAGS    disabled")
 
     with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp_excel:
         tmp_excel.write(output_bytes.getvalue())
@@ -268,6 +298,8 @@ def process():
     with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp_png:
         output_plot_path = tmp_png.name
 
+    logger.info("R SCRIPT starting process_data.R \u2026")
+    _t = time.time()
     subprocess.run(
         [
             "Rscript", r_script,
@@ -279,13 +311,7 @@ def process():
         ],
         check=True
     )
-
-    from openpyxl import load_workbook
-    from openpyxl.drawing.image import Image as XLImage
-    from PIL import Image as PILImage
-
-    wb_temp = load_workbook(excel_path)
-    wb_temp.save(excel_path)
+    logger.info("R SCRIPT complete in %.1fs", time.time() - _t)
 
     wb = load_workbook(excel_path)
 
@@ -294,6 +320,7 @@ def process():
     ws.add_image(img, "A1")
 
     plate_dir = os.path.dirname(output_plot_path)
+    _plates_embedded = 0
     for sheet_name in wb.sheetnames:
         if not sheet_name.startswith("Plate"):
             continue
@@ -306,6 +333,8 @@ def process():
             img_plate = XLImage(temp_png)
             img_plate.anchor = "B33"
             ws_plate.add_image(img_plate)
+            _plates_embedded += 1
+    logger.info("IMAGES   %d plate PNG(s) embedded", _plates_embedded)
 
     wb.save(excel_path)
 
@@ -322,8 +351,8 @@ def process():
     in_memory_files[file_id] = {"data": final_bytes.getvalue(), "name": filename, "summary_plot": summary_plot_bytes}
     session["file_id"] = file_id
 
-    # ── NEW: Redirect to Data Analysis instead of old results page ──
     _proc_elapsed = round(time.time() - _proc_start, 1)
+    logger.info("DONE     \u2713 %r ready \u00b7 total %.1fs", filename, _proc_elapsed)
     return render_template(
         "analysis_hub.html",
         excel_file_id=file_id,
@@ -380,6 +409,11 @@ def linear_summary_data(file_id):
 
     try:
         file_info = in_memory_files[file_id]
+
+        # Return cached result to avoid re-parsing the workbook on every page load
+        if "_summary_cache" in file_info:
+            return jsonify(file_info["_summary_cache"])
+
         file_bytes = file_info["data"]
         wb = load_workbook(BytesIO(file_bytes), data_only=True)
 
@@ -432,7 +466,7 @@ def linear_summary_data(file_id):
         # Count flagged errors (if Errors sheet exists)
         error_count, has_errors_sheet = count_errors_from_workbook(file_bytes)
 
-        return jsonify({
+        result = {
             "status": "success",
             "num_plates": num_plates,
             "num_pseudotypes": len(pseudotypes),
@@ -441,16 +475,187 @@ def linear_summary_data(file_id):
             "label_status": label_status,
             "error_count": error_count,
             "error_flagging_enabled": has_errors_sheet,
-        })
+        }
+        file_info["_summary_cache"] = result
+        return jsonify(result)
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)})
 
 
+def _compute_boxplot_data(file_bytes, threshold_pct):
+    """
+    Compute NT titres for box plot using the same formula as the Excel template.
+
+    For each replicate column (3 per quadrant) on each Plate sheet:
+      NSC     = luminescence at row 12 (no-serum control, index 7 in 0-based)
+      target  = NSC × (1 - threshold_pct/100)  e.g. NT50 → NSC × 0.5
+      P16     = last 0-based index (0–7) where lum ≤ target
+                (replicates Excel MATCH(target, col5:col12, 1) on ascending data)
+
+      Boundary conditions:
+        P16 is None  → lum never drops to target → NT ≤ A5  (lower boundary)
+        P16 = 6      → crossing involves NSC row  → NT ≥ A11 (upper boundary)
+        P16 in 0–5   → valid interpolation between two tested dilution points
+
+      NT (valid) = (target - lum[P16]) / (lum[P16+1] - lum[P16])
+                   × (dil[P16+1] - dil[P16]) + dil[P16]
+
+    Each entry stores both:
+      "nt"          — average of non-boundary replicates only (used when boundary toggle OFF)
+      "nt_boundary" — average substituting A5 for low-boundary and A11 for high-boundary
+                      replicates (used when boundary toggle ON)
+
+    Returns:
+      {
+        pseudotype: [
+          { sample, plate, nt, nt_boundary, has_boundary,
+            boundary_low, boundary_high, nsc, target,
+            rep_nts, rep_boundary_flags },
+          ...
+        ]
+      }
+    """
+    target_fraction = (100 - threshold_pct) / 100
+
+    wb = load_workbook(BytesIO(file_bytes), data_only=True)
+
+    quad_defs = [
+        {"pt_cell": "B3", "sid_cell": "B4", "cols": ["B", "C", "D"]},
+        {"pt_cell": "E3", "sid_cell": "E4", "cols": ["E", "F", "G"]},
+        {"pt_cell": "H3", "sid_cell": "H4", "cols": ["H", "I", "J"]},
+        {"pt_cell": "K3", "sid_cell": "K4", "cols": ["K", "L", "M"]},
+    ]
+
+    plate_sheets = sorted(
+        [s for s in wb.sheetnames if re.match(r"^Plate\d+$", s)],
+        key=lambda s: int(s[5:]),
+    )
+
+    grouped = {}
+
+    for sheet_name in plate_sheets:
+        ws = wb[sheet_name]
+
+        # Dilutions A5:A12 (8 values)
+        # Index 0 = A5 (lowest tested dilution)
+        # Index 6 = A11 (highest tested dilution)
+        # Index 7 = A12 (NSC slot — not a real dilution point)
+        dilutions = []
+        for row in range(5, 13):
+            val = ws[f"A{row}"].value
+            try:
+                dilutions.append(float(val))
+            except (ValueError, TypeError):
+                dilutions.append(None)
+
+        dil_low  = dilutions[0]  # A5  — lower boundary limit
+        dil_high = dilutions[6]  # A11 — upper boundary limit
+
+        for quad in quad_defs:
+            pt_val = ws[quad["pt_cell"]].value
+            if not pt_val or not str(pt_val).strip():
+                continue
+
+            pseudotype = str(pt_val).strip()
+            sid_val    = ws[quad["sid_cell"]].value
+            sample     = str(sid_val).strip() if sid_val and str(sid_val).strip() else "Unlabelled"
+
+            # rep_data: list of (nt_valid_or_None, boundary_flag)
+            # boundary_flag: None = valid, "low" = ≤A5, "high" = ≥A11
+            rep_data = []
+
+            for col in quad["cols"]:
+                lum = []
+                for row in range(5, 13):
+                    val = ws[f"{col}{row}"].value
+                    try:
+                        lum.append(float(val))
+                    except (ValueError, TypeError):
+                        lum.append(None)
+
+                nsc = lum[7]
+                if nsc is None or nsc <= 0:
+                    rep_data.append((None, None))
+                    continue
+
+                target = nsc * target_fraction
+
+                # Excel MATCH(target, lum, 1): binary search (assumes ascending)
+                lo, hi = 0, 6  # search lum[0:6] (rows 5-11, not NSC)
+                p16 = None
+                while lo <= hi:
+                    mid = (lo + hi) // 2
+                    if lum[mid] is not None and lum[mid] <= target:
+                        lo = mid + 1
+                    else:
+                        hi = mid - 1
+                if hi >= 0:
+                    p16 = hi
+
+                if p16 is None:
+                    # All lum[0:6] > target → NT ≤ lowest dilution
+                    rep_data.append((None, "low"))
+                else:
+                    # p16=6: uses (lum[6], lum[7]=NSC) / (dilutions[6], dilutions[7]=0)
+                    y1, y2 = lum[p16], lum[p16 + 1]
+                    x1, x2 = dilutions[p16], dilutions[p16 + 1]
+                    if None in (y1, y2, x1, x2) or y2 == y1:
+                        rep_data.append((None, None))
+                    else:
+                        nt_val = (target - y1) / (y2 - y1) * (x2 - x1) + x1
+                        rep_data.append((nt_val if nt_val > 0 else None, None))
+
+            # Average without boundary substitution
+            valid_nts = [nt for nt, b in rep_data if nt is not None and b is None]
+
+            # Average with boundary substitution (A5 for low, A11 for high)
+            boundary_nts = []
+            for nt, b in rep_data:
+                if b is None and nt is not None:
+                    boundary_nts.append(nt)
+                elif b == "low"  and dil_low  is not None:
+                    boundary_nts.append(dil_low)
+                elif b == "high" and dil_high is not None:
+                    boundary_nts.append(dil_high)
+
+            # Skip entries with no data at all
+            if not valid_nts and not boundary_nts:
+                continue
+
+            avg_nt          = round(sum(valid_nts)    / len(valid_nts),    1) if valid_nts    else None
+            avg_nt_boundary = round(sum(boundary_nts) / len(boundary_nts), 1) if boundary_nts else None
+
+            first_col = quad["cols"][0]
+            ref_nsc = None
+            try:
+                ref_nsc = float(ws[f"{first_col}12"].value)
+            except (ValueError, TypeError):
+                pass
+            ref_target = round(ref_nsc * target_fraction, 2) if ref_nsc else None
+
+            entry = {
+                "sample":             sample,
+                "plate":              sheet_name,
+                "nt":                 avg_nt,           # boundary-excluded average
+                "nt_boundary":        avg_nt_boundary,  # boundary-included average
+                "has_boundary":       any(b is not None for _, b in rep_data),
+                "boundary_low":       dil_low,
+                "boundary_high":      dil_high,
+                "nsc":                round(ref_nsc, 2) if ref_nsc else None,
+                "target":             ref_target,
+                "rep_nts":            [round(nt, 1) if nt is not None else None for nt, _ in rep_data],
+                "rep_boundary_flags": [b for _, b in rep_data],
+            }
+            grouped.setdefault(pseudotype, []).append(entry)
+
+    return grouped
+
+
 @app.route("/boxplot_data/<file_id>")
 def boxplot_data(file_id):
-    """JSON API: delegates NT linear interpolation to boxplot_nt50.R,
-    which averages 3 replicates per quadrant and returns 1 value per
-    sample×pseudotype, grouped by pseudotype for the boxplot.
+    """JSON API: computes NT titres using the same formula as the Excel template
+    (linear interpolation per replicate, averaged across triplicates),
+    grouped by pseudotype for the box plot.
 
     Query params:
         threshold: 50 (default) or 90
@@ -462,105 +667,74 @@ def boxplot_data(file_id):
     if threshold not in ("50", "90"):
         threshold = "50"
 
+    include_boundary = request.args.get("boundary", "false").lower() == "true"
+
     q_active = {
-        'Q1': request.args.get('q1', 'true').lower() != 'false',
-        'Q2': request.args.get('q2', 'true').lower() != 'false',
-        'Q3': request.args.get('q3', 'true').lower() != 'false',
-        'Q4': request.args.get('q4', 'true').lower() != 'false',
+        "Q1": request.args.get("q1", "true").lower() != "false",
+        "Q2": request.args.get("q2", "true").lower() != "false",
+        "Q3": request.args.get("q3", "true").lower() != "false",
+        "Q4": request.args.get("q4", "true").lower() != "false",
     }
 
     try:
         file_info = in_memory_files[file_id]
         file_bytes = file_info["data"]
 
-        # ── Cache hit: return stored R result without re-running R ──
+        # ── Cache hit (raw data — boundary filtering applied per-request) ──
         bp_cache = file_info.get("boxplot_cache", {})
         if threshold in bp_cache:
-            cached = bp_cache[threshold]
-            r_result = {
-                "status":      cached["status"],
-                "titre_label": cached.get("titre_label"),
-                "data":        dict(cached["data"]),  # copy — will be mutated by filter
-            }
-            if r_result["status"] == "success" and "data" in r_result:
-                q_pt_cells = {"Q1": "B3", "Q2": "E3", "Q3": "H3", "Q4": "K3"}
-                wb_f = load_workbook(BytesIO(file_bytes), data_only=True)
-                allowed = set()
-                for sheet in [s for s in wb_f.sheetnames if s.startswith("Plate")]:
-                    ws_f = wb_f[sheet]
-                    for q, cell in q_pt_cells.items():
-                        if q_active[q]:
-                            val = ws_f[cell].value
-                            if val and str(val).strip():
-                                allowed.add(str(val).strip())
-                if allowed:
-                    r_result["data"] = {k: v for k, v in r_result["data"].items() if k in allowed}
-            return jsonify(r_result)
-        # ── End cache hit ───────────────────────────────────────────
-
-        # Write Excel to a temp file so R can read it
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp_xl:
-            tmp_xl.write(file_bytes)
-            excel_path = tmp_xl.name
-
-        # Temp file for the JSON output from R
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".json") as tmp_json:
-            json_path = tmp_json.name
-
-        r_script = os.path.join(os.getcwd(), "boxplot_nt50.R")
-
-        result = subprocess.run(
-            ["Rscript", r_script, excel_path, json_path, threshold],
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
-
-        import json
-        with open(json_path, "r") as f:
-            r_result = json.load(f)
-
-        # Clean up temp files
-        os.remove(excel_path)
-        os.remove(json_path)
-
-        # ── Store unfiltered result in cache for future requests ──
-        if r_result.get("status") == "success":
+            logger.info("BOXPLOT  NT%s — cache hit", threshold)
+            raw_grouped = bp_cache[threshold]["data"]
+        else:
+            # ── Compute ──────────────────────────────────────────────
+            logger.info("BOXPLOT  NT%s — computing …", threshold)
+            _t = time.time()
+            raw_grouped = _compute_boxplot_data(file_bytes, int(threshold))
+            logger.info("BOXPLOT  NT%s — done in %.2fs", threshold, time.time() - _t)
             file_info.setdefault("boxplot_cache", {})[threshold] = {
-                "status":      r_result["status"],
-                "titre_label": r_result.get("titre_label"),
-                "data":        dict(r_result.get("data", {})),
+                "titre_label": f"NT{threshold}",
+                "data":        raw_grouped,
             }
-        # ─────────────────────────────────────────────────────────
 
-        # Filter pseudotypes to only those belonging to active quadrants
-        if r_result.get('status') == 'success' and 'data' in r_result:
-            q_pt_cells = {'Q1': 'B3', 'Q2': 'E3', 'Q3': 'H3', 'Q4': 'K3'}
-            wb_f = load_workbook(BytesIO(file_bytes), data_only=True)
-            allowed = set()
-            for sheet in [s for s in wb_f.sheetnames if s.startswith("Plate")]:
-                ws = wb_f[sheet]
-                for q, cell in q_pt_cells.items():
-                    if q_active[q]:
-                        val = ws[cell].value
-                        if val and str(val).strip():
-                            allowed.add(str(val).strip())
-            if allowed:
-                r_result['data'] = {k: v for k, v in r_result['data'].items() if k in allowed}
+        # ── Apply boundary mode: pick which NT value to use ──────────
+        # Build a fresh view — never mutate the cached dicts
+        nt_key = "nt_boundary" if include_boundary else "nt"
+        filtered = {}
+        for pt, entries in raw_grouped.items():
+            kept = []
+            for e in entries:
+                nt = e.get(nt_key)
+                if nt is None:
+                    continue
+                view = dict(e)
+                view["nt"] = nt          # normalise: frontend always reads "nt"
+                view["include_boundary"] = include_boundary
+                kept.append(view)
+            if kept:
+                filtered[pt] = kept
 
-        return jsonify(r_result)
+        # ── Filter to active quadrants ───────────────────────────────
+        q_pt_cells = {"Q1": "B3", "Q2": "E3", "Q3": "H3", "Q4": "K3"}
+        wb_f = load_workbook(BytesIO(file_bytes), data_only=True)
+        allowed = set()
+        for sheet in [s for s in wb_f.sheetnames if re.match(r"^Plate\d+$", s)]:
+            ws_f = wb_f[sheet]
+            for q, cell in q_pt_cells.items():
+                if q_active[q]:
+                    val = ws_f[cell].value
+                    if val and str(val).strip():
+                        allowed.add(str(val).strip())
+        if allowed:
+            filtered = {k: v for k, v in filtered.items() if k in allowed}
 
-    except subprocess.CalledProcessError as e:
-        # Clean up on error
-        for p in [excel_path, json_path]:
-            if os.path.exists(p):
-                os.remove(p)
         return jsonify({
-            "status": "error",
-            "message": f"R script failed: {e.stderr or e.stdout or str(e)}"
+            "status":      "success",
+            "titre_label": f"NT{threshold}",
+            "data":        filtered,
         })
+
     except Exception as e:
+        logger.exception("BOXPLOT  error")
         return jsonify({"status": "error", "message": str(e)})
 
 
@@ -980,6 +1154,7 @@ def _run_fitting(file_id, include_lod_override=None):
         include_lod = "TRUE" if lod_bool else "FALSE"
 
         _proc_start = time.time()
+        logger.info("FITTING  starting fit_sigmoids.R \u2026")
         subprocess.run(
             ["Rscript", r_script, sigmoid_csv_path, output_dir, assay_title, timestamp, r2_threshold, include_lod],
             check=True,
@@ -987,6 +1162,7 @@ def _run_fitting(file_id, include_lod_override=None):
             stderr=subprocess.PIPE,
             text=True,
         )
+        logger.info("FITTING  R complete in %.1fs", time.time() - _proc_start)
 
         if assay_title and timestamp:
             ic50_filename = f"IC50s_{assay_title}_{timestamp}.csv"
@@ -1267,6 +1443,7 @@ def _run_comparison(excel_file_id, fitting_id):
         disagreement_threshold = str(cmp_settings.get("comparison_disagreement_threshold", 1.0))
 
         _proc_start = time.time()
+        logger.info("COMPARE  starting compare_titres.R \u2026")
         result = subprocess.run(
             ["Rscript", r_script, excel_path, ic50_path, output_dir, disagreement_threshold],
             check=True,
@@ -1275,9 +1452,10 @@ def _run_comparison(excel_file_id, fitting_id):
             text=True,
             timeout=180,
         )
+        logger.info("COMPARE  R complete in %.1fs", time.time() - _proc_start)
 
         if result.stderr:
-            print(f"[compare_titres.R stderr]:\n{result.stderr}", flush=True)
+            logger.warning("compare_titres.R stderr:\n%s", result.stderr.strip())
 
         # Collect output files
         output_files = {}
@@ -1358,11 +1536,11 @@ def _run_comparison(excel_file_id, fitting_id):
         flash("Comparison timed out (>3 min). Check your terminal for R output.", "danger")
         return redirect(url_for("analysis_hub", file_id=excel_file_id))
     except subprocess.CalledProcessError as e:
-        print(f"[compare_titres.R FAILED]\nSTDOUT: {e.stdout}\nSTDERR: {e.stderr}", flush=True)
+        logger.error("compare_titres.R FAILED\nSTDOUT: %s\nSTDERR: %s", e.stdout, e.stderr)
         flash(f"R script failed — see terminal for details. Error: {(e.stderr or e.stdout or '').strip()[:300]}", "danger")
         return redirect(url_for("analysis_hub", file_id=excel_file_id))
     except Exception as e:
-        print(f"[_run_comparison Exception]: {e}", flush=True)
+        logger.exception("_run_comparison exception: %s", e)
         flash(f"Comparison error: {str(e)}", "danger")
         return redirect(url_for("analysis_hub", file_id=excel_file_id))
 
@@ -1609,6 +1787,482 @@ def pm_api_delete_preset(name):
     if pm_delete_preset(name):
         return jsonify({"message": f'Preset "{name}" deleted.'})
     return jsonify({"error": "Preset not found"}), 404
+
+
+# ════════════════════════════════════════════════════════════════
+# ELISA PROCESSOR
+# ════════════════════════════════════════════════════════════════
+
+_ELISA_BASE_FONT = Font(name='Aptos Narrow', size=12)
+_ELISA_BOLD_FONT = Font(name='Aptos Narrow', size=12, bold=True)
+_ELISA_THIN   = Side(border_style='thin')
+_ELISA_MEDIUM = Side(border_style='medium')
+_ELISA_NONE   = Side(border_style=None)
+_ELISA_CENTER  = Alignment(horizontal='center', vertical='center')
+_ELISA_LEFT    = Alignment(horizontal='left',   vertical='center')
+_ELISA_VCENTER = Alignment(vertical='center')
+
+
+def _elisa_border(left=False, right=False, top=False, bottom=False,
+                  med_right=False, med_bottom=False):
+    return Border(
+        left   = _ELISA_THIN   if left        else _ELISA_NONE,
+        right  = _ELISA_MEDIUM if med_right   else (_ELISA_THIN if right  else _ELISA_NONE),
+        top    = _ELISA_THIN   if top         else _ELISA_NONE,
+        bottom = _ELISA_MEDIUM if med_bottom  else (_ELISA_THIN if bottom else _ELISA_NONE),
+    )
+
+
+def _elisa_set(ws, row, col, value=None, font=None, align=None, border=None, fmt=None):
+    c = ws.cell(row=row, column=col)
+    c.value     = value
+    c.font      = font or _ELISA_BASE_FONT
+    c.alignment = align if align is not None else _ELISA_VCENTER
+    if border is not None: c.border       = border
+    if fmt    is not None: c.number_format = fmt
+    return c
+
+
+_ELISA_ROW_LBLS_LOWER = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
+_ELISA_ROW_LBLS_UPPER = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
+
+
+def _elisa_populate_sheet(ws, n_proteins, protein_names, date_str, sample_grid,
+                           protein_grids, sera_dilution='1 IN 400', notes=''):
+    _elisa_set(ws, 1, 1, 'Date')
+    _elisa_set(ws, 1, 2, date_str)
+    _elisa_set(ws, 1, 3, 'ELISA')
+    sera_text = f'SERA DILUTED {sera_dilution.strip()}' if sera_dilution else 'SERA DILUTED'
+    _elisa_set(ws, 1, 4, sera_text, align=_ELISA_LEFT)
+    ws.merge_cells('D1:M1')
+
+    _elisa_set(ws, 2, 1, 'Enter your sample names here (duplicate)')
+
+    c = ws.cell(row=3, column=1)
+    c.font   = _ELISA_BASE_FONT
+    c.border = _elisa_border(left=True, top=True)
+
+    for ci in range(12):
+        col     = 2 + ci
+        is_last = ci == 11
+        _elisa_set(ws, 3, col, ci + 1, align=_ELISA_CENTER,
+                   border=_elisa_border(right=is_last, top=True))
+
+    for ri, lbl in enumerate(_ELISA_ROW_LBLS_LOWER):
+        row     = 4 + ri
+        is_last = ri == 7
+        _elisa_set(ws, row, 1, lbl, border=_elisa_border(left=True, bottom=is_last))
+
+    for ri in range(8):
+        for ci in range(12):
+            row      = 4 + ri
+            col      = 2 + ci
+            v        = sample_grid[ri][ci]
+            last_row = ri == 7
+            last_col = ci == 11
+            c = ws.cell(row=row, column=col, value=v if v else None)
+            c.font      = _ELISA_BASE_FONT
+            c.alignment = _ELISA_CENTER
+            if last_row or last_col:
+                c.border = _elisa_border(med_right=last_col, med_bottom=last_row)
+
+    plate_base = 15
+    for k in range(n_proteins):
+        lbl_row    = plate_base + k * 12
+        hdr_row    = lbl_row + 1
+        data_start = lbl_row + 2
+
+        _elisa_set(ws, lbl_row, 1, protein_names[k])
+
+        c = ws.cell(row=hdr_row, column=1)
+        c.font   = _ELISA_BASE_FONT
+        c.border = _elisa_border(left=True, top=True)
+        for ci in range(12):
+            col     = 2 + ci
+            is_last = ci == 11
+            _elisa_set(ws, hdr_row, col, ci + 1, align=_ELISA_CENTER,
+                       border=_elisa_border(right=is_last, top=True))
+
+        for ri, lbl in enumerate(_ELISA_ROW_LBLS_UPPER):
+            row     = data_start + ri
+            is_last = ri == 7
+            _elisa_set(ws, row, 1, lbl, border=_elisa_border(left=True, bottom=is_last))
+
+        for ri in range(8):
+            for ci in range(12):
+                row = data_start + ri
+                col = 2 + ci
+                v   = protein_grids[k][ri][ci]
+                if v not in (None, ''):
+                    try:
+                        v = float(v)
+                    except (TypeError, ValueError):
+                        pass
+                else:
+                    v = None
+                c = ws.cell(row=row, column=col, value=v)
+                c.font          = _ELISA_BASE_FONT
+                c.alignment     = _ELISA_CENTER
+                c.number_format = '0.0000'
+
+    _elisa_set(ws, 2, 16, 'SampleID', font=_ELISA_BOLD_FONT, align=_ELISA_CENTER)
+    for k in range(n_proteins):
+        prot_lbl_row = plate_base + k * 12
+        _elisa_set(ws, 2, 17 + k, f'=A{prot_lbl_row}', font=_ELISA_BOLD_FONT, align=_ELISA_CENTER)
+
+    out_row = 3
+    for plate_col in range(12):
+        col_ltr = get_column_letter(2 + plate_col)
+        for sample_row in range(8):
+            src = 4 + sample_row
+            c   = ws.cell(row=out_row, column=16, value=f'={col_ltr}{src}')
+            c.font      = _ELISA_BASE_FONT
+            c.alignment = _ELISA_CENTER
+            out_row += 1
+
+    for k in range(n_proteins):
+        ds         = plate_base + k * 12 + 2
+        target_col = 17 + k
+        out_row    = 3
+        for plate_col in range(12):
+            col_ltr = get_column_letter(2 + plate_col)
+            for sample_row in range(8):
+                src = ds + sample_row
+                c   = ws.cell(row=out_row, column=target_col,
+                              value=f'={col_ltr}{src}')
+                c.font          = _ELISA_BASE_FONT
+                c.alignment     = _ELISA_CENTER
+                c.number_format = '0.0000'
+                out_row += 1
+
+    STAT_HDRS = ['Pmean', 'Pstdv', 'Nmean', 'Nstdv', 'Pcv', 'Ncv']
+    for k in range(n_proteins):
+        hdr_row = 3 + k * 3
+        f_row   = hdr_row + 1
+        ds      = plate_base + k * 12 + 2
+        pn      = protein_names[k]
+        pa      = ds
+
+        for i, suffix in enumerate(STAT_HDRS):
+            col = 22 + i
+            _elisa_set(ws, hdr_row, col, f'{pn}_{suffix}',
+                       border=_elisa_border(left=(i == 0), right=(i == 5), top=True))
+
+        formulas = [
+            f'=AVERAGE(B{pa}:B{pa+1})',
+            f'=STDEV(B{pa}:B{pa+1})',
+            f'=AVERAGE(B{pa+2}:B{pa+3})',
+            f'=STDEV(B{pa+2}:B{pa+3})',
+            f'=((W{f_row}/V{f_row})*100)',
+            f'=((Y{f_row}/X{f_row})*100)',
+        ]
+        for i, formula in enumerate(formulas):
+            col = 22 + i
+            _elisa_set(ws, f_row, col, formula,
+                       border=_elisa_border(left=(i == 0), right=(i == 5), bottom=True))
+
+    _YES_FILL = PatternFill(start_color='C8F5DA', end_color='C8F5DA', fill_type='solid')
+    _NO_FILL  = PatternFill(start_color='FCD5D5', end_color='FCD5D5', fill_type='solid')
+    _WRAP_L   = Alignment(horizontal='left', vertical='center', wrap_text=True)
+
+    for k in range(n_proteins):
+        lbl_row   = 17 + k * 8
+        pos_start = lbl_row + 1
+        pos_end   = lbl_row + 3
+        neg_start = lbl_row + 4
+        neg_end   = lbl_row + 6
+        f_row     = 4 + k * 3
+        pn        = protein_names[k]
+
+        ws.merge_cells(start_row=lbl_row, start_column=22,
+                       end_row=lbl_row,   end_column=23)
+        c = ws.cell(row=lbl_row, column=22)
+        c.value, c.font, c.alignment = f'{pn} Plate validation', _ELISA_BOLD_FONT, _ELISA_CENTER
+        c.border = _elisa_border(left=True, top=True)
+        ws.cell(row=lbl_row, column=23).border = _elisa_border(right=True, top=True)
+
+        ws.merge_cells(start_row=pos_start, start_column=22,
+                       end_row=pos_end,     end_column=22)
+        ws.merge_cells(start_row=pos_start, start_column=23,
+                       end_row=pos_end,     end_column=23)
+        c22 = ws.cell(row=pos_start, column=22)
+        c22.value, c22.font, c22.alignment = 'Positive control duplicates CV < 15%', _ELISA_BASE_FONT, _WRAP_L
+        c23 = ws.cell(row=pos_start, column=23)
+        c23.value, c23.font, c23.alignment = f'=IF(Z{f_row}<=15,"Yes!","No!")', _ELISA_BASE_FONT, _ELISA_CENTER
+        for r in range(pos_start, pos_end + 1):
+            ws.cell(row=r, column=22).border = _elisa_border(left=True)
+            ws.cell(row=r, column=23).border = _elisa_border(right=True)
+
+        ws.merge_cells(start_row=neg_start, start_column=22,
+                       end_row=neg_end,     end_column=22)
+        ws.merge_cells(start_row=neg_start, start_column=23,
+                       end_row=neg_end,     end_column=23)
+        c22 = ws.cell(row=neg_start, column=22)
+        c22.value, c22.font, c22.alignment = 'Negative control duplicate CV < 15%', _ELISA_BASE_FONT, _WRAP_L
+        c23 = ws.cell(row=neg_start, column=23)
+        c23.value, c23.font, c23.alignment = f'=IF(AA{f_row}<=15,"Yes!","No!")', _ELISA_BASE_FONT, _ELISA_CENTER
+        for r in range(neg_start, neg_end + 1):
+            is_last = r == neg_end
+            ws.cell(row=r, column=22).border = _elisa_border(left=True,  bottom=is_last)
+            ws.cell(row=r, column=23).border = _elisa_border(right=True, bottom=is_last)
+
+        for rng in [f'W{pos_start}:W{pos_end}', f'W{neg_start}:W{neg_end}']:
+            ws.conditional_formatting.add(
+                rng, CellIsRule(operator='equal', formula=['"Yes!"'], fill=_YES_FILL))
+            ws.conditional_formatting.add(
+                rng, CellIsRule(operator='equal', formula=['"No!"'],  fill=_NO_FILL))
+
+    ws.merge_cells('Y35:AA35')
+    c = ws.cell(row=35, column=25)
+    c.value, c.font, c.alignment = 'Notes', _ELISA_BOLD_FONT, _ELISA_CENTER
+    c.border = _elisa_border(left=True, top=True, bottom=True)
+    ws.cell(row=35, column=26).font   = _ELISA_BASE_FONT
+    ws.cell(row=35, column=26).border = _elisa_border(top=True, bottom=True)
+    ws.cell(row=35, column=26).alignment = _ELISA_VCENTER
+    ws.cell(row=35, column=27).font   = _ELISA_BASE_FONT
+    ws.cell(row=35, column=27).border = _elisa_border(right=True, top=True, bottom=True)
+    ws.cell(row=35, column=27).alignment = _ELISA_VCENTER
+
+    _NOTES_ALIGN = Alignment(horizontal='left', vertical='top', wrap_text=True)
+    ws.merge_cells('Y36:AA40')
+    ws.cell(row=36, column=25).value     = notes if notes else None
+    ws.cell(row=36, column=25).alignment = _NOTES_ALIGN
+    for row in range(36, 41):
+        for col in [25, 26, 27]:
+            first_col = col == 25
+            last_col  = col == 27
+            first_row = row == 36
+            last_row  = row == 40
+            c        = ws.cell(row=row, column=col)
+            c.font   = _ELISA_BASE_FONT
+            c.border = _elisa_border(left=first_col, right=last_col,
+                                     top=first_row, bottom=last_row)
+            if not first_row or not first_col:
+                c.alignment = _ELISA_VCENTER
+
+    ws.merge_cells(start_row=2, start_column=30, end_row=2, end_column=32)
+    ws.cell(row=2, column=30).value     = 'AVERAGES'
+    ws.cell(row=2, column=30).font      = _ELISA_BOLD_FONT
+    ws.cell(row=2, column=30).alignment = _ELISA_CENTER
+
+    _elisa_set(ws, 3, 30, '=P2', font=_ELISA_BOLD_FONT, align=_ELISA_CENTER)
+    for k in range(n_proteins):
+        _elisa_set(ws, 3, 31 + k, f'={get_column_letter(17 + k)}2', font=_ELISA_BOLD_FONT)
+
+    for plate_col in range(12):
+        for pair_idx in range(4):
+            p_row   = 3 + plate_col * 8 + pair_idx * 2
+            avg_row = 4 + plate_col * 4 + pair_idx
+            _elisa_set(ws, avg_row, 30, f'=P{p_row}')
+            for k in range(n_proteins):
+                src = get_column_letter(17 + k)
+                c   = ws.cell(row=avg_row, column=31 + k,
+                              value=f'=AVERAGE({src}{p_row}:{src}{p_row + 1})')
+                c.font          = _ELISA_BASE_FONT
+                c.alignment     = _ELISA_CENTER
+                c.number_format = '0.00'
+
+    if n_proteins >= 2:
+        chart_anchor_col = 31 + n_proteins + 1
+        anchor_letter    = get_column_letter(chart_anchor_col)
+        for i, (a, b) in enumerate(combinations(range(n_proteins), 2)):
+            chart = ScatterChart()
+            chart.title          = f'{protein_names[a]} vs {protein_names[b]}'
+            chart.style          = 13
+            chart.x_axis.title   = f'{protein_names[a]} (mean absorbance)'
+            chart.y_axis.title   = f'{protein_names[b]} (mean absorbance)'
+            chart.legend         = None
+
+            xvalues = Reference(ws, min_col=31 + a, min_row=4, max_row=51)
+            yvalues = Reference(ws, min_col=31 + b, min_row=4, max_row=51)
+            series  = Series(yvalues, xvalues, title=chart.title)
+            series.marker               = Marker(symbol='circle', size=6)
+            series.graphicalProperties  = GraphicalProperties(noFill=True)
+            series.graphicalProperties.line = LineProperties(noFill=True)
+            chart.series.append(series)
+            chart.width  = 15
+            chart.height = 10
+            ws.add_chart(chart, f'{anchor_letter}{3 + i * 22}')
+
+    def _green_white_rule():
+        return ColorScaleRule(
+            start_type='min', start_color='FFFFFF',
+            end_type='max',   end_color='63BE7B',
+        )
+
+    for k in range(n_proteins):
+        ds  = plate_base + k * 12 + 2
+        rng = f'B{ds}:M{ds + 7}'
+        ws.conditional_formatting.add(rng, _green_white_rule())
+
+    for k in range(n_proteins):
+        col_ltr = get_column_letter(17 + k)
+        ws.conditional_formatting.add(f'{col_ltr}3:{col_ltr}98', _green_white_rule())
+
+    for k in range(n_proteins):
+        col_ltr = get_column_letter(31 + k)
+        ws.conditional_formatting.add(f'{col_ltr}4:{col_ltr}51', _green_white_rule())
+
+    ws.column_dimensions['A'].width = 8.83
+    for c in range(2, 14):
+        ws.column_dimensions[get_column_letter(c)].width = 17.5
+    ws.column_dimensions['N'].width  = 8.83
+    ws.column_dimensions['P'].width  = 18.67
+    ws.column_dimensions['Q'].width  = 12.33
+    ws.column_dimensions['R'].width  = 8.83
+    ws.column_dimensions['S'].width  = 8.83
+    ws.column_dimensions['T'].width  = 8.83
+    ws.column_dimensions['U'].width  = 18.5
+    ws.column_dimensions['V'].width  = 14.16
+    ws.column_dimensions['W'].width  = 17.16
+    ws.column_dimensions['X'].width  = 18.16
+    ws.column_dimensions['Y'].width  = 16.67
+    ws.column_dimensions['Z'].width  = 17.83
+    ws.column_dimensions['AA'].width = 8.83
+    for c in range(30, 30 + 1 + n_proteins):
+        ws.column_dimensions[get_column_letter(c)].width = 14
+
+
+def _elisa_build_workbook(n_proteins, n_plates, protein_names, date_str,
+                           plates_data, sera_dilution='1 IN 400'):
+    wb = Workbook()
+    for plate_idx in range(n_plates):
+        if plate_idx == 0:
+            ws = wb.active
+            ws.title = f'Plate {plate_idx + 1}'
+        else:
+            ws = wb.create_sheet(f'Plate {plate_idx + 1}')
+
+        plate   = plates_data[plate_idx] if plate_idx < len(plates_data) else {}
+        sg      = plate.get('sampleGrid') or [[''] * 12 for _ in range(8)]
+        pgs     = list(plate.get('proteinGrids') or [])[:n_proteins]
+        while len(pgs) < n_proteins:
+            pgs.append([[''] * 12 for _ in range(8)])
+        notes_p = plate.get('notes', '') or ''
+
+        _elisa_populate_sheet(ws, n_proteins, protein_names, date_str, sg, pgs,
+                              sera_dilution=sera_dilution, notes=notes_p)
+    return wb
+
+
+def _elisa_run_generate(data):
+    n_proteins = max(1, min(4, int(data.get('nProteins', 4))))
+    n_plates   = max(1, int(data.get('nPlates', 1)))
+
+    protein_names = list(data.get('proteinNames') or [])[:n_proteins]
+    while len(protein_names) < n_proteins:
+        protein_names.append(f'Protein {len(protein_names) + 1}')
+
+    date_str      = data.get('date', '') or ''
+    sera_dilution = data.get('seraDilution', '1 IN 400') or '1 IN 400'
+
+    plates_data = list(data.get('plates') or [])
+    while len(plates_data) < n_plates:
+        plates_data.append({
+            'sampleGrid':   [[''] * 12 for _ in range(8)],
+            'proteinGrids': [[[''] * 12 for _ in range(8)] for _ in range(n_proteins)],
+            'notes':        ''
+        })
+    plates_data = plates_data[:n_plates]
+    title = data.get('title', '') or ''
+
+    return _elisa_build_workbook(n_proteins, n_plates, protein_names, date_str,
+                                  plates_data, sera_dilution=sera_dilution), date_str, title
+
+
+@app.route('/elisa')
+def elisa_index():
+    return render_template('elisa.html')
+
+
+@app.route('/elisa/generate', methods=['POST'])
+def elisa_generate():
+    try:
+        data = request.get_json(force=True)
+        wb, date_str, title = _elisa_run_generate(data)
+        buf = BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        safe_date  = date_str.replace('/', '-').replace(' ', '_') or 'untitled'
+        safe_title = ''.join(c for c in title if c.isalnum() or c in ' _-').strip().replace(' ', '_')
+        base       = safe_title if safe_title else 'ELISA_results'
+        return send_file(
+            buf,
+            as_attachment=True,
+            download_name=f'{base}_{safe_date}.xlsx',
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/elisa/preview', methods=['POST'])
+def elisa_preview():
+    _PREVIEW_SAMPLE = [
+        ['Kiovig',   'AVP-0003','AVP-0007','AVP-0011','AVP-0015','AVP-0019','AVP-0023','AVP-0027','AVP-0031','AVP-0035','AVP-0039','AVP-0043'],
+        ['Kiovig',   'AVP-0003','AVP-0007','AVP-0011','AVP-0015','AVP-0019','AVP-0023','AVP-0027','AVP-0031','AVP-0035','AVP-0039','AVP-0043'],
+        ['NSC',      'AVP-0004','AVP-0008','AVP-0012','AVP-0016','AVP-0020','AVP-0024','AVP-0028','AVP-0032','AVP-0036','AVP-0040','AVP-0044'],
+        ['NSC',      'AVP-0004','AVP-0008','AVP-0012','AVP-0016','AVP-0020','AVP-0024','AVP-0028','AVP-0032','AVP-0036','AVP-0040','AVP-0044'],
+        ['AVP-0001', 'AVP-0005','AVP-0009','AVP-0013','AVP-0017','AVP-0021','AVP-0025','AVP-0029','AVP-0033','AVP-0037','AVP-0041','AVP-0045'],
+        ['AVP-0001', 'AVP-0005','AVP-0009','AVP-0013','AVP-0017','AVP-0021','AVP-0025','AVP-0029','AVP-0033','AVP-0037','AVP-0041','AVP-0045'],
+        ['AVP-0002', 'AVP-0006','AVP-0010','AVP-0014','AVP-0018','AVP-0022','AVP-0026','AVP-0030','AVP-0034','AVP-0038','AVP-0042','AVP-0046'],
+        ['AVP-0002', 'AVP-0006','AVP-0010','AVP-0014','AVP-0018','AVP-0022','AVP-0026','AVP-0030','AVP-0034','AVP-0038','AVP-0042','AVP-0046'],
+    ]
+    _PREVIEW_PROT1 = [
+        [0.0446,0.7930,0.5243,1.0941,0.3528,0.1453,0.3061,0.2359,0.4177,1.7196,0.7080,0.9184],
+        [0.0456,0.9159,1.2170,1.1803,0.2652,0.1088,0.3788,0.1819,0.1437,0.3307,0.1275,0.4220],
+        [0.0426,0.2927,0.3134,1.0127,0.6571,0.4860,0.3205,0.2492,0.2187,0.2041,0.4240,0.8170],
+        [0.0460,0.3296,0.5417,1.9179,0.1457,0.6373,0.2740,0.1581,0.1960,0.1155,1.9015,0.4219],
+        [0.4569,0.4267,0.5486,0.2707,0.1640,0.3107,0.3702,0.6452,0.9274,0.6711,0.3325,0.4030],
+        [0.6928,0.6168,0.7851,0.5040,0.2369,0.4224,0.2781,0.2343,0.4753,0.4608,0.0457,0.2329],
+        [0.7838,0.5156,2.1424,0.4240,0.8384,0.5607,0.4848,0.6179,0.2986,0.3393,0.2703,0.3647],
+        [0.7682,0.7724,1.9328,0.2569,0.5608,0.5392,0.4199,0.3748,0.3078,0.4225,0.1853,0.2920],
+    ]
+    _PREVIEW_PROT2 = [
+        [0.0449,1.0723,0.2499,0.1876,0.3006,0.1083,0.1125,0.1763,0.7565,0.1689,0.1834,0.2501],
+        [0.0478,0.8030,0.2277,0.1731,0.2020,0.1356,0.2038,0.1844,0.3543,0.4026,0.1123,0.1169],
+        [0.0448,0.2358,0.0965,0.2486,0.5252,0.1748,0.1007,0.2368,0.1676,0.1647,0.2897,0.9734],
+        [0.0416,0.1823,0.1362,0.2406,0.1730,0.4690,0.1115,0.1049,0.1448,0.0731,1.1477,0.5009],
+        [0.5148,0.2009,0.1027,0.1283,0.1236,0.1448,0.2274,0.2397,0.2871,0.2899,0.1721,0.2493],
+        [0.5481,0.3237,0.0960,0.1200,0.0985,0.1458,0.1033,0.1344,0.1695,0.2797,0.0906,0.1265],
+        [0.2738,0.6288,0.8501,0.1307,0.3452,0.1773,0.2324,0.1795,0.2856,0.5638,1.0651,0.3676],
+        [0.2967,0.5518,1.3134,0.1427,0.2334,0.0876,0.1120,0.1279,0.2175,0.4896,0.1997,0.1785],
+    ]
+    _PREVIEW_PROT3 = [
+        [0.0454,0.9775,0.9820,0.6197,0.4558,0.1757,0.2937,0.2065,0.2814,1.9233,0.9583,0.5525],
+        [0.0473,1.0011,1.1122,0.3542,0.3131,0.2133,0.3345,0.1753,0.1665,0.4205,0.1922,0.4157],
+        [0.0456,0.1673,0.9975,0.3380,0.7276,0.6222,0.2707,0.2433,0.3046,0.5361,0.7468,0.5336],
+        [0.0472,0.1427,1.0385,0.3711,0.2572,0.8755,0.1648,0.1663,0.2339,0.0925,0.4129,0.2646],
+        [0.5304,0.3151,0.5987,0.1605,0.2135,0.2375,0.6073,0.2831,1.1596,0.8248,0.5017,0.3201],
+        [0.6298,0.3429,0.4897,0.1514,0.1690,0.2736,0.2881,0.1539,0.5136,0.5700,0.0448,0.1963],
+        [0.1439,0.4296,2.5722,0.1251,0.3994,0.4783,0.0796,0.9855,0.2624,1.3059,0.6046,0.3306],
+        [0.1637,0.5393,2.9379,0.1031,0.2104,0.2238,0.0598,0.6423,0.2201,0.6970,0.1377,0.1834],
+    ]
+    try:
+        data = request.get_json(force=True)
+        data['nProteins'] = 3
+        data['nPlates']   = 1
+        pnames = list(data.get('proteinNames') or [])
+        while len(pnames) < 3:
+            pnames.append(f'Protein {len(pnames) + 1}')
+        data['proteinNames'] = pnames[:3]
+        data['plates'] = [{
+            'sampleGrid':   _PREVIEW_SAMPLE,
+            'proteinGrids': [_PREVIEW_PROT1, _PREVIEW_PROT2, _PREVIEW_PROT3],
+            'notes':        data.get('notes', ''),
+        }]
+        wb, date_str, _ = _elisa_run_generate(data)
+        buf = BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        return send_file(
+            buf,
+            as_attachment=True,
+            download_name='ELISA_format_preview.xlsx',
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 if __name__ == '__main__':

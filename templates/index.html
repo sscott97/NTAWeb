@@ -427,12 +427,12 @@
         if (nBlocks > 1) {
           navEl.style.display = 'flex';
           navLabel.textContent = `${currentPlateIndex + 1} / ${nBlocks}`;
-          prevBtn.disabled = currentPlateIndex === 0;
-          prevBtn.style.opacity = currentPlateIndex === 0 ? '0.35' : '1';
-          prevBtn.style.cursor  = currentPlateIndex === 0 ? 'default' : 'pointer';
-          nextBtn.disabled = currentPlateIndex === nBlocks - 1;
-          nextBtn.style.opacity = currentPlateIndex === nBlocks - 1 ? '0.35' : '1';
-          nextBtn.style.cursor  = currentPlateIndex === nBlocks - 1 ? 'default' : 'pointer';
+          prevBtn.disabled = false;
+          prevBtn.style.opacity = '1';
+          prevBtn.style.cursor  = 'pointer';
+          nextBtn.disabled = false;
+          nextBtn.style.opacity = '1';
+          nextBtn.style.cursor  = 'pointer';
         } else {
           navEl.style.display = 'none';
         }
@@ -545,9 +545,8 @@
     window.resetPlateIndex = function() { currentPlateIndex = 0; };
     window.changePlate = function(dir) {
       const n = (window.csvBlocks && window.csvBlocks.length) || 0;
-      const next = currentPlateIndex + dir;
-      if (next < 0 || next >= n) return;
-      currentPlateIndex = next;
+      if (n === 0) return;
+      currentPlateIndex = ((currentPlateIndex + dir) % n + n) % n;
       renderPreview();
     };
 
@@ -557,72 +556,135 @@
   <hr class="my-4">
 
   <!-- CURRENT CONFIGURATION CARD -->
-  <div class="card">
-    <div class="card-header d-flex align-items-center justify-content-between" style="padding: 0.6rem 1rem;">
-      <div class="d-flex align-items-center gap-2">
-        <span style="font-size: 0.9rem; font-weight: 600;">Current Configuration</span>
-      </div>
-      <a href="{{ url_for('settings') }}" class="btn btn-sm btn-outline-success" style="font-size: 0.78rem; padding: 0.2rem 0.6rem;">Edit Settings</a>
+  <div class="card" style="overflow: hidden;">
+    <div class="card-header d-flex align-items-center justify-content-between" style="padding: 0.5rem 1rem; border-bottom: 1px solid var(--border, #dee2e6);">
+      <span style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-dim, #888);">Current Configuration</span>
+      <a href="{{ url_for('settings') }}" class="btn btn-sm btn-outline-success" style="font-size: 0.72rem; padding: 0.15rem 0.55rem;">Edit Settings</a>
     </div>
-    <div class="card-body" style="padding: 0.85rem 1rem; display: flex; flex-direction: column; gap: 0.75rem;">
 
-      <!-- Row 1: Template + dilutions -->
-      <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
-        <span style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim, #888); font-weight: 600; flex-shrink: 0;">Template</span>
-        <span style="font-size: 0.88rem; font-weight: 600; color: var(--text-primary, #333); flex-shrink: 0;">
-          {{ settings.template_path.split('/')[-1] if settings.template_path else 'None selected' }}
-        </span>
-        <span style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim, #888); font-weight: 600; flex-shrink: 0; padding-left: 0.5rem; border-left: 1px solid var(--border, #dee2e6);">Dilutions</span>
-        <div id="dilutionSeriesDisplay" style="display: inline-flex; gap: 0.3rem; flex-wrap: wrap; align-items: center;">
-          <span style="font-size: 0.82rem; color: var(--text-dim, #888);">Loading…</span>
+    <div class="card-body" style="padding: 0;">
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; min-width: 0;">
+
+        <!-- ── Col 1: Template & Setup ── -->
+        <div style="padding: 0.85rem 1.1rem; border-right: 1px solid var(--border, #dee2e6);">
+          <div style="font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.55px; color: var(--text-dim, #999); margin-bottom: 0.65rem;">Template &amp; Setup</div>
+
+          <!-- Template filename -->
+          <div style="margin-bottom: 0.5rem;">
+            <div style="font-size: 0.68rem; color: var(--text-dim, #999); margin-bottom: 0.1rem;">Active template</div>
+            <div style="font-size: 0.84rem; font-weight: 600; color: var(--text-primary, #333); word-break: break-word;">
+              {{ settings.template_path.split('/')[-1] if settings.template_path else 'None selected' }}
+            </div>
+          </div>
+
+          <!-- Mode + Pseudotypes inline -->
+          <div style="display: flex; gap: 1rem; margin-bottom: 0.6rem; flex-wrap: wrap;">
+            <div>
+              <div style="font-size: 0.68rem; color: var(--text-dim, #999); margin-bottom: 0.1rem;">CSV mode</div>
+              <div style="font-size: 0.8rem; font-weight: 600; color: var(--text-primary, #333);">
+                {% if settings.get('default_data_mode', 'standard') == 'data_only' %}Data Only{% else %}Standard{% endif %}
+              </div>
+            </div>
+            <div>
+              <div style="font-size: 0.68rem; color: var(--text-dim, #999); margin-bottom: 0.1rem;">Pseudotypes</div>
+              <div style="font-size: 0.8rem; font-weight: 600; color: var(--text-primary, #333);">
+                {{ settings.get('default_num_pseudotypes', 1) }} per plate
+              </div>
+            </div>
+          </div>
+
+          <!-- Dilutions -->
+          <div>
+            <div style="font-size: 0.68rem; color: var(--text-dim, #999); margin-bottom: 0.3rem;">Dilution series</div>
+            <div id="dilutionSeriesDisplay" style="display: flex; gap: 0.25rem; flex-wrap: wrap; align-items: center;">
+              <span style="font-size: 0.78rem; color: var(--text-dim, #888);">Loading…</span>
+            </div>
+          </div>
         </div>
-      </div>
 
-      <!-- Row 2: Graph colours -->
-      <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
-        <span style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim, #888); font-weight: 600; flex-shrink: 0;">Colours</span>
-        <span style="font-size: 0.78rem; color: var(--text-mid, #666); flex-shrink: 0;">({{ settings.selected_preset }})</span>
-        {% for q in ['Q1', 'Q2', 'Q3', 'Q4'] %}
-          {% set col = settings.presets[settings.selected_preset][q] %}
-          {% set q_enabled = settings.quadrants and settings.quadrants.get(q, true) %}
-          <div style="display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.25rem 0.55rem;
-            background: var(--bg-raised, #f8f9fa); border: 1px solid var(--border, #dee2e6);
-            border-radius: 6px; opacity: {{ '1' if q_enabled else '0.4' }};">
-            <span style="width: 14px; height: 14px; border-radius: 3px; background: {{ col }};
-              display: inline-block; box-shadow: 0 0 6px {{ col }}99; flex-shrink: 0;"></span>
-            <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-primary, #333);">{{ q }}</span>
-            {% if not q_enabled %}
-              <span style="font-size: 0.7rem; color: var(--text-dim, #999);">off</span>
+        <!-- ── Col 2: Analysis ── -->
+        <div style="padding: 0.85rem 1.1rem; border-right: 1px solid var(--border, #dee2e6);">
+          <div style="font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.55px; color: var(--text-dim, #999); margin-bottom: 0.65rem;">Analysis</div>
+
+          <!-- R² threshold -->
+          <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.45rem; gap: 0.5rem;">
+            <span style="font-size: 0.78rem; color: var(--text-mid, #666);">R² threshold</span>
+            <span style="font-size: 0.8rem; font-weight: 700; color: var(--text-primary, #333); font-family: monospace;">
+              {{ '%.2f'|format(settings.get('sigmoid_r2_threshold', 0.5)|float) }}
+            </span>
+          </div>
+
+          <!-- Outside LOD -->
+          <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.45rem; gap: 0.5rem;">
+            <span style="font-size: 0.78rem; color: var(--text-mid, #666);">Outside LOD</span>
+            {% if settings.get('lod_censor_include', false) %}
+              <span style="font-size: 0.78rem; font-weight: 600; color: var(--teal, #28a745);">censored</span>
+            {% else %}
+              <span style="font-size: 0.78rem; color: var(--text-dim, #999);">excluded</span>
             {% endif %}
           </div>
-        {% endfor %}
-      </div>
 
-      <!-- Row 3: status badges -->
-      <div style="display: flex; gap: 0.45rem; flex-wrap: wrap; align-items: center;">
+          <!-- Disagreement threshold -->
+          <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem;">
+            <span style="font-size: 0.78rem; color: var(--text-mid, #666);">Disagreement</span>
+            <span style="font-size: 0.78rem; font-weight: 600; color: var(--text-primary, #333); font-family: monospace; white-space: nowrap;">
+              {% set cdt = settings.get('comparison_disagreement_threshold', 1.0)|float %}
+              {% if (cdt - 0.585)|abs < 0.01 %}&gt;1.5-fold
+              {% elif (cdt - 1.0)|abs < 0.01 %}&gt;2-fold
+              {% elif (cdt - 1.585)|abs < 0.01 %}&gt;3-fold
+              {% else %}&gt;4-fold{% endif %}
+            </span>
+          </div>
 
-        <!-- Error flagging -->
-        {% if settings.get('error_flagging', false) %}
-          {% set thresh = settings.get('outlier_threshold_log2', 1.0) %}
-          <span style="padding: 0.2rem 0.55rem; border-radius: 20px; font-size: 0.78rem; font-weight: 600;
-            background: rgba(40,167,69,0.1); color: var(--teal, #28a745);
-            border: 1px solid rgba(40,167,69,0.25);">Error flagging on &middot; {{ thresh }} log₂</span>
-        {% else %}
-          <span style="padding: 0.2rem 0.55rem; border-radius: 20px; font-size: 0.78rem;
-            background: var(--bg-raised, #f8f9fa); color: var(--text-dim, #999);
-            border: 1px solid var(--border, #dee2e6);">Error flagging off</span>
-        {% endif %}
+          <!-- Divider -->
+          <div style="border-top: 1px solid var(--border, #dee2e6); margin: 0.7rem 0;"></div>
 
-        <!-- Timestamp -->
-        {% if settings.timestamp_in_filename %}
-          <span style="padding: 0.2rem 0.55rem; border-radius: 20px; font-size: 0.78rem; font-weight: 600;
-            background: rgba(40,167,69,0.08); color: var(--teal, #28a745);
-            border: 1px solid rgba(40,167,69,0.2);">Timestamps on</span>
-        {% else %}
-          <span style="padding: 0.2rem 0.55rem; border-radius: 20px; font-size: 0.78rem;
-            background: var(--bg-raised, #f8f9fa); color: var(--text-dim, #999);
-            border: 1px solid var(--border, #dee2e6);">Timestamps off</span>
-        {% endif %}
+          <!-- Error flagging -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.45rem; gap: 0.5rem;">
+            <span style="font-size: 0.78rem; color: var(--text-mid, #666);">Error flagging</span>
+            {% if settings.get('error_flagging', false) %}
+              {% set thresh = settings.get('outlier_threshold_log2', 1.0) %}
+              <span style="display: inline-flex; align-items: center; gap: 0.3rem;">
+                <span style="font-size: 0.78rem; font-weight: 600; color: var(--teal, #28a745);">on</span>
+                <span style="font-size: 0.7rem; color: var(--text-dim, #999); font-family: monospace;">&middot; {{ thresh }} log₂</span>
+              </span>
+            {% else %}
+              <span style="font-size: 0.78rem; color: var(--text-dim, #999);">off</span>
+            {% endif %}
+          </div>
+
+          <!-- Timestamps -->
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.5rem;">
+            <span style="font-size: 0.78rem; color: var(--text-mid, #666);">Timestamps in filenames</span>
+            {% if settings.timestamp_in_filename %}
+              <span style="font-size: 0.78rem; font-weight: 600; color: var(--teal, #28a745);">on</span>
+            {% else %}
+              <span style="font-size: 0.78rem; color: var(--text-dim, #999);">off</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- ── Col 3: Colours ── -->
+        <div style="padding: 0.85rem 1.1rem;">
+          <div style="font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.55px; color: var(--text-dim, #999); margin-bottom: 0.65rem;">
+            Graph Colours &nbsp;<span style="font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--text-dim, #aaa);">({{ settings.selected_preset }})</span>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+            {% for q in ['Q1', 'Q2', 'Q3', 'Q4'] %}
+              {% set col = settings.presets[settings.selected_preset][q] %}
+              {% set q_enabled = settings.quadrants and settings.quadrants.get(q, true) %}
+              <div style="display: flex; align-items: center; gap: 0.5rem; opacity: {{ '1' if q_enabled else '0.38' }};">
+                <span style="width: 13px; height: 13px; border-radius: 3px; background: {{ col }}; display: inline-block; box-shadow: 0 0 5px {{ col }}88; flex-shrink: 0;"></span>
+                <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-primary, #333); min-width: 22px;">{{ q }}</span>
+                <span style="font-size: 0.72rem; color: var(--text-dim, #aaa); font-family: monospace;">{{ col }}</span>
+                {% if not q_enabled %}
+                  <span style="font-size: 0.68rem; color: var(--text-dim, #aaa); margin-left: auto;">disabled</span>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+        </div>
 
       </div>
     </div>

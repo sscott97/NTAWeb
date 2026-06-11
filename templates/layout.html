@@ -177,12 +177,13 @@ link.href = link.href.replace(/\/[^\/]+\.css(\?.*)?$/, '/' + css);
     {% block nav_left %}{% endblock %}
   </div>
   <!-- Centre: brand -->
-  <a class="navbar-brand fw-bold text-success" href="{{ url_for('index') }}" style="margin: 0;" id="navBrand">NTA Web App</a>
+  <a class="navbar-brand fw-bold text-success" href="{{ url_for('index') }}" style="margin: 0;" id="navBrand" onclick="if(window.location.pathname==='/'||window.location.pathname===''){event.preventDefault();location.reload();}">NTA Web App</a>
   <!-- Right: nav links -->
   <div class="d-flex align-items-center justify-content-end" style="gap: 0.1rem;">
     <a class="nav-link" href="{{ url_for('settings') }}">Settings</a>
     <a class="nav-link" href="{{ url_for('help_page') }}">Help</a>
     <a class="nav-link" href="{{ url_for('plate_mapper') }}" style="color: #388bfd;">Plate Mapper</a>
+    <a class="nav-link" href="{{ url_for('elisa_index') }}" style="color: #e88c30;">ELISA Processor</a>
   </div>
 </div>
 </nav>

@@ -112,30 +112,30 @@ for (sheet_name in plate_sheets) {
       target <- nsc_value * target_fraction
       nt_val <- NA_real_
 
-      for (i in 1:7) {
-        y1 <- lum[i]
-        y2 <- lum[i + 1]
-        x1 <- dilutions[i]
-        x2 <- dilutions[i + 1]
+      # Excel MATCH(target, B5:B12, 1): binary search (assumes ascending)
+      # Replicates Excel's exact behaviour, including on non-monotonic data
+      p16 <- NA_integer_
+      lo <- 1L; hi <- 7L
+      while (lo <= hi) {
+        mid <- as.integer((lo + hi) / 2)
+        if (!is.na(lum[mid]) && lum[mid] <= target) {
+          lo <- mid + 1L
+        } else {
+          hi <- mid - 1L
+        }
+      }
+      if (hi >= 1L) p16 <- hi
 
-        if (is.na(y1) || is.na(y2) || is.na(x1) || is.na(x2)) next
-
-        crosses <- (y1 >= target & y2 <= target) | (y1 <= target & y2 >= target)
-        if (crosses && y2 != y1) {
+      if (!is.na(p16)) {
+        y1 <- lum[p16]
+        y2 <- lum[p16 + 1]   # lum[8] = NSC when p16 = 7
+        x1 <- dilutions[p16]
+        x2 <- dilutions[p16 + 1]   # dilutions[8] = 0 (NSC row) when p16 = 7
+        if (!is.na(y1) && !is.na(y2) && !is.na(x1) && !is.na(x2) && y2 != y1) {
           nt_val <- (target - y1) / (y2 - y1) * (x2 - x1) + x1
-          break
         }
       }
-
-      if (is.na(nt_val)) {
-        valid_lum <- lum[1:7]
-        valid_lum <- valid_lum[!is.na(valid_lum)]
-        if (length(valid_lum) > 0 && all(valid_lum < target)) {
-          nt_val <- dilutions[1]
-        } else if (length(valid_lum) > 0 && all(valid_lum > target)) {
-          nt_val <- dilutions[7]
-        }
-      }
+      # if p16 is NA: all lum[1:7] > target → NT ≤ lowest dilution → nt_val stays NA
 
       if (!is.na(nt_val)) {
         nt_replicates <- c(nt_replicates, nt_val)

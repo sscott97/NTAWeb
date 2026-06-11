@@ -2,16 +2,23 @@ import os
 import json
 import csv
 import math
+import logging
 import openpyxl
 from openpyxl.styles import Alignment, PatternFill, Font, Border, Side
 from openpyxl.utils import get_column_letter
 from openpyxl import load_workbook
 from io import BytesIO
 
+logger = logging.getLogger("ntaweb")
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
 SETTINGS_PATH = os.path.join(BASE_DIR, "settings.json")
+
+# In-memory caches to avoid repeated disk reads
+_settings_cache: dict | None = None
+_template_path_cache: str | None = None
 
 def load_config():
     if os.path.exists(CONFIG_PATH):
@@ -299,6 +306,8 @@ def process_csv_to_template(
     else:
         blocks = load_csv_blocks(csv_path)
 
+    logger.info("PLATES   %d plate(s) detected in CSV", len(blocks))
+
     if not os.path.exists(template_path):
         raise FileNotFoundError(f"Template not found at {template_path}")
 
@@ -353,6 +362,11 @@ def process_csv_to_template(
                 global_sample_index = _apply_quadrant_labels(ws, np_val, pt_list, global_sid_list, global_sample_index)
         else:
             global_sample_index = _apply_quadrant_labels(ws, num_pseudotypes, global_pt_list, global_sid_list, global_sample_index)
+
+        # Determine how many quadrants are filled for logging
+        _np_used = plate_configs[i].get('num_pseudotypes', num_pseudotypes) if plate_configs and i < len(plate_configs) else num_pseudotypes
+        _np_count_used = 2 if _np_used == '2alt' else int(_np_used) if str(_np_used).isdigit() else num_pseudotypes
+        logger.info("  Plate %d  loaded (%d quadrant(s))", i + 1, min(_np_count_used, 4))
 
     wb.remove(template_sheet)
 
@@ -879,16 +893,22 @@ def count_errors_from_workbook(file_bytes):
 
 
 def save_template_path(path, config_file=CONFIG_PATH):
+    global _template_path_cache
     config = load_config()
     config["template_path"] = path
     with open(config_file, "w") as f:
         json.dump(config, f, indent=4)
+    _template_path_cache = path if os.path.exists(path) else None
 
 def load_template_path(config_file=CONFIG_PATH):
+    global _template_path_cache
+    if _template_path_cache and os.path.exists(_template_path_cache):
+        return _template_path_cache
     config = load_config()
     template_path = config.get("template_path")
     if not template_path or not os.path.exists(template_path):
         raise FileNotFoundError("Saved template path not found or does not exist.")
+    _template_path_cache = template_path
     return template_path
 
 DEFAULT_SETTINGS = {
@@ -913,6 +933,9 @@ DEFAULT_SETTINGS = {
 }
 
 def load_settings():
+    global _settings_cache
+    if _settings_cache is not None:
+        return dict(_settings_cache)
     if os.path.exists(SETTINGS_PATH):
         with open(SETTINGS_PATH, "r") as f:
             settings = json.load(f)
@@ -920,12 +943,16 @@ def load_settings():
         for key, value in DEFAULT_SETTINGS.items():
             if key not in settings:
                 settings[key] = value
-        return settings
-    return DEFAULT_SETTINGS.copy()
+    else:
+        settings = DEFAULT_SETTINGS.copy()
+    _settings_cache = settings
+    return dict(_settings_cache)
 
 def save_settings(settings):
+    global _settings_cache
     with open(SETTINGS_PATH, "w") as f:
         json.dump(settings, f, indent=4)
+    _settings_cache = dict(settings)
 
 
 def generate_sigmoid_csv(excel_path_or_bytes, output_csv_path):
@@ -1091,7 +1118,7 @@ def generate_sigmoid_csv(excel_path_or_bytes, output_csv_path):
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(all_rows)
-        print(f"Successfully generated sigmoid CSV with {len(all_rows)} data points")
+        logger.info("SIGMOID  CSV generated — %d data points", len(all_rows))
     else:
         debug_str = "\n".join(debug_info)
         raise ValueError(f"No valid data found in Plate sheets to generate sigmoid CSV.\n\nDebug info:\n{debug_str}")

@@ -34,10 +34,10 @@
           <div style="font-size: 2.5rem; color: {{ c1 }}; font-weight: 700; line-height: 1;">{{ stats.n_samples }}</div>
           <div style="color: var(--text-mid, #666); font-size: 0.85rem; font-weight: 600; margin-top: 0.5rem;">Matched Samples</div>
           {% if stats.n_excluded_poor_fit is defined and stats.n_excluded_poor_fit|int > 0 %}
-          <div style="color: var(--text-dim, #aaa); font-size: 0.75rem; margin-top: 0.25rem;">{{ stats.n_excluded_poor_fit|int }} excluded (poor fit)</div>
+          <div style="color: #c0392b; font-size: 0.75rem; font-weight: 600; margin-top: 0.25rem;">{{ stats.n_excluded_poor_fit|int }} excluded (poor fit)</div>
           {% endif %}
           {% if stats.n_excluded_lod is defined and stats.n_excluded_lod|int > 0 %}
-          <div style="color: var(--text-dim, #aaa); font-size: 0.75rem; margin-top: 0.1rem;">{{ stats.n_excluded_lod|int }} excluded (LOD)</div>
+          <div style="color: #c0392b; font-size: 0.75rem; font-weight: 600; margin-top: 0.1rem;">{{ stats.n_excluded_lod|int }} excluded (LOD)</div>
           {% endif %}
         </div>
         <div class="col-md-3 text-center">

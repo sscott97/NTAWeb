@@ -80,7 +80,19 @@
         <span class="card-chevron" id="chevron-boxplot-body">▾</span>
         <span id="boxplotTitle">NT50 Box Plot</span>
       </div>
-      <a href="#" id="downloadBoxplotBtn" class="graph-dl-btn" style="display:none;" onclick="event.stopPropagation();">↓ PNG</a>
+      <div style="display:flex;align-items:center;gap:0.6rem;" onclick="event.stopPropagation();">
+        <!-- Boundary toggle -->
+        <div style="display:flex;align-items:center;gap:0.35rem;font-size:0.72rem;color:var(--text-dim);">
+          <span>Boundary</span>
+          <label style="position:relative;display:inline-block;width:30px;height:17px;cursor:pointer;" title="Include values outside detection range (≤A5 or ≥A11) substituted with the limit dilution">
+            <input type="checkbox" id="boundaryToggle" style="opacity:0;width:0;height:0;" onchange="onBoundaryToggle()">
+            <span id="bTrack" style="position:absolute;inset:0;border-radius:9px;background:#bbb;transition:background 0.18s;pointer-events:none;"></span>
+            <span id="bThumb" style="position:absolute;top:2.5px;left:2.5px;width:12px;height:12px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:left 0.18s;pointer-events:none;"></span>
+          </label>
+        </div>
+        <a href="#" id="downloadBoxplotCsvBtn" class="graph-dl-btn" style="display:none;">↓ CSV</a>
+        <a href="#" id="downloadBoxplotBtn" class="graph-dl-btn" style="display:none;">↓ PNG</a>
+      </div>
     </div>
     <div id="boxplot-body" class="card-collapsible">
       <div class="graph-opts-bar">
@@ -341,9 +353,10 @@ function toggleCard(id) {
 /* ═══════════════════════════════════════════════════════
    SHARED STATE
    ═══════════════════════════════════════════════════════ */
-var graphQState   = { Q1: true, Q2: true, Q3: true, Q4: true };
-var boxplotQState = { Q1: true, Q2: true, Q3: true, Q4: true };
+var graphQState      = { Q1: true, Q2: true, Q3: true, Q4: true };
+var boxplotQState    = { Q1: true, Q2: true, Q3: true, Q4: true };
 var currentThreshold = 50;
+var boxplotBoundary  = false;   /* include boundary (≤A5 / ≥A11) values */
 var currentPresetColours = { Q1:'#ff7e79', Q2:'#ffd479', Q3:'#009193', Q4:'#d783ff' };
 var boxplotCanvas = null;
 
@@ -524,12 +537,20 @@ function generateGraph() {
 /* ═══════════════════════════════════════════════════════
    BOX PLOT
    ═══════════════════════════════════════════════════════ */
+function onBoundaryToggle() {
+  boxplotBoundary = document.getElementById('boundaryToggle').checked;
+  document.getElementById('bTrack').style.background = boxplotBoundary ? 'var(--accent, #28a745)' : '#bbb';
+  document.getElementById('bThumb').style.left       = boxplotBoundary ? '15.5px' : '2.5px';
+  loadBoxplotData(currentThreshold);
+}
+
 function switchBoxplotThreshold(t) {
   currentThreshold = t;
   document.getElementById('bp-pill-50').classList.toggle('on', t === 50);
   document.getElementById('bp-pill-90').classList.toggle('on', t === 90);
   document.getElementById('boxplotTitle').textContent = 'NT' + t + ' Box Plot';
   document.getElementById('downloadBoxplotBtn').style.display = 'none';
+  document.getElementById('downloadBoxplotCsvBtn').style.display = 'none';
   loadBoxplotData(t);
 }
 
@@ -539,16 +560,24 @@ function loadBoxplotData(threshold) {
   area.style.display = 'flex';
   document.getElementById('boxplotLegend').innerHTML = '';
   document.getElementById('downloadBoxplotBtn').style.display = 'none';
+  document.getElementById('downloadBoxplotCsvBtn').style.display = 'none';
 
-  var qp = '&q1='+boxplotQState.Q1+'&q2='+boxplotQState.Q2+'&q3='+boxplotQState.Q3+'&q4='+boxplotQState.Q4;
+  var qp = '&q1='+boxplotQState.Q1+'&q2='+boxplotQState.Q2+'&q3='+boxplotQState.Q3+'&q4='+boxplotQState.Q4
+         + '&boundary='+boxplotBoundary;
   fetch("{{ url_for('boxplot_data', file_id=excel_file_id) }}?threshold="+threshold+qp)
     .then(function(r) { return r.json(); })
     .then(function(resp) {
       if (resp.status !== 'success') throw new Error(resp.message || 'Failed');
       var labels = Object.keys(resp.data).sort();
       if (labels.length === 0) throw new Error('No data for active quadrants');
-      drawBoxplot(labels.map(function(l){ return { label:l, values:resp.data[l] }; }),
-                  resp.titre_label || ('NT'+threshold));
+      drawBoxplot(labels.map(function(l){
+        var entries = resp.data[l];
+        return {
+          label:   l,
+          values:  entries.map(function(e){ return e.nt; }),
+          entries: entries   /* full objects: {sample, plate, nt, nsc, target, rep_nts} */
+        };
+      }), resp.titre_label || ('NT'+threshold));
     })
     .catch(function(err) {
       area.innerHTML = '<div style="padding:1.5rem;color:var(--text-dim);font-size:0.82rem;">Box plot unavailable: '+(err.message||'no data')+'</div>';
@@ -600,18 +629,24 @@ function drawBoxplot(groups, titreLabel) {
 
   var plotW = W-PAD.left-PAD.right, plotH = H-PAD.top-PAD.bottom;
 
-  /* Compute log stats */
+  /* Compute log stats — keep entries paired with lv so CSV can access metadata */
   var logStats = groups.map(function(s, i) {
-    var lv = s.values.filter(function(v){return v>0;}).map(function(v){return Math.log10(v);}).sort(function(a,b){return a-b;});
+    /* Build paired list {lv, meta} filtered to positive values, sorted ascending */
+    var paired = [];
+    s.values.forEach(function(v, idx) {
+      if (v > 0) paired.push({ lv: Math.log10(v), meta: s.entries ? s.entries[idx] : {} });
+    });
+    paired.sort(function(a, b){ return a.lv - b.lv; });
+    var lv = paired.map(function(e){ return e.lv; });
     if (!lv.length) return null;
     var n=lv.length, q1=percentile(lv,25), med=percentile(lv,50), q3=percentile(lv,75);
     var iqr=q3-q1, fLo=q1-1.5*iqr, fHi=q3+1.5*iqr;
     var wLo=lv[0], wHi=lv[n-1];
     for(var j=0;j<n;j++){if(lv[j]>=fLo){wLo=lv[j];break;}}
     for(var j=n-1;j>=0;j--){if(lv[j]<=fHi){wHi=lv[j];break;}}
-    return { label:s.label, n:n, lv:lv, q1:q1, med:med, q3:q3,
+    return { label:s.label, n:n, lv:lv, paired:paired, q1:q1, med:med, q3:q3,
              wLo:wLo, wHi:wHi, outliers:lv.filter(function(v){return v<fLo||v>fHi;}),
-             medReal:Math.pow(10,med), col:COLOURS[i] };
+             medReal:Math.pow(10,med), col:COLOURS[i], entries:s.entries||[] };
   }).filter(Boolean);
 
   if (!logStats.length) {
@@ -691,6 +726,68 @@ function drawBoxplot(groups, titreLabel) {
     ctx2.drawImage(boxplotCanvas, 0, 0);
     var lnk=document.createElement('a'); lnk.download=titreLabel+'_boxplot.png';
     lnk.href=offscreen.toDataURL('image/png'); lnk.click();
+  };
+
+  var csvBtn = document.getElementById('downloadBoxplotCsvBtn');
+  csvBtn.style.display = 'inline-flex';
+  csvBtn.onclick = function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    var hdr = [
+      'Pseudotype','Sample','Plate',
+      'Avg_NT_Titre','Rep1_NT','Rep2_NT','Rep3_NT',
+      'NSC_Rep1','Target_Lum',
+      'Has_Boundary','Boundary_Low_Limit','Boundary_High_Limit',
+      'N_in_group',
+      'Q1_log10','Median_log10','Q3_log10','Whisker_Low_log10','Whisker_High_log10',
+      'Q1_linear','Median_linear','Q3_linear','Whisker_Low_linear','Whisker_High_linear',
+      'Is_Outlier'
+    ];
+    var rows = [hdr.join(',')];
+    logStats.forEach(function(s) {
+      var fLo = s.q1 - 1.5*(s.q3-s.q1), fHi = s.q3 + 1.5*(s.q3-s.q1);
+      /* Iterate entries in original plate/quadrant order (not sorted by NT value) */
+      s.entries.forEach(function(m) {
+        var flags = m.rep_boundary_flags || [];
+        var raw   = m.rep_nts || [];
+        /* When boundary mode on, substitute limit dilution for boundary reps */
+        var repDisp = raw.map(function(v, i) {
+          if (v !== null && v !== undefined) return v;
+          if (!boxplotBoundary) return '';
+          return flags[i] === 'low'  ? (m.boundary_low  != null ? m.boundary_low  : '') :
+                 flags[i] === 'high' ? (m.boundary_high != null ? m.boundary_high : '') : '';
+        });
+        var lv = (m.nt != null && m.nt > 0) ? Math.log10(m.nt) : null;
+        var isOutlier = lv != null && (lv < fLo || lv > fHi);
+        rows.push([
+          '"'+(s.label            ||'')+'"',
+          '"'+(m.sample           ||'')+'"',
+          '"'+(m.plate            ||'')+'"',
+          (m.nt    != null ? m.nt    : ''),
+          repDisp[0] !== undefined ? repDisp[0] : '',
+          repDisp[1] !== undefined ? repDisp[1] : '',
+          repDisp[2] !== undefined ? repDisp[2] : '',
+          (m.nsc   != null ? m.nsc   : ''),
+          (m.target!= null ? m.target: ''),
+          m.has_boundary ? 'TRUE' : 'FALSE',
+          (m.boundary_low  != null ? m.boundary_low  : ''),
+          (m.boundary_high != null ? m.boundary_high : ''),
+          s.n,
+          s.q1.toFixed(6),  s.med.toFixed(6),  s.q3.toFixed(6),
+          s.wLo.toFixed(6), s.wHi.toFixed(6),
+          Math.pow(10,s.q1).toFixed(2),  Math.pow(10,s.med).toFixed(2),
+          Math.pow(10,s.q3).toFixed(2),  Math.pow(10,s.wLo).toFixed(2),
+          Math.pow(10,s.wHi).toFixed(2),
+          lv != null ? (isOutlier ? 'TRUE' : 'FALSE') : ''
+        ].join(','));
+      });
+    });
+    var blob = new Blob([rows.join('\n')], {type:'text/csv'});
+    var lnk = document.createElement('a');
+    lnk.download = titreLabel+'_boxplot.csv';
+    lnk.href = URL.createObjectURL(blob);
+    lnk.click();
+    URL.revokeObjectURL(lnk.href);
   };
 }
 

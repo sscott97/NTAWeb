@@ -1,0 +1,648 @@
+{% extends 'layout.html' %}
+{% block title %}ELISA Processor — NTA Web App{% endblock %}
+
+{% block content %}
+<style>
+/* ── Widen the layout for the plate grids ───────────────────────────────── */
+.elisa-wrap {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding-bottom: 80px; /* clearance for fixed action bar */
+}
+
+/* ── Protein name chip (mirrors NTAWeb's teal palette) ──────────────────── */
+.elisa-protein-chip {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 2px 7px;
+  border-radius: var(--radius, 3px);
+  background: var(--teal-pale, rgba(74,122,155,0.07));
+  border: 1px solid var(--teal-ink, rgba(74,122,155,0.3));
+  color: var(--teal-dim, #3a6280);
+  margin-bottom: 3px;
+}
+
+/* ── Outer plate tabs ───────────────────────────────────────────────────── */
+.elisa-tabs-bar {
+  display: flex;
+  gap: 2px;
+  border-bottom: 2px solid var(--border-sharp, rgba(0,0,0,0.13));
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin-bottom: 0;
+}
+.elisa-tabs-bar::-webkit-scrollbar { display: none; }
+
+.elisa-tab-btn {
+  padding: 8px 16px;
+  border-radius: var(--radius, 4px) var(--radius, 4px) 0 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  color: var(--text-mid);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: color var(--dur, 0.18s), background var(--dur, 0.18s);
+  white-space: nowrap;
+}
+.elisa-tab-btn:hover {
+  color: var(--text-primary);
+  background: var(--teal-pale);
+}
+.elisa-tab-btn.active {
+  color: var(--teal-dim);
+  border-bottom-color: var(--teal);
+  background: var(--bg-surface);
+}
+
+.elisa-tab-pane { display: none; padding-top: 1.1rem; }
+.elisa-tab-pane.active { display: block; }
+
+/* ── Inner sub-tabs (Samples / Protein N) ───────────────────────────────── */
+.elisa-inner-tabs-bar {
+  display: flex;
+  gap: 2px;
+  border-bottom: 2px solid var(--border, rgba(0,0,0,0.07));
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.elisa-inner-tabs-bar::-webkit-scrollbar { display: none; }
+
+.elisa-inner-tab-btn {
+  padding: 6px 13px;
+  border-radius: var(--radius, 4px) var(--radius, 4px) 0 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  color: var(--text-dim);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: color var(--dur, 0.18s), background var(--dur, 0.18s);
+  white-space: nowrap;
+}
+.elisa-inner-tab-btn:hover {
+  color: var(--text-primary);
+  background: var(--teal-pale);
+}
+.elisa-inner-tab-btn.active {
+  color: var(--teal-dim);
+  border-bottom-color: var(--teal);
+  background: var(--bg-surface);
+}
+
+.elisa-inner-tab-pane { display: none; padding-top: 1rem; }
+.elisa-inner-tab-pane.active { display: block; }
+
+/* ── Per-plate notes ─────────────────────────────────────────────────────── */
+.elisa-plate-notes {
+  margin-top: 1.1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  max-width: 520px;
+}
+
+/* ── Data grids ──────────────────────────────────────────────────────────── */
+.elisa-grid-scroll { width: 100%; overflow-x: auto; }
+
+table.elisa-grid {
+  border-collapse: collapse;
+  width: 100%;
+  table-layout: fixed;
+  border: 2px solid var(--border-sharp);
+}
+table.elisa-grid th {
+  background: var(--bg-raised);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-mid);
+  text-align: center;
+  padding: 5px 0;
+  border: 1px solid var(--border-sharp);
+}
+table.elisa-grid th:first-child {
+  width: 34px;
+  background: var(--bg-inset, #e8ebef);
+  border-right: 2px solid var(--border-sharp);
+}
+table.elisa-grid td {
+  text-align: center;
+  padding: 0;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+table.elisa-grid td:first-child {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-mid);
+  background: var(--bg-raised);
+  padding: 0 8px;
+  border-right: 2px solid var(--border-sharp);
+  white-space: nowrap;
+}
+table.elisa-grid td input {
+  width: 100%;
+  height: 28px;
+  border: none;
+  text-align: center;
+  font-size: 0.72rem;
+  font-family: 'Courier New', monospace;
+  background: transparent;
+  color: var(--text-primary);
+  transition: background 0.1s;
+  min-width: 0;
+}
+table.elisa-grid td input:focus {
+  outline: none;
+  background: var(--teal-pale);
+}
+table.elisa-grid tbody tr:hover td:not(:first-child):not(.well-pos):not(.well-neg) {
+  background: var(--bg-raised);
+}
+/* Control wells */
+table.elisa-grid td.well-pos { background: rgba(40,167,69,0.09); }
+table.elisa-grid td.well-neg { background: rgba(220,53,69,0.08); }
+table.elisa-grid td.well-pos input:not(:focus),
+table.elisa-grid td.well-neg input:not(:focus) { background: transparent; }
+table.elisa-grid td.well-pos input:focus,
+table.elisa-grid td.well-neg input:focus { background: rgba(255,255,255,.8); }
+
+/* ── Section hint dots ───────────────────────────────────────────────────── */
+.elisa-ctrl-dot {
+  display: inline-block;
+  width: 9px; height: 9px;
+  border-radius: 2px;
+  vertical-align: middle;
+  margin-right: 3px;
+}
+
+/* ── Sticky action bar ───────────────────────────────────────────────────── */
+.elisa-action-bar {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border-sharp);
+  padding: 11px 28px 13px;
+  box-shadow: 0 -4px 18px rgba(0,0,0,.07);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  z-index: 150;
+}
+
+#elisa-status {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--teal-dim);
+  min-width: 90px;
+}
+#elisa-status.error { color: var(--danger, #c0392b); }
+#elisa-status.fade { opacity: 0; transition: opacity 1s; }
+</style>
+
+<div class="elisa-wrap">
+
+  <!-- Page header — matches NTAWeb index.html -->
+  <div class="mb-4">
+    <h2 class="text-success mb-1" style="font-size: 1.75rem;">ELISA Processor</h2>
+    <p style="color: var(--text-dim); font-size: 0.85rem; margin: 0;">Configure your assay, enter plate data and download a formatted spreadsheet</p>
+  </div>
+
+  <!-- ── Assay configuration ──────────────────────────────────────────────── -->
+  <div class="card mb-4">
+    <div class="card-header">Assay Configuration</div>
+    <div class="card-body">
+
+      <div class="d-flex gap-3 flex-wrap align-items-end">
+
+        <div>
+          <label class="form-label">Title</label>
+          <input type="text" class="form-control" id="titleInput"
+                 placeholder="e.g. RSV ELISA Run 1" style="width: 200px;">
+        </div>
+
+        <div>
+          <label class="form-label">Date</label>
+          <input type="date" class="form-control" id="dateInput" style="width: 158px;">
+        </div>
+
+        <div>
+          <label class="form-label">Sera dilution</label>
+          <input type="text" class="form-control" id="seraDilution"
+                 placeholder="e.g. 1 IN 400" style="width: 148px;">
+        </div>
+
+        <div>
+          <label class="form-label">Proteins per plate</label>
+          <input type="number" class="form-control" id="nProteins"
+                 min="1" max="4" value="4" style="width: 80px;">
+        </div>
+
+        <div>
+          <label class="form-label">Number of plates</label>
+          <input type="number" class="form-control" id="nPlates"
+                 min="1" max="20" value="1" style="width: 80px;">
+        </div>
+
+      </div>
+
+      <!-- Protein name fields rendered here by JS -->
+      <div id="proteinNames" class="d-flex gap-3 flex-wrap mt-3 pt-3"
+           style="border-top: 1px solid var(--border);"></div>
+
+    </div>
+  </div>
+
+  <!-- ── Plate data ────────────────────────────────────────────────────────── -->
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center justify-content-between">
+      <div>
+        <span>Plate Data</span>
+        <div style="font-size: 0.72rem; color: var(--text-dim); font-weight: 400; margin-top: 2px; display: flex; align-items: center; gap: 10px;">
+          <span>Each tab = one physical plate run</span>
+          <span>
+            <span class="elisa-ctrl-dot" style="background: rgba(40,167,69,0.25); border: 1px solid rgba(40,167,69,0.5);"></span>
+            A1+B1 positive control
+          </span>
+          <span>
+            <span class="elisa-ctrl-dot" style="background: rgba(220,53,69,0.2); border: 1px solid rgba(220,53,69,0.4);"></span>
+            C1+D1 negative control
+          </span>
+        </div>
+      </div>
+      <button class="btn btn-outline-secondary btn-sm" onclick="clearCurrentGrid()">Clear grid</button>
+    </div>
+    <div class="card-body">
+      <div class="elisa-tabs-bar" id="outerTabs"></div>
+      <div id="outerTabContents"></div>
+    </div>
+  </div>
+
+</div><!-- /elisa-wrap -->
+
+<!-- ── Fixed action bar ──────────────────────────────────────────────────────── -->
+<div class="elisa-action-bar">
+  <span id="elisa-status"></span>
+  <button class="btn btn-outline-success" onclick="previewBlank()"
+          title="Download a blank file to check formatting">Test</button>
+  <button class="btn btn-success" onclick="triggerGenerate()">↓ Generate spreadsheet</button>
+</div>
+
+<script>
+'use strict';
+
+const ROW_LWR = ['a','b','c','d','e','f','g','h'];
+const ROW_UPR = ['A','B','C','D','E','F','G','H'];
+
+let activePlate   = 0;
+let activeSubTabs = {};
+let savedData     = {};
+
+// ── Grid builder ──────────────────────────────────────────────────────────────
+function makeGrid(idPrefix, rowLabels, showCtrl) {
+  const tbl = document.createElement('table');
+  tbl.className = 'elisa-grid';
+
+  const hdr = tbl.createTHead().insertRow();
+  const thCorner = document.createElement('th');
+  thCorner.textContent = '';
+  hdr.appendChild(thCorner);
+  for (let c = 0; c < 12; c++) {
+    const th = document.createElement('th');
+    th.textContent = c + 1;
+    hdr.appendChild(th);
+  }
+
+  const tbody = tbl.createTBody();
+  for (let r = 0; r < 8; r++) {
+    const tr = tbody.insertRow();
+    const tdLbl = document.createElement('td');
+    tdLbl.textContent = rowLabels[r];
+    tr.appendChild(tdLbl);
+    for (let c = 0; c < 12; c++) {
+      const td = tr.insertCell();
+      if (showCtrl && c === 0) {
+        if (r === 0 || r === 1)      td.className = 'well-pos';
+        else if (r === 2 || r === 3) td.className = 'well-neg';
+      }
+      const inp = document.createElement('input');
+      inp.type = 'text';
+      inp.dataset.row  = r;
+      inp.dataset.col  = c;
+      inp.dataset.grid = idPrefix;
+      inp.addEventListener('paste', handlePaste);
+      td.appendChild(inp);
+    }
+  }
+  return tbl;
+}
+
+// ── Paste handler ─────────────────────────────────────────────────────────────
+function handlePaste(e) {
+  const raw = (e.clipboardData || window.clipboardData).getData('text');
+  if (!raw || (!raw.includes('\t') && !raw.includes('\n'))) return;
+  e.preventDefault();
+  const rows = raw.replace(/\r/g, '').split('\n');
+  while (rows.length && !rows[rows.length - 1]) rows.pop();
+  const startR = +e.target.dataset.row;
+  const startC = +e.target.dataset.col;
+  const grid   = e.target.dataset.grid;
+  rows.forEach((line, dr) => {
+    line.split('\t').forEach((val, dc) => {
+      const r = startR + dr, c = startC + dc;
+      if (r > 7 || c > 11) return;
+      const t = document.querySelector(
+        `input[data-grid="${grid}"][data-row="${r}"][data-col="${c}"]`);
+      if (t) t.value = val.trim();
+    });
+  });
+}
+
+// ── Grid read / clear ─────────────────────────────────────────────────────────
+function readGrid(prefix) {
+  const out = [];
+  for (let r = 0; r < 8; r++) {
+    const row = [];
+    for (let c = 0; c < 12; c++) {
+      const el = document.querySelector(
+        `input[data-grid="${prefix}"][data-row="${r}"][data-col="${c}"]`);
+      row.push(el ? el.value : '');
+    }
+    out.push(row);
+  }
+  return out;
+}
+
+function clearGrid(prefix) {
+  document.querySelectorAll(`input[data-grid="${prefix}"]`).forEach(i => i.value = '');
+}
+
+function clearCurrentGrid() {
+  const sub = activeSubTabs[activePlate] !== undefined ? activeSubTabs[activePlate] : 0;
+  if (sub === 0) clearGrid(`sample-${activePlate}`);
+  else           clearGrid(`protein-${activePlate}-${sub - 1}`);
+}
+
+// ── Save / restore ────────────────────────────────────────────────────────────
+function saveAllGrids() {
+  document.querySelectorAll('input[data-grid]').forEach(inp => {
+    const key = inp.dataset.grid;
+    if (!savedData[key]) savedData[key] = Array.from({length:8}, () => Array(12).fill(''));
+    savedData[key][+inp.dataset.row][+inp.dataset.col] = inp.value;
+  });
+  document.querySelectorAll('[id^="plate-notes-"]').forEach(ta => {
+    savedData[ta.id] = ta.value;
+  });
+}
+
+function restoreGrid(gridId) {
+  const data = savedData[gridId];
+  if (!data) return;
+  data.forEach((row, r) => row.forEach((val, c) => {
+    const inp = document.querySelector(
+      `input[data-grid="${gridId}"][data-row="${r}"][data-col="${c}"]`);
+    if (inp) inp.value = val;
+  }));
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function nProteins() { return Math.max(1, Math.min(4, +document.getElementById('nProteins').value || 4)); }
+function nPlates()   { return Math.max(1, +document.getElementById('nPlates').value || 1); }
+
+function getProteinName(k) {
+  const el = document.getElementById(`pname-${k}`);
+  return (el && el.value.trim()) ? el.value.trim() : `Protein ${k + 1}`;
+}
+
+function emptyGrid8x12() { return Array.from({length:8}, () => Array(12).fill('')); }
+
+// ── Protein name inputs ───────────────────────────────────────────────────────
+function renderProteinNames() {
+  const np   = nProteins();
+  const cont = document.getElementById('proteinNames');
+  const prev = {};
+  cont.querySelectorAll('input').forEach((inp, i) => prev[i] = inp.value);
+  cont.innerHTML = '';
+
+  for (let i = 0; i < np; i++) {
+    const wrap = document.createElement('div');
+
+    const lbl = document.createElement('label');
+    lbl.className = 'form-label';
+    lbl.innerHTML = `<span class="elisa-protein-chip">Protein ${i+1}</span> Name`;
+
+    const inp = document.createElement('input');
+    inp.type      = 'text';
+    inp.className = 'form-control form-control-sm';
+    inp.id        = `pname-${i}`;
+    inp.value     = (prev[i] !== undefined && prev[i] !== '') ? prev[i] : `Protein ${i+1}`;
+    inp.style.width = '155px';
+
+    inp.addEventListener('input', () => {
+      document.querySelectorAll(`.elisa-inner-tab-protein-${i}`)
+              .forEach(btn => btn.textContent = getProteinName(i));
+    });
+
+    wrap.appendChild(lbl);
+    wrap.appendChild(inp);
+    cont.appendChild(wrap);
+  }
+}
+
+// ── Outer plate tabs ──────────────────────────────────────────────────────────
+function renderPlateTabs() {
+  const np      = nProteins();
+  const npl     = nPlates();
+  const tabBar  = document.getElementById('outerTabs');
+  const tabCont = document.getElementById('outerTabContents');
+
+  if (activePlate >= npl) activePlate = 0;
+  tabBar.innerHTML  = '';
+  tabCont.innerHTML = '';
+
+  for (let pi = 0; pi < npl; pi++) {
+    const btn = document.createElement('button');
+    btn.className   = 'elisa-tab-btn' + (pi === activePlate ? ' active' : '');
+    btn.id          = `outer-tab-${pi}`;
+    btn.textContent = `Plate ${pi + 1}`;
+    btn.onclick     = () => switchOuterTab(pi);
+    tabBar.appendChild(btn);
+
+    const pane = document.createElement('div');
+    pane.className = 'elisa-tab-pane' + (pi === activePlate ? ' active' : '');
+    pane.id        = `outer-pane-${pi}`;
+
+    const innerBar  = document.createElement('div');
+    innerBar.className = 'elisa-inner-tabs-bar';
+    const innerCont = document.createElement('div');
+
+    const initSub = activeSubTabs[pi] !== undefined ? activeSubTabs[pi] : 0;
+
+    // Samples tab
+    const sBtnEl = document.createElement('button');
+    sBtnEl.className = `elisa-inner-tab-btn${0 === initSub ? ' active' : ''}`;
+    sBtnEl.textContent = 'Samples';
+    sBtnEl.onclick = () => switchInnerTab(pi, 0);
+    innerBar.appendChild(sBtnEl);
+
+    const sPane = document.createElement('div');
+    sPane.className = `elisa-inner-tab-pane${0 === initSub ? ' active' : ''}`;
+    const sWrap = document.createElement('div');
+    sWrap.className = 'elisa-grid-scroll';
+    sWrap.appendChild(makeGrid(`sample-${pi}`, ROW_LWR, false));
+    sPane.appendChild(sWrap);
+    innerCont.appendChild(sPane);
+
+    // One tab per protein
+    for (let pri = 0; pri < np; pri++) {
+      const pBtnEl = document.createElement('button');
+      pBtnEl.className = `elisa-inner-tab-btn elisa-inner-tab-protein-${pri}${(pri + 1) === initSub ? ' active' : ''}`;
+      pBtnEl.textContent = getProteinName(pri);
+      pBtnEl.onclick = () => switchInnerTab(pi, pri + 1);
+      innerBar.appendChild(pBtnEl);
+
+      const pPane = document.createElement('div');
+      pPane.className = `elisa-inner-tab-pane${(pri + 1) === initSub ? ' active' : ''}`;
+      const pWrap = document.createElement('div');
+      pWrap.className = 'elisa-grid-scroll';
+      pWrap.appendChild(makeGrid(`protein-${pi}-${pri}`, ROW_UPR, true));
+      pPane.appendChild(pWrap);
+      innerCont.appendChild(pPane);
+    }
+
+    pane.appendChild(innerBar);
+    pane.appendChild(innerCont);
+
+    // Per-plate notes
+    const notesDiv = document.createElement('div');
+    notesDiv.className = 'elisa-plate-notes';
+    notesDiv.innerHTML =
+      `<label class="form-label">Notes
+         <span style="font-weight:400; color:var(--text-dim); font-size:0.78rem;">(optional — saved to this plate's spreadsheet tab)</span>
+       </label>` +
+      `<textarea id="plate-notes-${pi}" class="form-control form-control-sm"
+         rows="2" style="max-width:520px; resize:none;"
+         placeholder="e.g. 1:400 sera, 1:4000 conjugates, run by …"></textarea>`;
+    pane.appendChild(notesDiv);
+
+    tabCont.appendChild(pane);
+
+    restoreGrid(`sample-${pi}`);
+    for (let pri = 0; pri < np; pri++) restoreGrid(`protein-${pi}-${pri}`);
+    const notesEl = document.getElementById(`plate-notes-${pi}`);
+    if (notesEl && savedData[`plate-notes-${pi}`] !== undefined) {
+      notesEl.value = savedData[`plate-notes-${pi}`];
+    }
+  }
+}
+
+// ── Tab switching ─────────────────────────────────────────────────────────────
+function switchOuterTab(k) {
+  activePlate = k;
+  document.querySelectorAll('#outerTabs .elisa-tab-btn').forEach((b, i) =>
+    b.classList.toggle('active', i === k));
+  document.querySelectorAll('#outerTabContents > .elisa-tab-pane').forEach((p, i) =>
+    p.classList.toggle('active', i === k));
+}
+
+function switchInnerTab(plateIdx, subIdx) {
+  activeSubTabs[plateIdx] = subIdx;
+  const pane = document.getElementById(`outer-pane-${plateIdx}`);
+  if (!pane) return;
+  pane.querySelectorAll('.elisa-inner-tab-btn').forEach((b, i) =>
+    b.classList.toggle('active', i === subIdx));
+  pane.querySelectorAll('.elisa-inner-tab-pane').forEach((p, i) =>
+    p.classList.toggle('active', i === subIdx));
+}
+
+// ── Full re-render (preserving data) ──────────────────────────────────────────
+function renderAll() {
+  saveAllGrids();
+  renderProteinNames();
+  renderPlateTabs();
+}
+
+// ── Build payload ─────────────────────────────────────────────────────────────
+function buildPayload(blank) {
+  const np = nProteins(), npl = nPlates();
+  const proteinNames = Array.from({length: np}, (_, i) => getProteinName(i));
+  const plates = Array.from({length: npl}, (_, pi) => ({
+    sampleGrid:   blank ? emptyGrid8x12() : readGrid(`sample-${pi}`),
+    proteinGrids: Array.from({length: np}, (_, pri) =>
+      blank ? emptyGrid8x12() : readGrid(`protein-${pi}-${pri}`)
+    ),
+    notes: blank ? '' : (document.getElementById(`plate-notes-${pi}`)?.value.trim() || '')
+  }));
+  return {
+    nProteins:    np,
+    nPlates:      npl,
+    proteinNames,
+    title:        document.getElementById('titleInput').value.trim(),
+    date:         document.getElementById('dateInput').value,
+    seraDilution: document.getElementById('seraDilution').value.trim() || '1 IN 400',
+    plates
+  };
+}
+
+// ── Download helper ───────────────────────────────────────────────────────────
+function _download(endpoint, filename, loadingMsg) {
+  const el = document.getElementById('elisa-status');
+  el.className   = '';
+  el.textContent = loadingMsg;
+
+  fetch(endpoint, {
+    method:  'POST',
+    headers: {'Content-Type': 'application/json'},
+    body:    JSON.stringify(buildPayload(endpoint === '/elisa/preview')),
+  })
+  .then(async r => {
+    if (!r.ok) throw new Error((await r.text()) || `HTTP ${r.status}`);
+    return r.blob();
+  })
+  .then(blob => {
+    const url = URL.createObjectURL(blob);
+    const a   = Object.assign(document.createElement('a'), {href: url, download: filename});
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    el.textContent = endpoint === '/elisa/preview' ? 'Preview downloaded.' : 'Downloaded ✓';
+    setTimeout(() => {
+      el.classList.add('fade');
+      setTimeout(() => { el.textContent = ''; el.classList.remove('fade'); }, 1000);
+    }, 2500);
+  })
+  .catch(err => {
+    el.className   = 'error';
+    el.textContent = 'Error: ' + err.message;
+  });
+}
+
+function triggerGenerate() {
+  const d    = document.getElementById('dateInput').value;
+  const t    = document.getElementById('titleInput').value.trim().replace(/[^\w\- ]/g,'').replace(/ /g,'_');
+  const s    = d.replace(/\//g,'-').replace(/ /g,'_') || 'untitled';
+  const base = t || 'ELISA_results';
+  _download('/elisa/generate', `${base}_${s}.xlsx`, 'Building…');
+}
+
+function previewBlank() {
+  _download('/elisa/preview', 'ELISA_format_preview.xlsx', 'Building preview…');
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+document.getElementById('nProteins').addEventListener('change', renderAll);
+document.getElementById('nPlates').addEventListener('change', renderAll);
+renderAll();
+</script>
+
+{% endblock %}

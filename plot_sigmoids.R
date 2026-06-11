@@ -77,8 +77,19 @@ curves <- bind_rows(lapply(seq_len(nrow(ic50_filtered)), function(i) {
 }))
 
 if (!is.null(curves) && nrow(curves) > 0) {
-  plot_points$Facet_Label <- factor(plot_points$Facet_Label, levels = unique(plot_points$Facet_Label))
-  curves$Facet_Label      <- factor(curves$Facet_Label,      levels = levels(plot_points$Facet_Label))
+  # Order facets by plate number then quadrant number (P1Q1, P1Q2, … P2Q1, …)
+  ordered_labels <- plot_points %>%
+    select(Facet_Label, Plate, Quadrant) %>%
+    distinct() %>%
+    mutate(
+      plate_num = as.integer(gsub("[^0-9]", "", Plate)),
+      quad_num  = as.integer(gsub("[^0-9]", "", Quadrant))
+    ) %>%
+    arrange(plate_num, quad_num) %>%
+    pull(Facet_Label)
+
+  plot_points$Facet_Label <- factor(plot_points$Facet_Label, levels = ordered_labels)
+  curves$Facet_Label      <- factor(curves$Facet_Label,      levels = ordered_labels)
 }
 
 # Facet dimensions — 4 columns, dynamic height
@@ -92,6 +103,11 @@ plot_h <- max(nrow_facets * 3.5 + 1.2, 6)
 lod_vlines <- ic50_filtered %>%
   filter(Quality == "Outside LOD", !is.na(IC50)) %>%
   mutate(Facet_Label = paste0(Virus, "\n", Sample, "\n(", Plate, " ", Quadrant, ")"))
+
+# Apply the same ordered factor levels if they've been established
+if (exists("ordered_labels")) {
+  lod_vlines$Facet_Label <- factor(lod_vlines$Facet_Label, levels = ordered_labels)
+}
 
 p <- ggplot() +
   geom_point(data  = plot_points,

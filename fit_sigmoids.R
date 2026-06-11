@@ -219,7 +219,7 @@ for (i in seq_len(nrow(results))) {
 
   # Outside LOD: IC50 was outside the dilution range
   if (!is.na(results$LOD_Flag[i])) {
-    results$Quality[i] <- "Outside LOD"
+    results$Quality[i] <- if (results$LOD_Flag[i] == "<Lower LOD") "Below LOD" else "Above LOD"
     next
   }
 
@@ -256,6 +256,23 @@ for (col in numeric_cols) {
 
 # Calculate titres from IC50 values (NA for LOD and Poor Fit samples)
 results$Titre <- ifelse(is.na(results$IC50), NA, round(2^(-results$IC50), 2))
+
+# For LOD-censored samples with boundary substitution, set Titre directly from
+# the actual dilution value rather than converting back from log2, which
+# introduces floating-point error (e.g. 36449.21 instead of 36450).
+if (include_lod) {
+  lod_lower_dil <- min(data$Dilution, na.rm = TRUE)  # A5  (<Lower LOD boundary)
+  lod_upper_dil <- max(data$Dilution, na.rm = TRUE)  # A11 (>Upper LOD boundary)
+  for (i in seq_len(nrow(results))) {
+    if (!is.na(results$LOD_Flag[i]) && !is.na(results$Titre[i])) {
+      if (results$LOD_Flag[i] == "<Lower LOD") {
+        results$Titre[i] <- lod_lower_dil
+      } else if (results$LOD_Flag[i] == ">Upper LOD") {
+        results$Titre[i] <- lod_upper_dil
+      }
+    }
+  }
+}
 
 # Reorder columns: Plate, Quadrant, Sample, Virus, Lower, Upper, Slope, IC50, Titre, R2, Quality, LOD_Flag
 results <- results %>%

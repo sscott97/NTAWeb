@@ -105,6 +105,8 @@ for (sheet_name in plate_sheets) {
     col_indices <- quad$data_cols - 1  # convert from spreadsheet col to data_matrix col
 
     nt50_replicates <- c()
+    n_ran           <- 0L   # replicates with a valid NSC that ran the interpolation
+    n_lower_bound   <- 0L   # replicates where p16 was NA (all lum > target → <LOD)
 
     for (ci in col_indices) {
       lum <- data_matrix[[ci]]  # 8 values (rows 5-12)
@@ -114,36 +116,35 @@ for (sheet_name in plate_sheets) {
       nsc_value <- lum[8]
       if (is.na(nsc_value) || nsc_value <= 0) next
 
+      n_ran <- n_ran + 1L
       target <- nsc_value * 0.5
       nt50_val <- NA_real_
 
-      # Linear interpolation: scan adjacent pairs in rows 1-7 (dilution rows 5-11)
-      for (i in 1:7) {
-        if (i >= 8) break
-        y1 <- lum[i]
-        y2 <- lum[i + 1]
-        x1 <- dilutions[i]
-        x2 <- dilutions[i + 1]
-
-        if (is.na(y1) || is.na(y2) || is.na(x1) || is.na(x2)) next
-
-        # Check if the target falls between these two points
-        crosses <- (y1 >= target & y2 <= target) | (y1 <= target & y2 >= target)
-        if (crosses && y2 != y1) {
-          nt50_val <- (target - y1) / (y2 - y1) * (x2 - x1) + x1
-          break
+      # Excel MATCH(target, B5:B12, 1): binary search (assumes ascending)
+      # Replicates Excel's exact behaviour, including on non-monotonic data
+      p16 <- NA_integer_
+      lo <- 1L; hi <- 7L
+      while (lo <= hi) {
+        mid <- as.integer((lo + hi) / 2)
+        if (!is.na(lum[mid]) && lum[mid] <= target) {
+          lo <- mid + 1L
+        } else {
+          hi <- mid - 1L
         }
       }
+      if (hi >= 1L) p16 <- hi
 
-      # Boundary cases (if no crossing found)
-      if (is.na(nt50_val)) {
-        valid_lum <- lum[1:7]
-        valid_lum <- valid_lum[!is.na(valid_lum)]
-        if (length(valid_lum) > 0 && all(valid_lum < target)) {
-          nt50_val <- dilutions[7]   # all lum low → potent serum → NT50 above upper bound
-        } else if (length(valid_lum) > 0 && all(valid_lum > target)) {
-          nt50_val <- dilutions[1]   # all lum high → weak serum → NT50 below lower bound
+      if (!is.na(p16)) {
+        y1 <- lum[p16]
+        y2 <- lum[p16 + 1]   # lum[8] = NSC when p16 = 7
+        x1 <- dilutions[p16]
+        x2 <- dilutions[p16 + 1]   # dilutions[8] = 0 (NSC row) when p16 = 7
+        if (!is.na(y1) && !is.na(y2) && !is.na(x1) && !is.na(x2) && y2 != y1) {
+          nt50_val <- (target - y1) / (y2 - y1) * (x2 - x1) + x1
         }
+      } else {
+        # p16 NA → all lum[1:7] > target → this replicate is below lowest dilution
+        n_lower_bound <- n_lower_bound + 1L
       }
 
       if (!is.na(nt50_val)) {
@@ -151,26 +152,36 @@ for (sheet_name in plate_sheets) {
       }
     }
 
+    # Determine NT50 value and display label
     if (length(nt50_replicates) > 0) {
-      nt50_avg <- mean(nt50_replicates)
-      nt50_rows[[length(nt50_rows) + 1]] <- data.frame(
-        Plate      = sheet_name,
-        Quadrant   = quad_name,
-        Pseudotype = pseudotype_name,
-        Sample_ID  = sample_name,
-        NT50       = round(nt50_avg),
-        stringsAsFactors = FALSE
-      )
+      nt50_avg   <- round(mean(nt50_replicates))
+      nt50_label <- as.character(nt50_avg)
+    } else if (n_ran > 0L && n_lower_bound == n_ran) {
+      # Every valid replicate was below the lowest dilution (A5)
+      nt50_avg   <- NA_real_
+      nt50_label <- paste0("<", if (!is.na(dilutions[1])) dilutions[1] else "LOD")
+    } else {
+      nt50_avg   <- NA_real_
+      nt50_label <- NA_character_
     }
+
+    nt50_rows[[length(nt50_rows) + 1]] <- data.frame(
+      Plate      = sheet_name,
+      Quadrant   = quad_name,
+      Pseudotype = pseudotype_name,
+      Sample_ID  = sample_name,
+      NT50       = nt50_avg,
+      NT50_label = nt50_label,
+      stringsAsFactors = FALSE
+    )
   }
 }
 
 if (length(nt50_rows) == 0) {
-  stop("No NT50 data could be calculated from Plate sheets.")
+  stop("No samples found in Plate sheets.")
 }
 
 nt50_data <- bind_rows(nt50_rows) %>%
-  filter(!is.na(NT50)) %>%
   mutate(NT50_numeric = as.numeric(NT50))
 
 cat(sprintf("  Extracted %d NT50 values from %d plate(s)\n",
@@ -190,7 +201,8 @@ n_excluded_lod      <- sum(is.na(ic50_all$IC50_Titre) & !is.na(ic50_all$LOD_Flag
 n_excluded_poor_fit <- sum(is.na(ic50_all$IC50_Titre) &  is.na(ic50_all$LOD_Flag))
 n_lod_excluded      <- n_excluded_lod + n_excluded_poor_fit  # kept for backwards compat
 
-ic50_data <- ic50_all %>% filter(!is.na(IC50_Titre))
+# Keep all IC50 rows (including poor fits / outside LOD) so the CSV includes everything
+ic50_data <- ic50_all
 
 
 # ==============================================================================
@@ -198,18 +210,19 @@ ic50_data <- ic50_all %>% filter(!is.na(IC50_Titre))
 # ==============================================================================
 
 nt50_data <- nt50_data %>%
-  select(Plate, Quadrant, Pseudotype, Sample_ID, NT50_numeric) %>%
+  select(Plate, Quadrant, Pseudotype, Sample_ID, NT50_numeric, NT50_label) %>%
   mutate(across(c(Pseudotype, Sample_ID), as.character))
 
-merged_data <- nt50_data %>%
-  inner_join(
+# Left join so every NT50 row is retained — poor fits get NA IC50_Titre
+merged_all <- nt50_data %>%
+  left_join(
     ic50_data,
     by = c("Plate" = "Plate", "Quadrant" = "Quadrant",
            "Pseudotype" = "Virus", "Sample_ID" = "Sample")
   )
 
-# If no matches found, try case-insensitive matching
-if (nrow(merged_data) == 0) {
+# If no IC50 values matched at all, try case-insensitive matching
+if (!any(!is.na(merged_all$IC50_Titre))) {
   cat("Warning: No exact matches found. Trying case-insensitive matching...\n")
 
   nt50_data <- nt50_data %>%
@@ -224,27 +237,39 @@ if (nrow(merged_data) == 0) {
       Sample_lower = tolower(trimws(Sample))
     )
 
-  merged_data <- nt50_data %>%
-    inner_join(
+  merged_all <- nt50_data %>%
+    left_join(
       ic50_data,
       by = c("Plate" = "Plate", "Quadrant" = "Quadrant",
-             "Pseudotype_lower" = "Virus_lower", "Sample_ID_lower" = "Sample_lower")
+             "Pseudotype_lower" = "Virus_lower",
+             "Sample_ID_lower" = "Sample_lower")
     ) %>%
-    select(Plate, Quadrant, Pseudotype, Sample_ID, NT50_numeric, Virus, Sample,
-           IC50_Titre, Quality, Lower, Upper, Slope, IC50, LOD_Flag)
+    select(Plate, Quadrant, Pseudotype, Sample_ID, NT50_numeric, NT50_label,
+           Virus, Sample, IC50_Titre, Quality, Lower, Upper, Slope, IC50, LOD_Flag)
 }
 
-# Remove rows that cannot be analysed
-merged_data <- merged_data %>%
-  filter(!is.na(NT50_numeric), !is.na(IC50_Titre),
-         NT50_numeric > 0, IC50_Titre > 0) %>%
+# Compute fold-difference columns for all rows (NA where IC50 is missing)
+merged_all <- merged_all %>%
   mutate(
-    log10_NT50 = log10(NT50_numeric),
-    log10_IC50 = log10(IC50_Titre),
-    log2_fold_difference     = log2(NT50_numeric / IC50_Titre),
+    IC50_label = ifelse(!is.na(IC50_Titre), as.character(round(IC50_Titre)), NA_character_),
+    log10_NT50 = ifelse(
+      !is.na(NT50_numeric) & NT50_numeric > 0, log10(NT50_numeric), NA_real_),
+    log10_IC50 = ifelse(
+      !is.na(IC50_Titre)   & IC50_Titre   > 0, log10(IC50_Titre),   NA_real_),
+    log2_fold_difference = ifelse(
+      !is.na(NT50_numeric) & NT50_numeric > 0 &
+      !is.na(IC50_Titre)   & IC50_Titre   > 0,
+      log2(NT50_numeric / IC50_Titre), NA_real_),
     abs_log2_fold_difference = abs(log2_fold_difference),
-    disagreement = abs_log2_fold_difference > disagreement_threshold
+    disagreement = ifelse(
+      !is.na(log2_fold_difference),
+      abs_log2_fold_difference > disagreement_threshold, NA)
   )
+
+# Valid pairs only — used for statistics and plotting
+merged_data <- merged_all %>%
+  filter(!is.na(NT50_numeric), !is.na(IC50_Titre),
+         NT50_numeric > 0, IC50_Titre > 0)
 
 
 cat(sprintf("Successfully merged %d samples across %d viruses\n",
@@ -470,14 +495,15 @@ if (nrow(merged_data) > 0) {
 
   # ── Write Outputs ──────────────────────────────────────────────────────────
 
-  merged_export <- merged_data %>%
+  # Export full dataset — includes poor fits (NA IC50) so no samples go missing
+  merged_export <- merged_all %>%
     select(
       Plate,
       Quadrant,
       Pseudotype,
       Sample_ID,
-      `NT50 (Linear Interpolation)` = NT50_numeric,
-      `NT50 / IC50 (Curve Fitting)` = IC50_Titre,
+      `NT50 (Linear Interpolation)` = NT50_label,
+      `NT50 / IC50 (Curve Fitting)` = IC50_label,
       `Sigmoid Quality` = Quality,
       log10_NT50,
       log10_IC50,

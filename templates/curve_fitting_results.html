@@ -26,7 +26,7 @@
           <div class="spinner-border text-success" role="status">
             <span class="visually-hidden">Loading...</span>
           </div>
-          <p class="text-muted mt-2 mb-0">Loading quality metrics...</p>
+          <p class="text-muted mt-2 mb-0">Loading data summary...</p>
         </div>
       </div>
     </div>
@@ -478,8 +478,6 @@ fetch("{{ url_for('download_sigmoid', fitting_id=fitting_id, filename=ic50_filen
       return;
     }
 
-    let good = 0, unstable = 0, outsideLod = 0, poorFit = 0, r2Values = [];
-
     function parseCSVLine(line) {
       var result = [], cur = '', inQuote = false;
       for (var i = 0; i < line.length; i++) {
@@ -492,42 +490,136 @@ fetch("{{ url_for('download_sigmoid', fitting_id=fitting_id, filename=ic50_filen
       return result;
     }
 
-    const headers = parseCSVLine(lines[0]);
-    const qIdx  = headers.indexOf('Quality');
-    const r2Idx = headers.indexOf('R2');
+    const headers   = parseCSVLine(lines[0]);
+    const qIdx      = headers.indexOf('Quality');
+    const r2Idx     = headers.indexOf('R2');
+    const lodIdx    = headers.indexOf('LOD_Flag');
+    const titreIdx  = headers.indexOf('Titre');
+    const upperIdx  = headers.indexOf('Upper');
+
+    let good = 0, unstable = 0, poorFit = 0, lodLow = 0, lodHigh = 0;
+    const r2Converged  = [];
+    const titreValues  = [];
+    const upperValues  = [];
+
+    function parseNum(s) { const v = parseFloat(s); return isNaN(v) ? null : v; }
+    function medianOf(arr) {
+      if (!arr.length) return null;
+      const s = arr.slice().sort((a, b) => a - b);
+      const m = Math.floor(s.length / 2);
+      return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+    }
+    function gmeanOf(arr) {
+      if (!arr.length) return null;
+      return Math.exp(arr.reduce((sum, v) => sum + Math.log(v), 0) / arr.length);
+    }
+    function fmtTitre(v) {
+      if (v === null || v === undefined) return 'N/A';
+      return v >= 100 ? v.toFixed(0) : v.toFixed(1);
+    }
+    function fmtR2(v) { return (v !== null && v !== undefined) ? v.toFixed(3) : 'N/A'; }
+    function pct(n, d) { return d > 0 ? ((n / d) * 100).toFixed(0) : '0'; }
 
     dataLines.forEach(line => {
-      const parts = parseCSVLine(line);
-      const quality = qIdx  >= 0 && parts[qIdx]  ? parts[qIdx].trim()  : '';
-      const r2Str   = r2Idx >= 0 && parts[r2Idx] ? parts[r2Idx].trim() : '';
-      
-      if (quality === 'Good') good++;
-      else if (quality === 'Unstable') unstable++;
-      else if (quality === 'Outside LOD') outsideLod++;
-      else if (quality === 'Poor Fit') poorFit++;
-      
-      const r2 = parseFloat(r2Str);
-      if (!isNaN(r2)) r2Values.push(r2);
+      const parts    = parseCSVLine(line);
+      const quality  = qIdx     >= 0 && parts[qIdx]     ? parts[qIdx].trim()     : '';
+      const r2Str    = r2Idx    >= 0 && parts[r2Idx]    ? parts[r2Idx].trim()    : '';
+      const lodFlag  = lodIdx   >= 0 && parts[lodIdx]   ? parts[lodIdx].trim()   : '';
+      const titreStr = titreIdx >= 0 && parts[titreIdx] ? parts[titreIdx].trim() : '';
+      const upperStr = upperIdx >= 0 && parts[upperIdx] ? parts[upperIdx].trim() : '';
+      const r2Val    = parseNum(r2Str);
+      const titreVal = parseNum(titreStr);
+      const upperVal = parseNum(upperStr);
+
+      if (quality === 'Good') {
+        good++;
+        if (r2Val    !== null)           r2Converged.push(r2Val);
+        if (titreVal !== null && titreVal > 0) titreValues.push(titreVal);
+        if (upperVal !== null)           upperValues.push(upperVal);
+      } else if (quality === 'Unstable') {
+        unstable++;
+        if (r2Val    !== null)           r2Converged.push(r2Val);
+        if (titreVal !== null && titreVal > 0) titreValues.push(titreVal);
+        if (upperVal !== null)           upperValues.push(upperVal);
+      } else if (quality === 'Poor Fit') {
+        poorFit++;
+      } else if (quality === 'Outside LOD') {
+        if (lodFlag === '<Lower LOD') lodLow++;
+        else lodHigh++;
+      }
     });
-    
-    const avgR2 = r2Values.length > 0 ? (r2Values.reduce((a,b) => a+b, 0) / r2Values.length) : 0;
-    const total = good + unstable + outsideLod + poorFit;
-    const goodPct    = total > 0 ? ((good/total)*100).toFixed(0) : 0;
-    const unstPct    = total > 0 ? ((unstable/total)*100).toFixed(0) : 0;
-    const lodPct     = total > 0 ? ((outsideLod/total)*100).toFixed(0) : 0;
-    const poorFitPct = total > 0 ? ((poorFit/total)*100).toFixed(0) : 0;
 
-    const goodSubColor = goodPct >= 70 ? '#28a745' : goodPct >= 50 ? '#f39c12' : '#e74c3c';
-    const unstSubColor = unstPct <= 10 ? '#28a745' : unstPct <= 25 ? '#f39c12' : '#e74c3c';
-    const r2SubColor   = avgR2 >= 0.7  ? '#28a745' : avgR2 >= 0.5  ? '#f39c12' : '#e74c3c';
+    const total          = good + unstable + poorFit + lodLow + lodHigh;
+    const titresObtained = good + unstable;
+    const noTitre        = poorFit + lodLow + lodHigh;
 
-    let html =
-      '<div class="col text-center"><div style="font-size:2.5rem;color:#648fff;font-weight:700;line-height:1;">' + good + '</div><div style="color:var(--text-mid,#666);font-size:0.85rem;font-weight:600;margin-top:0.5rem;">Good Fits</div><div style="color:' + goodSubColor + ';font-size:0.75rem;font-weight:600;margin-top:0.25rem;">' + goodPct + '% of total</div></div>' +
-      '<div class="col text-center"><div style="font-size:2.5rem;color:#ffb000;font-weight:700;line-height:1;">' + unstable + '</div><div style="color:var(--text-mid,#666);font-size:0.85rem;font-weight:600;margin-top:0.5rem;">Unstable Fits</div><div style="color:' + unstSubColor + ';font-size:0.75rem;font-weight:600;margin-top:0.25rem;">' + unstPct + '% of total</div></div>' +
-      '<div class="col text-center"><div style="font-size:2.5rem;color:#fe6100;font-weight:700;line-height:1;">' + outsideLod + '</div><div style="color:var(--text-mid,#666);font-size:0.85rem;font-weight:600;margin-top:0.5rem;">Outside LOD</div><div style="color:var(--text-dim,#888);font-size:0.75rem;margin-top:0.25rem;">' + lodPct + '% of total</div></div>' +
-      '<div class="col text-center"><div style="font-size:2.5rem;color:#dc267f;font-weight:700;line-height:1;">' + poorFit + '</div><div style="color:var(--text-mid,#666);font-size:0.85rem;font-weight:600;margin-top:0.5rem;">Poor Fits</div><div style="color:var(--text-dim,#888);font-size:0.75rem;margin-top:0.25rem;">' + poorFitPct + '% of total</div></div>' +
-      '<div class="col text-center"><div style="font-size:2.5rem;color:#785ef0;font-weight:700;line-height:1;">' + (r2Values.length > 0 ? avgR2.toFixed(3) : 'N/A') + '</div><div style="color:var(--text-mid,#666);font-size:0.85rem;font-weight:600;margin-top:0.5rem;">Average R²</div><div style="color:' + r2SubColor + ';font-size:0.75rem;font-weight:600;margin-top:0.25rem;">' + (avgR2 >= 0.7 ? 'Excellent' : avgR2 >= 0.5 ? 'Good' : 'Poor') + ' fit quality</div></div>';
-    
+    const medR2      = medianOf(r2Converged);
+    const r2Min      = r2Converged.length ? Math.min(...r2Converged) : null;
+    const r2Max      = r2Converged.length ? Math.max(...r2Converged) : null;
+    const meanUpper  = upperValues.length ? upperValues.reduce((a, b) => a + b, 0) / upperValues.length : null;
+    const gmt        = gmeanOf(titreValues);
+    const titreMin   = titreValues.length ? Math.min(...titreValues) : null;
+    const titreMax   = titreValues.length ? Math.max(...titreValues) : null;
+    const medTitre   = medianOf(titreValues);
+
+    const r2Color    = medR2 !== null ? (medR2 >= 0.7 ? '#28a745' : medR2 >= 0.5 ? '#f39c12' : '#e74c3c') : 'var(--text-dim,#888)';
+    const convRatio  = total > 0 ? titresObtained / total : 0;
+    const convColor  = convRatio >= 0.7 ? '#28a745' : convRatio >= 0.5 ? '#f39c12' : '#e74c3c';
+    const upColor    = meanUpper !== null ? (meanUpper >= 90 ? '#28a745' : meanUpper >= 75 ? '#f39c12' : '#e74c3c') : 'var(--text-dim,#888)';
+
+    function metricCell(value, label, sub, color, subColor) {
+      subColor = subColor || 'var(--text-dim,#888)';
+      return '<div class="text-center">' +
+        '<div style="font-size:2.2rem;color:' + color + ';font-weight:700;line-height:1;">' + value + '</div>' +
+        '<div style="color:var(--text-mid,#666);font-size:0.82rem;font-weight:600;margin-top:0.4rem;">' + label + '</div>' +
+        (sub ? '<div style="color:' + subColor + ';font-size:0.72rem;margin-top:0.2rem;">' + sub + '</div>' : '') +
+        '</div>';
+    }
+    function sectionLabel(text) {
+      return '<div class="col-12" style="margin-top:0.4rem;">' +
+        '<div style="border-top:1px solid var(--border,#dee2e6);padding-top:0.45rem;">' +
+        '<span style="font-size:0.67rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-dim,#888);">' + text + '</span>' +
+        '</div></div>';
+    }
+
+    let html = '';
+
+    // ── Row 1: Sample Overview ───────────────────────────────────
+    html += '<div class="col-12"><div class="row g-2">';
+    html += '<div class="col-4">' + metricCell(total,          'Total Samples',   null,                                   'var(--text-primary,#222)') + '</div>';
+    html += '<div class="col-4">' + metricCell(titresObtained, 'Titres Obtained', pct(titresObtained, total) + '% of samples', '#28a745', convColor) + '</div>';
+    html += '<div class="col-4">' + metricCell(noTitre,        'No Titre',        pct(noTitre, total)        + '% of samples', '#e74c3c') + '</div>';
+    html += '</div></div>';
+
+    // ── Row 2: Fit Quality (5 categories) ───────────────────────
+    html += sectionLabel('Fit Quality');
+    html += '<div class="col">' + metricCell(good,    'Good',           pct(good,    total) + '%', '#648fff') + '</div>';
+    html += '<div class="col">' + metricCell(unstable, 'Unstable',      pct(unstable,total) + '%', '#ffb000') + '</div>';
+    html += '<div class="col">' + metricCell(poorFit,  'Poor Fit',      pct(poorFit, total) + '%', '#dc267f') + '</div>';
+    html += '<div class="col">' + metricCell(lodLow,   '&lt;Lower LOD', pct(lodLow,  total) + '%', '#785ef0') + '</div>';
+    html += '<div class="col">' + metricCell(lodHigh,  '&gt;Upper LOD', pct(lodHigh, total) + '%', '#fe6100') + '</div>';
+
+    // ── Row 3: Goodness of Fit ───────────────────────────────────
+    html += sectionLabel('Goodness of Fit');
+    html += '<div class="col-4">' + metricCell(fmtR2(medR2), 'Median R²',
+      medR2 !== null ? (medR2 >= 0.7 ? 'Excellent' : medR2 >= 0.5 ? 'Good' : 'Poor') : null,
+      '#785ef0', r2Color) + '</div>';
+    html += '<div class="col-4">' + metricCell(
+      r2Min !== null ? fmtR2(r2Min) + ' – ' + fmtR2(r2Max) : 'N/A',
+      'R² Range', 'min – max', 'var(--text-mid,#555)') + '</div>';
+    html += '<div class="col-4">' + metricCell(
+      meanUpper !== null ? meanUpper.toFixed(1) + '%' : 'N/A',
+      'Mean Upper Plateau', 'target ~100%', '#28a745', upColor) + '</div>';
+
+    // ── Row 4: Titre Statistics ──────────────────────────────────
+    if (titreValues.length > 0) {
+      html += sectionLabel('Titre Statistics');
+      html += '<div class="col-4">' + metricCell(fmtTitre(gmt),      'Geom. Mean Titre', 'GMT',       '#28a745') + '</div>';
+      html += '<div class="col-4">' + metricCell(
+        fmtTitre(titreMin) + ' – ' + fmtTitre(titreMax), 'Titre Range', 'min – max', 'var(--text-mid,#555)') + '</div>';
+      html += '<div class="col-4">' + metricCell(fmtTitre(medTitre), 'Median Titre',     null,        'var(--text-mid,#555)') + '</div>';
+    }
+
     document.getElementById('qualityMetrics').innerHTML = html;
   })
   .catch(err => {
