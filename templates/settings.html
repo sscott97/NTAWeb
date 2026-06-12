@@ -579,6 +579,33 @@
 
             </div><!-- /stheme-grid -->
           </div><!-- /sgroup -->
+
+          <!-- ── Modular customizer ── -->
+          <div class="sgroup" id="customizer">
+            <div class="scust-head">
+              <div>
+                <div class="smini-label" style="margin-bottom:2px;">CUSTOMIZE — fonts &amp; colours</div>
+                <p class="srow-desc" style="margin:0; max-width:560px;">
+                  Tweak any part of the current theme. Changes apply live and are saved to this browser.
+                  Pick a theme above as a starting point, then adjust below. Use <em>Reset</em> to clear all customizations.
+                </p>
+              </div>
+              <button type="button" class="pt-pill" onclick="resetCustomizations()">↺ Reset customizations</button>
+            </div>
+
+            <!-- Font -->
+            <div class="scust-block">
+              <div class="scust-group-title">Typography</div>
+              <div class="scust-font-row">
+                <select id="custFont" class="form-select form-select-sm" onchange="setCustomFont(this.value)"></select>
+                <span id="custFontPreview" class="scust-font-preview">Ag — 0123 titre</span>
+              </div>
+            </div>
+
+            <!-- Colour / token groups injected here by JS -->
+            <div id="custTokenGroups"></div>
+          </div><!-- /customizer -->
+
         </div><!-- /scard-body -->
       </div><!-- /scard themes -->
 
@@ -869,6 +896,70 @@
   color: #28a745;
   background: rgba(40,167,69,0.08);
 }
+
+/* ── Modular customizer ── */
+.scust-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.1rem;
+}
+.scust-block { margin-bottom: 1.3rem; }
+.scust-group-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-dim, #999);
+  margin: 0 0 0.65rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--border, rgba(0,0,0,0.07));
+}
+.scust-font-row { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.scust-font-row .form-select { max-width: 300px; }
+.scust-font-preview {
+  font-size: 1.15rem;
+  font-weight: 500;
+  color: var(--text-primary, #222);
+  letter-spacing: 0.2px;
+}
+.scust-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.7rem 1rem;
+}
+.scust-row { display: flex; align-items: center; gap: 0.6rem; }
+.scust-color {
+  width: 36px; height: 36px;
+  padding: 0;
+  border: 1px solid var(--border-sharp, rgba(0,0,0,0.13));
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.scust-color::-webkit-color-swatch-wrapper { padding: 2px; }
+.scust-color::-webkit-color-swatch { border: none; border-radius: 4px; }
+.scust-meta { display: flex; flex-direction: column; min-width: 0; flex: 1; gap: 2px; }
+.scust-name {
+  font-size: 0.77rem; font-weight: 600;
+  color: var(--text-mid, #555);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.scust-fields { display: flex; gap: 4px; align-items: center; }
+.scust-input {
+  font-size: 0.71rem;
+  font-family: monospace;
+  flex: 1; min-width: 0;
+  padding: 3px 6px;
+  border: 1px solid var(--border, rgba(0,0,0,0.12));
+  border-radius: 4px;
+  background: var(--bg-raised, #f5f5f5);
+  color: var(--text-mid, #555);
+}
+.scust-input:focus { outline: none; border-color: var(--teal, #2e9bae); }
+.scust-alpha { flex: 0 0 50px; text-align: center; }
 </style>
 
 <!-- ════════════════════════════════════════════════════════════
@@ -913,6 +1004,11 @@ function setTheme(theme) {
   localStorage.setItem('nta-theme', theme);
   var link = document.getElementById('theme-stylesheet');
   var base = link.href.replace(/styles[^/]*\.css/, '');
+  // Once the new base stylesheet loads, repopulate the customizer controls so
+  // un-overridden tokens reflect the new theme's values (overrides still win).
+  link.onload = function () {
+    if (window.refreshCustomizerFromBase) window.refreshCustomizerFromBase();
+  };
   link.href = base + themeConfig[theme].css;
   highlightActiveTheme(theme);
   ntaToast('Theme changed to <strong>' + themeConfig[theme].name + '</strong>', 'info');
@@ -1137,6 +1233,238 @@ document.addEventListener('DOMContentLoaded', function () {
   // Mark first section active on load
   links[0] && links[0].classList.add('active');
 });
+</script>
+
+<!-- ════════════════════════════════════════════════════════════
+     MODULAR THEME CUSTOMIZER
+     ════════════════════════════════════════════════════════════ -->
+<script>
+(function () {
+
+  // ── Curated fonts ──  google:'' means no web font needed (system)
+  var FONTS = [
+    { label: 'System default',           stack: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif', google: '' },
+    { label: 'Inter (default)',          stack: "'Inter', system-ui, sans-serif",          google: 'Inter' },
+    { label: 'Roboto',                   stack: "'Roboto', system-ui, sans-serif",         google: 'Roboto' },
+    { label: 'Open Sans',                stack: "'Open Sans', system-ui, sans-serif",      google: 'Open Sans' },
+    { label: 'Lato',                     stack: "'Lato', system-ui, sans-serif",           google: 'Lato' },
+    { label: 'Montserrat',               stack: "'Montserrat', system-ui, sans-serif",     google: 'Montserrat' },
+    { label: 'Poppins',                  stack: "'Poppins', system-ui, sans-serif",        google: 'Poppins' },
+    { label: 'Nunito',                   stack: "'Nunito', system-ui, sans-serif",         google: 'Nunito' },
+    { label: 'Work Sans',                stack: "'Work Sans', system-ui, sans-serif",      google: 'Work Sans' },
+    { label: 'Source Sans 3',            stack: "'Source Sans 3', system-ui, sans-serif",  google: 'Source Sans 3' },
+    { label: 'IBM Plex Sans',            stack: "'IBM Plex Sans', system-ui, sans-serif",  google: 'IBM Plex Sans' },
+    { label: 'Merriweather (serif)',     stack: "'Merriweather', Georgia, serif",          google: 'Merriweather' },
+    { label: 'Lora (serif)',             stack: "'Lora', Georgia, serif",                  google: 'Lora' },
+    { label: 'Playfair Display (serif)', stack: "'Playfair Display', Georgia, serif",      google: 'Playfair Display' },
+    { label: 'IBM Plex Mono (mono)',     stack: "'IBM Plex Mono', monospace",              google: 'IBM Plex Mono' },
+    { label: 'JetBrains Mono (mono)',    stack: "'JetBrains Mono', monospace",             google: 'JetBrains Mono' }
+  ];
+
+  // ── Token schema ──  type: 'color' | 'alpha' (colour + opacity) | 'text'
+  var GROUPS = [
+    { title: 'Backgrounds', tokens: [
+      ['--bg-base','Page','color'], ['--bg-surface','Surface','color'],
+      ['--bg-raised','Raised','color'], ['--bg-hover','Hover','color'], ['--bg-inset','Inset','color']
+    ]},
+    { title: 'Accent', tokens: [
+      ['--teal','Accent','color'], ['--teal-dim','Accent dim','color'],
+      ['--teal-glow','Accent glow','alpha'], ['--teal-pale','Accent pale','alpha'], ['--teal-ink','Accent ink','alpha']
+    ]},
+    { title: 'Text', tokens: [
+      ['--text-primary','Primary','color'], ['--text-mid','Mid','color'],
+      ['--text-dim','Dim','color'], ['--text-faint','Faint','color']
+    ]},
+    { title: 'Borders', tokens: [
+      ['--border','Border','alpha'], ['--border-sharp','Border sharp','alpha']
+    ]},
+    { title: 'Status', tokens: [
+      ['--danger','Danger','color'], ['--warning','Warning','color'],
+      ['--info','Info','color'], ['--success-soft','Success soft','color']
+    ]},
+    { title: 'Shape & motion', tokens: [
+      ['--radius','Radius','text'], ['--radius-lg','Radius large','text'], ['--dur','Transition dur','text']
+    ]}
+  ];
+
+  var OV_KEY = 'nta-custom-overrides';
+
+  function getOverrides() { try { return JSON.parse(localStorage.getItem(OV_KEY) || '{}'); } catch (e) { return {}; } }
+  function saveOverrides(ov) { localStorage.setItem(OV_KEY, JSON.stringify(ov)); }
+
+  // ── Colour helpers ──
+  function clamp(n,a,b){ return Math.max(a, Math.min(b, n)); }
+  function toHex2(n){ var s = clamp(Math.round(n),0,255).toString(16); return s.length<2 ? '0'+s : s; }
+  function rgbToHex(r,g,b){ return '#'+toHex2(r)+toHex2(g)+toHex2(b); }
+  function normHex(h){
+    h = (h||'').trim();
+    if (/^#([0-9a-f]{3})$/i.test(h)) return '#'+h[1]+h[1]+h[2]+h[2]+h[3]+h[3];
+    if (/^#([0-9a-f]{6})$/i.test(h)) return h.toLowerCase();
+    return '';
+  }
+  function parseColor(v) {
+    v = (v||'').trim();
+    var h = normHex(v);
+    if (h) return { hex: h, alpha: 1 };
+    var m = v.match(/rgba?\(\s*([0-9.]+)[ ,]+([0-9.]+)[ ,]+([0-9.]+)(?:[ ,/]+([0-9.]+%?))?\s*\)/i);
+    if (m) {
+      var a = m[4] === undefined ? 1 : (/%$/.test(m[4]) ? parseFloat(m[4])/100 : parseFloat(m[4]));
+      return { hex: rgbToHex(+m[1], +m[2], +m[3]), alpha: isNaN(a)?1:a };
+    }
+    return { hex: '#000000', alpha: 1 };
+  }
+  function makeRgba(hex, alpha) {
+    var h = normHex(hex) || '#000000';
+    var r = parseInt(h.substr(1,2),16), g = parseInt(h.substr(3,2),16), b = parseInt(h.substr(5,2),16);
+    var a = clamp(parseFloat(alpha), 0, 1); if (isNaN(a)) a = 1;
+    return 'rgba('+r+', '+g+', '+b+', '+(Math.round(a*1000)/1000)+')';
+  }
+  function computed(varName) {
+    return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+  }
+
+  // ── Apply overrides + font to the live <style id=nta-custom-theme> ──
+  function applyCustomCSS() {
+    var ov = getOverrides(), decl = '';
+    for (var k in ov) { if (ov[k]) decl += k + ':' + ov[k] + ';'; }
+    var rootCss = decl ? ':root{' + decl + '}' : '';
+    var fontStack = localStorage.getItem('nta-custom-font-stack') || '';
+    if (fontStack) rootCss += 'body{font-family:' + fontStack + ' !important;}';
+    var st = document.getElementById('nta-custom-theme');
+    if (!st) { st = document.createElement('style'); st.id = 'nta-custom-theme'; document.head.appendChild(st); }
+    st.textContent = rootCss;
+  }
+  function ensureGoogleFont(google) {
+    var id = 'nta-google-font', existing = document.getElementById(id);
+    if (!google) { if (existing) existing.remove(); return; }
+    var href = 'https://fonts.googleapis.com/css2?family=' + google.replace(/ /g,'+') + ':wght@300;400;500;600;700&display=swap';
+    if (existing) { if (existing.href !== href) existing.href = href; return; }
+    var l = document.createElement('link'); l.id = id; l.rel = 'stylesheet'; l.href = href;
+    document.head.appendChild(l);
+  }
+  function setToken(varName, value) {
+    var ov = getOverrides();
+    if (value === null || value === '') delete ov[varName]; else ov[varName] = value;
+    saveOverrides(ov); applyCustomCSS();
+  }
+
+  // ── Font select ──
+  function buildFontSelect() {
+    var sel = document.getElementById('custFont'); if (!sel) return;
+    sel.innerHTML = '';
+    var curStack = localStorage.getItem('nta-custom-font-stack') || '';
+    FONTS.forEach(function (f, i) {
+      var o = document.createElement('option');
+      o.value = String(i); o.textContent = f.label;
+      if (f.stack === curStack) o.selected = true;
+      sel.appendChild(o);
+    });
+    updateFontPreview();
+  }
+  function updateFontPreview() {
+    var sel = document.getElementById('custFont'), prev = document.getElementById('custFontPreview');
+    if (!sel || !prev) return;
+    var f = FONTS[parseInt(sel.value,10)] || FONTS[0];
+    prev.style.fontFamily = f.stack;
+  }
+  window.setCustomFont = function (idx) {
+    var f = FONTS[parseInt(idx,10)]; if (!f) return;
+    localStorage.setItem('nta-custom-font-stack', f.stack);
+    localStorage.setItem('nta-custom-font-google', f.google);
+    ensureGoogleFont(f.google);
+    applyCustomCSS();
+    updateFontPreview();
+    if (window.ntaToast) ntaToast('Font set to <strong>' + f.label + '</strong>', 'info');
+  };
+
+  // ── Token controls ──
+  function buildTokenGroups() {
+    var host = document.getElementById('custTokenGroups'); if (!host) return;
+    host.innerHTML = '';
+    GROUPS.forEach(function (grp) {
+      var block = document.createElement('div'); block.className = 'scust-block';
+      var title = document.createElement('div'); title.className = 'scust-group-title';
+      title.textContent = grp.title; block.appendChild(title);
+      var grid = document.createElement('div'); grid.className = 'scust-grid';
+      grp.tokens.forEach(function (t) {
+        var row = document.createElement('div'); row.className = 'scust-row';
+        row.appendChild(buildControl(t[0], t[1], t[2]));
+        grid.appendChild(row);
+      });
+      block.appendChild(grid); host.appendChild(block);
+    });
+  }
+  function buildControl(varName, label, type) {
+    var cur = computed(varName);
+    var frag = document.createDocumentFragment();
+
+    if (type === 'color' || type === 'alpha') {
+      var pc = parseColor(cur);
+      var picker = document.createElement('input');
+      picker.type = 'color'; picker.className = 'scust-color'; picker.value = pc.hex;
+      picker.title = varName;
+      frag.appendChild(picker);
+
+      var meta = document.createElement('div'); meta.className = 'scust-meta';
+      var nm = document.createElement('span'); nm.className = 'scust-name';
+      nm.textContent = label; nm.title = varName; meta.appendChild(nm);
+
+      var fields = document.createElement('div'); fields.className = 'scust-fields';
+      var hex = document.createElement('input');
+      hex.type = 'text'; hex.className = 'scust-input'; hex.value = pc.hex;
+      fields.appendChild(hex);
+
+      var alpha = null;
+      if (type === 'alpha') {
+        alpha = document.createElement('input');
+        alpha.type = 'number'; alpha.min = '0'; alpha.max = '1'; alpha.step = '0.01';
+        alpha.className = 'scust-input scust-alpha';
+        alpha.value = String(Math.round(pc.alpha*100)/100);
+        fields.appendChild(alpha);
+      }
+      meta.appendChild(fields); frag.appendChild(meta);
+
+      function commit(fromPicker) {
+        var hx;
+        if (fromPicker) { hx = picker.value; hex.value = hx; }
+        else { hx = normHex(hex.value) || picker.value; picker.value = hx; hex.value = hx; }
+        setToken(varName, type === 'alpha' ? makeRgba(hx, alpha.value) : hx);
+      }
+      picker.addEventListener('input', function(){ commit(true); });
+      hex.addEventListener('change', function(){ commit(false); });
+      if (alpha) alpha.addEventListener('change', function(){ commit(false); });
+
+    } else {
+      var meta2 = document.createElement('div'); meta2.className = 'scust-meta';
+      var nm2 = document.createElement('span'); nm2.className = 'scust-name';
+      nm2.textContent = label; nm2.title = varName; meta2.appendChild(nm2);
+      var txt = document.createElement('input');
+      txt.type = 'text'; txt.className = 'scust-input'; txt.value = cur;
+      txt.addEventListener('change', function(){ setToken(varName, txt.value.trim()); });
+      meta2.appendChild(txt); frag.appendChild(meta2);
+    }
+    return frag;
+  }
+
+  window.refreshCustomizerFromBase = function () { buildTokenGroups(); };
+
+  window.resetCustomizations = function () {
+    if (!confirm('Clear all font and colour customizations? The selected base theme stays.')) return;
+    localStorage.removeItem(OV_KEY);
+    localStorage.removeItem('nta-custom-font-stack');
+    localStorage.removeItem('nta-custom-font-google');
+    ensureGoogleFont('');
+    var st = document.getElementById('nta-custom-theme'); if (st) st.textContent = '';
+    buildFontSelect(); buildTokenGroups();
+    if (window.ntaToast) ntaToast('Customizations reset.', 'info');
+  };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    buildFontSelect();
+    buildTokenGroups();
+  });
+
+})();
 </script>
 
 {% endblock %}

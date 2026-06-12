@@ -13,6 +13,7 @@
 <script>
     (function () {
 var themeMap = {
+'green':  'styles.css',
 'light':  'styles-light.css',
 'theme3': 'styles-theme3.css',
 'theme4': 'styles-theme4.css',
@@ -22,6 +23,33 @@ var theme = localStorage.getItem('nta-theme') || 'dark';
 var css   = themeMap[theme] || 'styles.css';
 var link  = document.getElementById('theme-stylesheet');
 link.href = link.href.replace(/\/[^\/]+\.css(\?.*)?$/, '/' + css);
+
+/* ── Modular custom theme: token overrides + font, applied before first paint ── */
+try {
+  var rootCss = '';
+  var ov = JSON.parse(localStorage.getItem('nta-custom-overrides') || '{}');
+  var decl = '';
+  for (var k in ov) { if (ov[k]) decl += k + ':' + ov[k] + ';'; }
+  if (decl) rootCss += ':root{' + decl + '}';
+
+  var fontStack  = localStorage.getItem('nta-custom-font-stack')  || '';
+  var fontGoogle = localStorage.getItem('nta-custom-font-google') || '';
+  if (fontStack) rootCss += 'body{font-family:' + fontStack + ' !important;}';
+
+  if (rootCss) {
+    var st = document.createElement('style');
+    st.id = 'nta-custom-theme';
+    st.textContent = rootCss;
+    document.head.appendChild(st);
+  }
+  if (fontGoogle) {
+    var fl = document.createElement('link');
+    fl.rel  = 'stylesheet';
+    fl.href = 'https://fonts.googleapis.com/css2?family=' +
+              fontGoogle.replace(/ /g, '+') + ':wght@300;400;500;600;700&display=swap';
+    document.head.appendChild(fl);
+  }
+} catch (e) {}
     })();
 </script>
 <style>
